@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger · Template Mockup</title>
+<script>
+  // Embedded (gallery iframe) or single-page capture (?page=resume|letter): show one bare page.
+  var page = new URLSearchParams(location.search).get('page');
+  if (window.self !== window.top || page) {
+    document.documentElement.classList.add('embed');
+    var show = page || location.hash.slice(1);
+    if (show) document.documentElement.dataset.show = show;
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+  /* ---------- mockup chrome (not part of the template) ---------- */
+  @page { size: letter; margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: #dfe3e8; }
+  body { margin: 0; padding: 72px 16px 64px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+         -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .toolbar { position: fixed; inset: 0 0 auto 0; height: 48px; display: flex; align-items: center; gap: 16px; padding: 0 20px;
+             background: rgba(255,255,255,.94); border-bottom: 1px solid #d0d5dc; z-index: 10;
+             font: 500 13px/1 system-ui, -apple-system, sans-serif; color: #334155; }
+  .toolbar a { color: #334155; text-decoration: none; }
+  .toolbar strong { color: #0f172a; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar button { font: inherit; border: 1px solid #c3cad3; background: #fff; border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+  .page-label { width: 8.5in; max-width: 100%; margin-top: 18px; font: 600 11px/1 system-ui, -apple-system, sans-serif;
+                letter-spacing: .08em; text-transform: uppercase; color: #5b6676; }
+  .page { width: 8.5in; height: 11in; flex: none; background: #fff; position: relative; overflow: hidden;
+          box-shadow: 0 1px 2px rgba(15,23,42,.10), 0 14px 40px rgba(15,23,42,.16); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  p, h1, h2, h3, dl, dd, address { margin: 0; }
+  address { font-style: normal; }
+  .embed, .embed body { background: #fff; }
+  .embed body { padding: 0; gap: 0; display: block; }
+  .embed .toolbar, .embed .page-label { display: none; }
+  .embed .page { box-shadow: none; }
+  html[data-show="letter"] #resume, html[data-show="resume"] #letter { display: none; }
+  @media print {
+    html, body { background: #fff; }
+    body { padding: 0; gap: 0; display: block; }
+    .toolbar, .page-label { display: none; }
+    .page { box-shadow: none; break-after: page; zoom: 1 !important; }
+  }
+
+  /* ---------- Ledger template ---------- */
+  .ledger {
+    --accent: #7A1F3D; --ink: #1b1a1a; --text: #262424; --muted: #6b6467; --rule: #dccfd4;
+    font-family: 'Source Serif 4', Georgia, serif; font-size: 9.3pt; line-height: 1.38; color: var(--text);
+    padding: .52in .7in .5in;
+  }
+  .ledger .display { font-family: 'EB Garamond', Garamond, 'Times New Roman', serif; }
+
+  .ledger header { text-align: center; }
+  .ledger .name { font-family: 'EB Garamond', Garamond, serif; font-size: 24pt; line-height: 1.1; font-weight: 500;
+                  letter-spacing: .16em; text-indent: .16em; text-transform: uppercase; color: var(--ink); }
+  .ledger .headline { margin-top: 3pt; font-size: 10.6pt; font-style: italic; color: #4b4447; }
+  .ledger .contact { display: flex; justify-content: center; flex-wrap: wrap; margin-top: 7pt; font-size: 8.7pt; color: #3d3739; }
+  .ledger .contact li + li::before { content: "·"; margin: 0 7pt; font-weight: 600; color: var(--accent); }
+  .ledger .double-rule { margin-top: 10pt; height: 4px; border-top: 1px solid var(--accent); border-bottom: 1px solid var(--accent); }
+
+  .ledger section { margin-top: 10pt; }
+  .ledger h2 { margin-bottom: 5pt; padding-bottom: 2pt; border-bottom: .75px solid var(--rule);
+               font-family: 'EB Garamond', Garamond, serif; font-size: 11pt; font-weight: 600;
+               letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+  .ledger .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; }
+  .ledger .org { font-family: 'EB Garamond', Garamond, serif; font-size: 11.8pt; font-weight: 600; letter-spacing: .01em; color: var(--ink); }
+  .ledger .place, .ledger .dates { font-size: 9pt; font-style: italic; color: var(--muted); white-space: nowrap; }
+  .ledger .title { font-style: italic; color: #3b3537; }
+  .ledger .role + .role { margin-top: 7pt; }
+  .ledger .bullets { margin-top: 3pt; }
+  .ledger .bullets li { position: relative; padding-left: 11pt; }
+  .ledger .bullets li + li { margin-top: 2pt; }
+  .ledger .bullets li::before { content: "•"; position: absolute; left: 1pt; color: var(--accent); }
+  .ledger .earlier { margin-top: 7pt; font-size: 9pt; color: var(--muted); }
+  .ledger .earlier b { font-weight: 600; color: var(--ink); }
+
+  .ledger .skills { display: grid; grid-template-columns: 1.6in 1fr; gap: 2pt 10pt; }
+  .ledger .skills dt { font-family: 'EB Garamond', Garamond, serif; font-size: 10.6pt; font-weight: 600; color: var(--ink); }
+  .ledger .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0 26pt; }
+  .ledger .item + .item { margin-top: 3pt; }
+  .ledger .item b { font-weight: 600; color: var(--ink); }
+  .ledger .item i { color: var(--muted); }
+
+  /* cover letter */
+  .ledger .letter { margin-top: 30pt; font-size: 10.6pt; line-height: 1.58; }
+  .ledger .letter address { margin-top: 14pt; }
+  .ledger .letter address b { font-weight: 600; color: var(--ink); }
+  .ledger .letter .re { margin-top: 16pt; font-family: 'EB Garamond', Garamond, serif; font-size: 11pt; font-weight: 600;
+                        letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .ledger .letter .salutation { margin-top: 12pt; }
+  .ledger .letter .body p { margin-top: 10pt; text-align: justify; hyphens: auto; }
+  .ledger .letter .closing { margin-top: 18pt; }
+  .ledger .letter .signature { margin-top: 18pt; font-family: 'EB Garamond', Garamond, serif; font-size: 14pt; letter-spacing: .06em; color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <a href="index.html">← All templates</a>
+  <strong>Ledger</strong><span>Single column · EB Garamond + Source Serif 4 · Burgundy</span>
+  <span class="spacer"></span>
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<!-- ======================= RÉSUMÉ ======================= -->
+<div class="page-label">Résumé · US Letter</div>
+<article class="page ledger" id="resume">
+  <header>
+    <h1 class="name">Jordan Rivera</h1>
+    <p class="headline">Senior Platform Engineer</p>
+    <ul class="contact">
+      <li>jordan@example.com</li>
+      <li>(555) 010-0199</li>
+      <li>Denver, CO (Remote)</li>
+      <li>linkedin.com/in/jrivera</li>
+      <li>github.com/jrivera</li>
+    </ul>
+    <div class="double-rule" role="presentation"></div>
+  </header>
+
+  <section>
+    <h2>Summary</h2>
+    <p>Platform engineer with 9 years of experience building and running distributed systems at scale. Led Kubernetes migrations, self-service developer platforms, and CI/CD modernization that cut deploy times from hours to minutes. Pairs deep infrastructure expertise with mentorship and clear technical writing.</p>
+  </section>
+
+  <section>
+    <h2>Experience</h2>
+    <div class="role">
+      <div class="row"><span class="org">Acme Payments</span><span class="place">Denver, CO</span></div>
+      <div class="row"><span class="title">Senior Software Engineer, Platform</span><span class="dates">March 2021 – Present</span></div>
+      <ul class="bullets">
+        <li>Led migration of 40 payment services from EC2 to Kubernetes (EKS), cutting p99 latency 45% and infrastructure cost $380K per year.</li>
+        <li>Designed a self-service developer platform on Backstage, Argo CD, and reusable Terraform modules; adopted by 22 teams, reducing new-service setup from 2 weeks to 1 day.</li>
+        <li>Built an SLO-driven canary release pipeline with Argo Rollouts and automated rollback, reducing failed production releases by 60%.</li>
+        <li>Redesigned on-call and incident review for the platform group, lowering mean time to recovery from 54 to 18 minutes.</li>
+        <li>Mentored 4 engineers through design reviews and pairing; two were promoted to senior within 18 months.</li>
+      </ul>
+    </div>
+    <div class="role">
+      <div class="row"><span class="org">Initech</span><span class="place">Austin, TX</span></div>
+      <div class="row"><span class="title">Software Engineer II</span><span class="dates">February 2019 – February 2021</span></div>
+      <div class="row"><span class="title">Software Engineer</span><span class="dates">June 2017 – February 2019</span></div>
+      <ul class="bullets">
+        <li>Rebuilt the monorepo build on Bazel with remote caching, cutting CI time from 42 to 9 minutes for 150 engineers.</li>
+        <li>Created Go tooling that standardized service-mesh mTLS configuration across 60 services.</li>
+        <li>Ran Postgres fleet upgrades (9.6 → 12) across 30 clusters with zero customer-facing downtime.</li>
+      </ul>
+    </div>
+    <p class="earlier"><b>Earlier:</b> Junior Software Engineer, Hooli, Austin, TX (2016 – 2017)</p>
+  </section>
+
+  <section>
+    <h2>Projects</h2>
+    <div class="row"><span><span class="org">tf-guard</span> <span class="title">· Open-source Terraform policy linter (Go)</span></span><span class="place">github.com/jrivera/tf-guard</span></div>
+    <ul class="bullets">
+      <li>Reached 1.2K GitHub stars; used in CI by 40+ organizations to block insecure infrastructure changes before merge.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Skills</h2>
+    <dl class="skills">
+      <dt>Languages</dt><dd>Go, Python, TypeScript, Bash</dd>
+      <dt>Cloud &amp; Infrastructure</dt><dd>Kubernetes, AWS (EKS, EC2, RDS), Terraform, Helm, Argo CD, Backstage</dd>
+      <dt>Observability</dt><dd>Prometheus, Grafana, OpenTelemetry</dd>
+      <dt>Practices</dt><dd>Platform Engineering, SRE, CI/CD, Incident Management</dd>
+    </dl>
+  </section>
+
+  <div class="split">
+    <section>
+      <h2>Certifications</h2>
+      <div class="item"><b>Certified Kubernetes Administrator</b>, <i>CNCF, 2023</i></div>
+      <div class="item"><b>AWS Solutions Architect – Associate</b>, <i>2022</i></div>
+    </section>
+    <section>
+      <h2>Education</h2>
+      <div class="item"><b>B.S. Computer Science</b></div>
+      <div class="item"><i>University of Colorado Boulder, 2016</i></div>
+    </section>
+  </div>
+</article>
+
+<!-- ======================= COVER LETTER ======================= -->
+<div class="page-label">Cover letter · US Letter</div>
+<article class="page ledger" id="letter">
+  <header>
+    <h1 class="name">Jordan Rivera</h1>
+    <p class="headline">Senior Platform Engineer</p>
+    <ul class="contact">
+      <li>jordan@example.com</li>
+      <li>(555) 010-0199</li>
+      <li>Denver, CO (Remote)</li>
+      <li>linkedin.com/in/jrivera</li>
+    </ul>
+    <div class="double-rule" role="presentation"></div>
+  </header>
+
+  <div class="letter">
+    <p class="date">October 6, 2026</p>
+    <address><b>Priya Shah</b><br>Director of Platform Engineering<br>Globex Corporation<br>San Francisco, CA</address>
+    <p class="re">Re: Staff Platform Engineer</p>
+    <p class="salutation">Dear Priya Shah,</p>
+    <div class="body">
+      <p>Globex is looking for a Staff Platform Engineer to turn its internal platform into a product engineers choose to use. That has been my focus for the past four years at Acme Payments, where the platform I designed now serves 22 product teams, and I would welcome the chance to bring that experience to your developer platform group.</p>
+      <p>At Acme, I led the migration of 40 payment services from EC2 to Kubernetes, cutting p99 latency by 45% and saving $380K a year in infrastructure costs. I then built a self-service platform on Backstage, Argo CD, and reusable Terraform modules that reduced new-service setup from two weeks to a single day. Earlier, at Initech, I rebuilt our monorepo build on Bazel and brought CI time down from 42 to 9 minutes for 150 engineers.</p>
+      <p>Your posting describes reliability as a product feature, which matches how I work. I built Acme’s SLO-driven canary pipeline, which cut failed releases by 60%, and reworked on-call and incident reviews to bring mean time to recovery from 54 to 18 minutes. I have also used Globex’s SDKs on two integration projects, so I know firsthand how much developer experience shapes adoption.</p>
+      <p>I would enjoy talking about how I could help Globex’s platform scale alongside its engineering organization. Thank you for your time and consideration.</p>
+    </div>
+    <p class="closing">Sincerely,</p>
+    <p class="signature">Jordan Rivera</p>
+  </div>
+</article>
+
+<script>
+  if (!document.documentElement.classList.contains('embed')) {
+    var fit = function () {
+      var s = Math.min(1, (window.innerWidth - 32) / 816);
+      document.querySelectorAll('.page').forEach(function (p) { p.style.zoom = s; });
+    };
+    window.addEventListener('resize', fit); fit();
+  }
+</script>
+</body>
+</html>

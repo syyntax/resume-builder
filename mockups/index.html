@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Template Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #f3f4f6; --card: #fff; --ink: #0f172a; --muted: #5b6474; --line: #e2e5ea; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 40px 16px 64px; }
+  @media (min-width: 720px) { .wrap { padding: 48px 32px 72px; } }
+
+  header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; }
+  header p { max-width: 780px; margin: 10px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .pill { padding: 5px 11px; border: 1px solid var(--line); border-radius: 99px; background: #fff; font-size: 12.5px; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 600px), 1fr)); gap: 24px; margin-top: 32px; }
+  .card { padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  .card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+  .card h2 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; }
+  .badge { padding: 3px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .badge.excellent { background: #ecfdf5; color: #047857; }
+  .badge.good { background: #fffbeb; color: #b45309; }
+  .badge.default { background: #eef2ff; color: #3730a3; }
+  .desc { margin: 10px 0 18px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+  .thumbs { display: flex; flex-wrap: wrap; gap: 18px; }
+  .thumb { display: block; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .frame { position: relative; width: 266px; height: 344px; margin-bottom: 8px; overflow: hidden; border-radius: 3px; background: #fff;
+           box-shadow: 0 1px 2px rgba(15,23,42,.14), 0 8px 24px rgba(15,23,42,.12); transition: transform .15s ease, box-shadow .15s ease; }
+  .thumb:hover .frame, .thumb:focus-visible .frame { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(15,23,42,.14), 0 14px 32px rgba(15,23,42,.18); }
+  .thumb:focus-visible { outline: none; }
+  .thumb:focus-visible span { color: var(--ink); text-decoration: underline; }
+  .frame iframe { width: 816px; height: 1056px; border: 0; transform: scale(.326); transform-origin: 0 0; pointer-events: none; }
+
+  .specs { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  .specs b { font-weight: 600; color: var(--ink); }
+
+  .review { margin-top: 32px; padding: 22px 24px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .review h2 { margin: 0 0 8px; font-size: 18px; }
+  .review p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .review p b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Résumé templates</h1>
+    <p>The four approved designs for Resume Tailor, with Meridian as the default. Each one is a matching set: a résumé and a cover letter that share the same letterhead, fonts, and accent color. They all use the same sample data, a Senior Platform Engineer applying for a Staff role, so you can compare the designs directly. Click a page to open it full size. From there, <em>Print / Save as PDF</em> shows how the exported file will look.</p>
+    <div class="facts">
+      <span class="pill">US Letter · 8.5 × 11 in</span>
+      <span class="pill">Real, selectable text (ATS-parseable)</span>
+      <span class="pill">Accent and fonts are theme options</span>
+      <span class="pill">Mockup fonts load from Google Fonts; the app bundles them</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <article class="card">
+      <div class="card-head">
+        <span class="swatch" style="background:#1F3A5F"></span>
+        <h2>Meridian</h2>
+        <span class="badge default">Default</span>
+        <span class="badge excellent">ATS: Excellent</span>
+      </div>
+      <p class="desc">Modern and crisp single column. A navy accent bar runs across the top. The name is large, contact details have small icons, section headings are small caps with a hairline rule, and dates are right-aligned. Works for most roles.</p>
+      <div class="thumbs">
+        <a class="thumb" href="meridian.html#resume"><div class="frame"><iframe src="meridian.html#resume" title="Meridian résumé preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Résumé</span></a>
+        <a class="thumb" href="meridian.html#letter"><div class="frame"><iframe src="meridian.html#letter" title="Meridian cover letter preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Cover letter</span></a>
+      </div>
+      <div class="specs"><span><b>Font</b> Inter</span><span><b>Accent</b> Navy #1F3A5F</span><span><b>Layout</b> Single column</span></div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="swatch" style="background:#0F766E"></span>
+        <h2>Atlas</h2>
+        <span class="badge good">ATS: Good</span>
+      </div>
+      <p class="desc">The most eye-catching option. A tinted sidebar holds a monogram, contact details, and skills as chips. The main column shows experience as a timeline. The cover letter's sidebar has a "Highlights" panel with the candidate's numbers. In the page markup, the main column comes first, so parsers read the experience before the sidebar.</p>
+      <div class="thumbs">
+        <a class="thumb" href="atlas.html#resume"><div class="frame"><iframe src="atlas.html#resume" title="Atlas résumé preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Résumé</span></a>
+        <a class="thumb" href="atlas.html#letter"><div class="frame"><iframe src="atlas.html#letter" title="Atlas cover letter preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Cover letter</span></a>
+      </div>
+      <div class="specs"><span><b>Font</b> IBM Plex Sans</span><span><b>Accent</b> Teal #0F766E</span><span><b>Layout</b> Two column</span></div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="swatch" style="background:#7A1F3D"></span>
+        <h2>Ledger</h2>
+        <span class="badge excellent">ATS: Excellent</span>
+      </div>
+      <p class="desc">Classic and editorial. A letter-spaced Garamond name, a centered header, burgundy double rules, and serif body text. Built for finance, legal, government, academic, and executive roles.</p>
+      <div class="thumbs">
+        <a class="thumb" href="ledger.html#resume"><div class="frame"><iframe src="ledger.html#resume" title="Ledger résumé preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Résumé</span></a>
+        <a class="thumb" href="ledger.html#letter"><div class="frame"><iframe src="ledger.html#letter" title="Ledger cover letter preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Cover letter</span></a>
+      </div>
+      <div class="specs"><span><b>Fonts</b> EB Garamond + Source Serif 4</span><span><b>Accent</b> Burgundy #7A1F3D</span><span><b>Layout</b> Single column</span></div>
+    </article>
+
+    <article class="card">
+      <div class="card-head">
+        <span class="swatch" style="background:#3730A3"></span>
+        <h2>Vanguard</h2>
+        <span class="badge excellent">ATS: Very good</span>
+      </div>
+      <p class="desc">Bold and confident. A full-width indigo header band with an angled two-tone panel, section labels in a left gutter, and chevron bullets. On the cover letter, the gutter holds the Date, To, and Re lines.</p>
+      <div class="thumbs">
+        <a class="thumb" href="vanguard.html#resume"><div class="frame"><iframe src="vanguard.html#resume" title="Vanguard résumé preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Résumé</span></a>
+        <a class="thumb" href="vanguard.html#letter"><div class="frame"><iframe src="vanguard.html#letter" title="Vanguard cover letter preview" loading="lazy" scrolling="no" tabindex="-1"></iframe></div><span>Cover letter</span></a>
+      </div>
+      <div class="specs"><span><b>Font</b> Source Sans 3</span><span><b>Accent</b> Indigo #3730A3</span><span><b>Layout</b> Header band + gutter</span></div>
+    </article>
+  </div>
+
+  <section class="review">
+    <h2>Status</h2>
+    <p>All four templates were approved on October 6, 2026, and <b>Meridian</b> is the default. These files are the reference for each template's résumé and cover letter layout, its CSS, and its DOCX version.</p>
+  </section>
+</div>
+</body>
+</html>

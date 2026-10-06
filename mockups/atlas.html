@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas · Template Mockup</title>
+<script>
+  // Embedded (gallery iframe) or single-page capture (?page=resume|letter): show one bare page.
+  var page = new URLSearchParams(location.search).get('page');
+  if (window.self !== window.top || page) {
+    document.documentElement.classList.add('embed');
+    var show = page || location.hash.slice(1);
+    if (show) document.documentElement.dataset.show = show;
+  }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- mockup chrome (not part of the template) ---------- */
+  @page { size: letter; margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: #dfe3e8; }
+  body { margin: 0; padding: 72px 16px 64px; display: flex; flex-direction: column; align-items: center; gap: 14px;
+         -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .toolbar { position: fixed; inset: 0 0 auto 0; height: 48px; display: flex; align-items: center; gap: 16px; padding: 0 20px;
+             background: rgba(255,255,255,.94); border-bottom: 1px solid #d0d5dc; z-index: 10;
+             font: 500 13px/1 system-ui, -apple-system, sans-serif; color: #334155; }
+  .toolbar a { color: #334155; text-decoration: none; }
+  .toolbar strong { color: #0f172a; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar button { font: inherit; border: 1px solid #c3cad3; background: #fff; border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+  .page-label { width: 8.5in; max-width: 100%; margin-top: 18px; font: 600 11px/1 system-ui, -apple-system, sans-serif;
+                letter-spacing: .08em; text-transform: uppercase; color: #5b6676; }
+  .page { width: 8.5in; height: 11in; flex: none; background: #fff; position: relative; overflow: hidden;
+          box-shadow: 0 1px 2px rgba(15,23,42,.10), 0 14px 40px rgba(15,23,42,.16); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  p, h1, h2, h3, dl, dd, address { margin: 0; }
+  address { font-style: normal; }
+  svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .embed, .embed body { background: #fff; }
+  .embed body { padding: 0; gap: 0; display: block; }
+  .embed .toolbar, .embed .page-label { display: none; }
+  .embed .page { box-shadow: none; }
+  html[data-show="letter"] #resume, html[data-show="resume"] #letter { display: none; }
+  @media print {
+    html, body { background: #fff; }
+    body { padding: 0; gap: 0; display: block; }
+    .toolbar, .page-label { display: none; }
+    .page { box-shadow: none; break-after: page; zoom: 1 !important; }
+  }
+
+  /* ---------- Atlas template ---------- */
+  .atlas {
+    --accent: #0F766E; --ink: #0d1f1d; --text: #1f2a29; --muted: #5d6d6b; --tint: #ecf5f3; --chip: #c3dfd8; --line: #cfe4df;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 9.6pt; line-height: 1.5; color: var(--text);
+    display: grid; grid-template-columns: 2.5in 1fr; grid-template-areas: "side main";
+  }
+  /* DOM order is <main> then <aside>, so text extraction / ATS reads the experience first */
+  .atlas main { grid-area: main; padding: .6in .56in .5in .42in; }
+  .atlas aside { grid-area: side; background: var(--tint); padding: .6in .3in .5in .44in; font-size: 8.5pt; }
+
+  .atlas .monogram { width: .62in; height: .62in; border-radius: 50%; background: var(--accent); color: #fff;
+                     display: grid; place-items: center; font-size: 15pt; font-weight: 600; letter-spacing: .04em; }
+  .atlas .name { font-size: 27pt; line-height: 1.02; font-weight: 700; letter-spacing: -.02em; color: var(--ink); }
+  .atlas .headline { margin-top: 5pt; font-size: 11pt; font-weight: 600; color: var(--accent); }
+  .atlas .summary { margin-top: 12pt; color: #2b3a38; }
+
+  .atlas main section { margin-top: 22pt; }
+  .atlas h2 { display: flex; align-items: center; gap: 7pt; margin-bottom: 10pt; font-size: 8.8pt; font-weight: 700;
+              letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+  .atlas h2::before { content: ""; width: 14pt; height: 3pt; border-radius: 2pt; background: var(--accent); }
+
+  .atlas .timeline { position: relative; padding-left: 14pt; }
+  .atlas .timeline::before { content: ""; position: absolute; left: 3pt; top: 6pt; bottom: 4pt; width: 1.25pt; background: var(--line); }
+  .atlas .role { position: relative; }
+  .atlas .role + .role { margin-top: 14pt; }
+  .atlas .role::before { content: ""; position: absolute; left: -14pt; top: 3pt; width: 7.5pt; height: 7.5pt; border-radius: 50%;
+                         background: #fff; border: 1.6pt solid var(--accent); }
+  .atlas .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10pt; }
+  .atlas .title { font-size: 10.3pt; font-weight: 600; color: var(--ink); }
+  .atlas .title .aside { font-weight: 400; color: var(--muted); }
+  .atlas .dates { font-size: 8.3pt; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .atlas .org { font-weight: 600; color: var(--accent); }
+  .atlas .org .loc { font-weight: 400; color: var(--muted); }
+  .atlas .org + .row { margin-top: 1.5pt; }
+  .atlas .bullets { margin-top: 3pt; }
+  .atlas .bullets li { position: relative; padding-left: 10pt; }
+  .atlas .bullets li + li { margin-top: 3.2pt; }
+  .atlas .bullets li::before { content: "–"; position: absolute; left: 0; font-weight: 600; color: var(--accent); }
+  .atlas .earlier { margin-top: 9pt; font-size: 8.5pt; color: var(--muted); }
+  .atlas .earlier b { font-weight: 600; color: var(--ink); }
+
+  .atlas aside h3 { margin: 20pt 0 7pt; font-size: 7.8pt; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+  .atlas aside .contact li { display: flex; align-items: flex-start; gap: 6pt; overflow-wrap: anywhere; }
+  .atlas aside .contact li + li { margin-top: 4.5pt; }
+  .atlas aside .contact .i { margin-top: 2pt; color: var(--accent); }
+  .atlas .group + .group { margin-top: 8pt; }
+  .atlas .group-label { margin-bottom: 3.5pt; font-weight: 600; color: var(--ink); }
+  .atlas .chips { display: flex; flex-wrap: wrap; gap: 3pt; }
+  .atlas .chip { padding: 1pt 6pt; border: 1px solid var(--chip); border-radius: 99px; background: #fff; font-size: 7.9pt; color: #1d3f3a; }
+  .atlas .cred + .cred { margin-top: 7pt; }
+  .atlas .cred b { display: block; font-weight: 600; color: var(--ink); }
+  .atlas .cred span { color: var(--muted); }
+
+  /* cover letter */
+  .atlas .stat + .stat { margin-top: 10pt; }
+  .atlas .stat b { display: block; font-size: 17pt; line-height: 1.05; font-weight: 700; color: var(--accent); letter-spacing: -.01em; }
+  .atlas .stat span { display: block; margin-top: 1.5pt; color: #2b3a38; }
+  .atlas .letter { margin-top: 24pt; padding-top: 18pt; border-top: 1px solid var(--line); font-size: 10.1pt; line-height: 1.56; }
+  .atlas .letter .date { color: var(--muted); }
+  .atlas .letter address { margin-top: 12pt; }
+  .atlas .letter address b { font-weight: 600; color: var(--ink); }
+  .atlas .letter .re { margin-top: 14pt; font-size: 8.4pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .atlas .letter .salutation { margin-top: 11pt; }
+  .atlas .letter .body p { margin-top: 9pt; }
+  .atlas .letter .closing { margin-top: 14pt; }
+  .atlas .letter .signature { margin-top: 14pt; font-size: 11pt; font-weight: 600; color: var(--ink); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h3.5l1.6 4.2-2.2 1.4a11 11 0 0 0 6.5 6.5l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 10.5v6M8.5 7.6v.1M12.2 16.5v-6M12.2 13a2.6 2.6 0 0 1 5.2 0v3.5"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5"/></symbol>
+</svg>
+
+<div class="toolbar">
+  <a href="index.html">← All templates</a>
+  <strong>Atlas</strong><span>Two column · IBM Plex Sans · Teal</span>
+  <span class="spacer"></span>
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>
+
+<!-- ======================= RÉSUMÉ ======================= -->
+<div class="page-label">Résumé · US Letter</div>
+<article class="page atlas" id="resume">
+  <main>
+    <header>
+      <h1 class="name">Jordan Rivera</h1>
+      <p class="headline">Senior Platform Engineer</p>
+    </header>
+    <p class="summary">Platform engineer with 9 years of experience building and running distributed systems at scale. Led Kubernetes migrations, self-service developer platforms, and CI/CD modernization that cut deploy times from hours to minutes. Pairs deep infrastructure expertise with mentorship and clear technical writing.</p>
+
+    <section>
+      <h2>Experience</h2>
+      <div class="timeline">
+        <div class="role">
+          <div class="row"><span class="title">Senior Software Engineer, Platform</span><span class="dates">Mar 2021 – Present</span></div>
+          <div class="org">Acme Payments <span class="loc">· Denver, CO</span></div>
+          <ul class="bullets">
+            <li>Led migration of 40 payment services from EC2 to Kubernetes (EKS), cutting p99 latency 45% and infrastructure cost $380K per year.</li>
+            <li>Designed a self-service developer platform on Backstage, Argo CD, and reusable Terraform modules; adopted by 22 teams, reducing new-service setup from 2 weeks to 1 day.</li>
+            <li>Built an SLO-driven canary release pipeline with Argo Rollouts and automated rollback, reducing failed production releases by 60%.</li>
+            <li>Redesigned on-call and incident review for the platform group, lowering mean time to recovery from 54 to 18 minutes.</li>
+            <li>Mentored 4 engineers through design reviews and pairing; two were promoted to senior within 18 months.</li>
+          </ul>
+        </div>
+        <div class="role">
+          <div class="org">Initech <span class="loc">· Austin, TX</span></div>
+          <div class="row"><span class="title">Software Engineer II</span><span class="dates">Feb 2019 – Feb 2021</span></div>
+          <div class="row"><span class="title">Software Engineer</span><span class="dates">Jun 2017 – Feb 2019</span></div>
+          <ul class="bullets">
+            <li>Rebuilt the monorepo build on Bazel with remote caching, cutting CI time from 42 to 9 minutes for 150 engineers.</li>
+            <li>Created Go tooling that standardized service-mesh mTLS configuration across 60 services.</li>
+            <li>Ran Postgres fleet upgrades (9.6 → 12) across 30 clusters with zero customer-facing downtime.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="earlier"><b>Earlier:</b> Junior Software Engineer, Hooli · Austin, TX (2016 – 2017)</p>
+    </section>
+
+    <section>
+      <h2>Projects</h2>
+      <div class="row"><span class="title">tf-guard <span class="aside">· Terraform policy linter (Go)</span></span><span class="dates">github.com/jrivera/tf-guard</span></div>
+      <ul class="bullets">
+        <li>Reached 1.2K GitHub stars; used in CI by 40+ organizations to block insecure infrastructure changes before merge.</li>
+      </ul>
+    </section>
+  </main>
+
+  <aside>
+    <div class="monogram" aria-hidden="true">JR</div>
+    <h3>Contact</h3>
+    <ul class="contact">
+      <li><svg class="i"><use href="#i-mail"/></svg>jordan@example.com</li>
+      <li><svg class="i"><use href="#i-phone"/></svg>(555) 010-0199</li>
+      <li><svg class="i"><use href="#i-pin"/></svg>Denver, CO · Remote</li>
+      <li><svg class="i"><use href="#i-in"/></svg>linkedin.com/in/jrivera</li>
+      <li><svg class="i"><use href="#i-code"/></svg>github.com/jrivera</li>
+    </ul>
+
+    <h3>Skills</h3>
+    <div class="group">
+      <div class="group-label">Languages</div>
+      <div class="chips"><span class="chip">Go</span><span class="chip">Python</span><span class="chip">TypeScript</span><span class="chip">Bash</span></div>
+    </div>
+    <div class="group">
+      <div class="group-label">Cloud &amp; Infrastructure</div>
+      <div class="chips"><span class="chip">Kubernetes</span><span class="chip">AWS</span><span class="chip">EKS</span><span class="chip">Terraform</span><span class="chip">Helm</span><span class="chip">Argo CD</span><span class="chip">Backstage</span></div>
+    </div>
+    <div class="group">
+      <div class="group-label">Observability</div>
+      <div class="chips"><span class="chip">Prometheus</span><span class="chip">Grafana</span><span class="chip">OpenTelemetry</span></div>
+    </div>
+    <div class="group">
+      <div class="group-label">Practices</div>
+      <div class="chips"><span class="chip">Platform Engineering</span><span class="chip">SRE</span><span class="chip">CI/CD</span><span class="chip">Incident Mgmt</span></div>
+    </div>
+
+    <h3>Certifications</h3>
+    <div class="cred"><b>Certified Kubernetes Administrator</b><span>CNCF · 2023</span></div>
+    <div class="cred"><b>AWS Solutions Architect – Associate</b><span>Amazon Web Services · 2022</span></div>
+
+    <h3>Education</h3>
+    <div class="cred"><b>B.S. Computer Science</b><span>University of Colorado Boulder · 2016</span></div>
+  </aside>
+</article>
+
+<!-- ======================= COVER LETTER ======================= -->
+<div class="page-label">Cover letter · US Letter</div>
+<article class="page atlas" id="letter">
+  <main>
+    <header>
+      <h1 class="name">Jordan Rivera</h1>
+      <p class="headline">Senior Platform Engineer</p>
+    </header>
+    <div class="letter">
+      <p class="date">October 6, 2026</p>
+      <address><b>Priya Shah</b><br>Director of Platform Engineering<br>Globex Corporation · San Francisco, CA</address>
+      <p class="re">Re: Staff Platform Engineer</p>
+      <p class="salutation">Dear Priya Shah,</p>
+      <div class="body">
+        <p>Globex is looking for a Staff Platform Engineer to turn its internal platform into a product engineers choose to use. That has been my focus for the past four years at Acme Payments, where the platform I designed now serves 22 product teams, and I would welcome the chance to bring that experience to your developer platform group.</p>
+        <p>At Acme, I led the migration of 40 payment services from EC2 to Kubernetes, cutting p99 latency by 45% and saving $380K a year in infrastructure costs. I then built a self-service platform on Backstage, Argo CD, and reusable Terraform modules that reduced new-service setup from two weeks to a single day. Earlier, at Initech, I rebuilt our monorepo build on Bazel and brought CI time down from 42 to 9 minutes for 150 engineers.</p>
+        <p>Your posting describes reliability as a product feature, which matches how I work. I built Acme’s SLO-driven canary pipeline, which cut failed releases by 60%, and reworked on-call and incident reviews to bring mean time to recovery from 54 to 18 minutes. I have also used Globex’s SDKs on two integration projects, so I know firsthand how much developer experience shapes adoption.</p>
+        <p>I would enjoy talking about how I could help Globex’s platform scale alongside its engineering organization. Thank you for your time and consideration.</p>
+      </div>
+      <p class="closing">Sincerely,</p>
+      <p class="signature">Jordan Rivera</p>
+    </div>
+  </main>
+
+  <aside>
+    <div class="monogram" aria-hidden="true">JR</div>
+    <h3>Contact</h3>
+    <ul class="contact">
+      <li><svg class="i"><use href="#i-mail"/></svg>jordan@example.com</li>
+      <li><svg class="i"><use href="#i-phone"/></svg>(555) 010-0199</li>
+      <li><svg class="i"><use href="#i-pin"/></svg>Denver, CO · Remote</li>
+      <li><svg class="i"><use href="#i-in"/></svg>linkedin.com/in/jrivera</li>
+      <li><svg class="i"><use href="#i-code"/></svg>github.com/jrivera</li>
+    </ul>
+
+    <h3>Highlights for Globex</h3>
+    <div class="stat"><b>40</b><span>payment services migrated to Kubernetes</span></div>
+    <div class="stat"><b>22 teams</b><span>building on the self-service platform I designed</span></div>
+    <div class="stat"><b>−60%</b><span>failed releases after SLO-driven canary rollouts</span></div>
+    <div class="stat"><b>54 → 18 min</b><span>mean time to recovery</span></div>
+  </aside>
+</article>
+
+<script>
+  if (!document.documentElement.classList.contains('embed')) {
+    var fit = function () {
+      var s = Math.min(1, (window.innerWidth - 32) / 816);
+      document.querySelectorAll('.page').forEach(function (p) { p.style.zoom = s; });
+    };
+    window.addEventListener('resize', fit); fit();
+  }
+</script>
+</body>
+</html>
