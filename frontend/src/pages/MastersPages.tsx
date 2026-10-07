@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Braces, Download, FileText, Pencil, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Braces, Download, FileText, FileUp, Paperclip, Pencil, SquarePen, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { ApiError, api, errorMessage } from "../api/client";
-import type { Master, MasterDetail, MasterDocument, MasterSave, Validation, VersionMeta } from "../api/types";
+import type { Master, MasterDetail, MasterDocument, MasterSave, SourceFile, Validation, VersionMeta } from "../api/types";
 import { Dialog } from "../components/Dialog";
+import { ImportStatusBadge, useImports } from "../components/imports";
 import { IssueList, JsonDropZone, MasterOverview, SummaryStats } from "../components/masters";
 import {
   Alert,
@@ -130,10 +131,13 @@ export function MastersPage() {
               <Braces className="size-4" aria-hidden /> JSON Schema
             </a>
             {!showUpload && (
-              <Button size="sm" icon={<Upload className="size-4" aria-hidden />} onClick={() => setUploading(true)}>
+              <Button variant="secondary" size="sm" icon={<Upload className="size-4" aria-hidden />} onClick={() => setUploading(true)}>
                 Upload JSON
               </Button>
             )}
+            <Link to="/masters/import" className={linkButtonClass("primary", "sm")}>
+              <FileUp className="size-4" aria-hidden /> Import PDF or Word
+            </Link>
           </>
         }
       />
@@ -148,12 +152,15 @@ export function MastersPage() {
           <CardBody>
             <UploadPanel saveLabel="Save master résumé" saving={create.isPending} error={create.error}
               onSave={(picked, label) => create.mutate({ text: picked.text, label })} />
-            <p className="mt-4 text-xs text-slate-500">
-              Importing an existing PDF or Word résumé is coming in a later release. For now, start from the example file.
+            <p className="mt-4 text-sm text-slate-500">
+              Don't have one in JSON? <Link to="/masters/import" className="font-medium text-brand-700 underline underline-offset-2 dark:text-brand-300">Import your PDF or Word résumé</Link> instead,
+              or start from the example file.
             </p>
           </CardBody>
         </Card>
       )}
+
+      <PendingImports />
 
       {masters.isPending ? (
         <Spinner />
@@ -192,6 +199,33 @@ export function MastersPage() {
   );
 }
 
+function PendingImports() {
+  const imports = useImports();
+  const pending = (imports.data ?? []).filter((i) => i.status !== "accepted");
+  if (!pending.length) return null;
+  return (
+    <Card className="mb-6">
+      <CardHeader title="Imports" description="Résumés you've uploaded that aren't saved as master résumés yet." />
+      <ul className="divide-y divide-slate-200 dark:divide-slate-800">
+        {pending.map((i) => (
+          <li key={i.id}>
+            <Link to={`/imports/${i.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50">
+              <span className="font-medium text-slate-900 dark:text-slate-100">{i.sourceName}</span>
+              <span className="flex items-center gap-3 text-slate-500">
+                {timeAgo(i.createdAt)} <ImportStatusBadge status={i.status} />
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function fileSize(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 // ---- detail -------------------------------------------------------------------------------------------
 
 function ChangeSummary({ changes }: { changes: Record<string, unknown> }) {
@@ -218,6 +252,7 @@ export function MasterDetailPage() {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [lastSave, setLastSave] = useState<MasterSave | null>(null);
+  const [deletingFile, setDeletingFile] = useState<{ versionId: string; file: SourceFile } | null>(null);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["master", id] });
@@ -235,6 +270,13 @@ export function MasterDetailPage() {
     mutationFn: (label: string) => api<Master>("PATCH", `/api/master-resumes/${id}`, { json: { label } }),
     onSuccess: () => {
       setRenaming(null);
+      refresh();
+    },
+  });
+  const removeFile = useMutation({
+    mutationFn: (versionId: string) => api<void>("DELETE", `/api/master-resumes/${id}/versions/${versionId}/source`),
+    onSuccess: () => {
+      setDeletingFile(null);
       refresh();
     },
   });
@@ -270,9 +312,14 @@ export function MasterDetailPage() {
                 <Download className="size-4" aria-hidden /> Download JSON
               </a>
             )}
-            <Button size="sm" icon={<Upload className="size-4" aria-hidden />} onClick={() => setUploading(true)}>
-              Upload new version
+            <Button variant="secondary" size="sm" icon={<Upload className="size-4" aria-hidden />} onClick={() => setUploading(true)}>
+              Upload JSON
             </Button>
+            {current && (
+              <Link to={`/masters/${id}/edit`} className={linkButtonClass("primary", "sm")}>
+                <SquarePen className="size-4" aria-hidden /> Edit
+              </Link>
+            )}
           </>
         }
       />
@@ -316,9 +363,23 @@ export function MasterDetailPage() {
                   <span className="text-slate-500">
                     {formatDateTime(v.createdAt)} · {v.summary.counts.bullets ?? 0} bullets
                   </span>
-                  <a href={`/api/master-resumes/${id}/versions/${v.id}/normalized`} className={linkButtonClass("ghost", "sm")}>
-                    <Download className="size-4" aria-hidden /> JSON
-                  </a>
+                  <span className="flex flex-wrap items-center gap-1">
+                    {v.sourceFile && (
+                      <>
+                        <a href={`/api/master-resumes/${id}/versions/${v.id}/source`} className={linkButtonClass("ghost", "sm")}
+                          title={`Imported from ${v.sourceFile.name} (${fileSize(v.sourceFile.size)})`}>
+                          <Paperclip className="size-4" aria-hidden /> Original
+                        </a>
+                        <Button variant="ghost" size="sm" icon={<Trash2 className="size-4" aria-hidden />}
+                          onClick={() => v.sourceFile && setDeletingFile({ versionId: v.id, file: v.sourceFile })}>
+                          <span className="sr-only">Delete the original file</span>
+                        </Button>
+                      </>
+                    )}
+                    <a href={`/api/master-resumes/${id}/versions/${v.id}/normalized`} className={linkButtonClass("ghost", "sm")}>
+                      <Download className="size-4" aria-hidden /> JSON
+                    </a>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -334,6 +395,11 @@ export function MasterDetailPage() {
         confirmDisabled={!renaming?.trim()} onClose={() => setRenaming(null)} onConfirm={() => renaming && rename.mutate(renaming.trim())}>
         <TextField label="Name" value={renaming ?? ""} maxLength={100} autoFocus onChange={(e) => setRenaming(e.target.value)}
           error={rename.isError ? errorMessage(rename.error) : undefined} />
+      </Dialog>
+      <Dialog open={deletingFile !== null} tone="danger" title="Delete the original file?" confirmLabel="Delete file"
+        busy={removeFile.isPending} onClose={() => setDeletingFile(null)} onConfirm={() => deletingFile && removeFile.mutate(deletingFile.versionId)}
+        description={`${deletingFile?.file.name ?? "The file"} is deleted. The master résumé version made from it stays.`}>
+        {removeFile.isError && <Alert tone="error">{errorMessage(removeFile.error)}</Alert>}
       </Dialog>
       <Dialog open={deleting} tone="danger" title={`Delete “${master.label}”?`} confirmLabel="Delete" busy={remove.isPending}
         description="All versions will be deleted. Download a copy first if you might need it." onClose={() => setDeleting(false)}

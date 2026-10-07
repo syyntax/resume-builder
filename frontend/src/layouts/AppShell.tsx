@@ -1,6 +1,6 @@
 import { Briefcase, FileText, Home, LogOut, Menu, Shield, UserRound, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { Link, NavLink, Outlet, useLocation, useMatches, useNavigate } from "react-router";
 
 import { useMe, useSignOut } from "../auth/auth";
 import { Alert, Badge, cn } from "../components/ui";
@@ -58,6 +58,8 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Routes with `handle: { wide: true }` (side-by-side screens such as import review) use the full width.
+  const wide = useMatches().some((match) => (match.handle as { wide?: boolean } | undefined)?.wide);
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
 
@@ -131,7 +133,7 @@ export function AppShell() {
       )}
 
       <main className="min-w-0 flex-1 px-4 py-6 sm:px-8 sm:py-8">
-        <div className="mx-auto max-w-5xl">
+        <div className={cn("mx-auto", wide ? "max-w-[96rem]" : "max-w-5xl")}>
           {me.notices.includes("open-registration-exposed") && (
             <Alert tone="warning" title="Anyone who can reach this app can create an account" className="mb-6">
               Registration is open and the app isn't running on localhost.{" "}

@@ -7,10 +7,12 @@ mechanical (bullets are copied verbatim), never a substitute for the real thing.
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import re
 from typing import Any
 
+from app.ai import fake_import
 from app.ai.llm import LLMError, LLMRequest, LLMResult, Usage, key_rejected
 
 # Terms the fake recognizes in postings even when the master résumé doesn't mention them (to produce gaps).
@@ -28,7 +30,7 @@ def _mentions(text: str, term: str) -> bool:
 
 
 def _usage(request: LLMRequest, output: dict[str, Any]) -> Usage:
-    prompt_chars = len(request.system) + sum(len(b.text) for b in request.blocks)
+    prompt_chars = len(request.system) + sum(len(b.text) + len(b.document or b"") // 2 for b in request.blocks)
     return Usage(input_tokens=prompt_chars // 4, output_tokens=len(json.dumps(output)) // 4)
 
 
@@ -45,6 +47,10 @@ class FakeLLM:
             raise key_rejected()
         if self.delay:
             await asyncio.sleep(self.delay)
+        if request.stage == "import":
+            data = fake_import.transcribe(self._document_text(request))
+            return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
+                             request_id="req_fake", duration_ms=5)
         master = json.loads(_between(request.blocks[0].text, "master_resume"))
         posting = _between(request.blocks[1].text, "job_posting")
         if request.stage == "analyze":
@@ -56,6 +62,15 @@ class FakeLLM:
             raise LLMError("bad_request", f"fake model has no stage {request.stage!r}")
         return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
                          request_id="req_fake", duration_ms=5)
+
+    @staticmethod
+    def _document_text(request: LLMRequest) -> str:
+        source = request.blocks[0]
+        if source.document is None:
+            return _between(source.text, "resume_document")
+        from pypdf import PdfReader  # the real model reads the PDF itself; the fake reads its text layer
+
+        return "\n".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(source.document)).pages)
 
     # ---- stage A ----------------------------------------------------------------------------------
 

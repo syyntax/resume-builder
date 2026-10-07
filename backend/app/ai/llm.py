@@ -6,6 +6,7 @@ demo mode swap in `app.ai.fake.FakeLLM` through `app.state.llm_factory`.
 
 from __future__ import annotations
 
+import base64
 import json
 import time
 from dataclasses import dataclass, field
@@ -22,10 +23,25 @@ NO_EFFORT_MODELS = frozenset({"claude-haiku-4-5"})
 
 @dataclass
 class Block:
-    """A text block of the user message. ``cache`` marks a prompt-cache breakpoint after this block."""
+    """A block of the user message: text, or a document (a PDF) when ``document`` is set.
 
-    text: str
+    ``cache`` marks a prompt-cache breakpoint after this block."""
+
+    text: str = ""
     cache: bool = False
+    document: bytes | None = None
+    media_type: str = "application/pdf"
+
+    def content(self) -> dict[str, Any]:
+        if self.document is not None:
+            data = base64.b64encode(self.document).decode("ascii")
+            block: dict[str, Any] = {"type": "document",
+                                     "source": {"type": "base64", "media_type": self.media_type, "data": data}}
+        else:
+            block = {"type": "text", "text": self.text}
+        if self.cache:
+            block["cache_control"] = {"type": "ephemeral"}
+        return block
 
 
 @dataclass
@@ -131,10 +147,7 @@ class AnthropicLLM:
         kwargs: dict[str, Any] = {}
         if request.model in FALLBACK_MODELS:
             kwargs.update(betas=[FALLBACK_BETA], fallbacks="default")
-        content = [
-            {"type": "text", "text": b.text, **({"cache_control": {"type": "ephemeral"}} if b.cache else {})}
-            for b in request.blocks
-        ]
+        content = [block.content() for block in request.blocks]
         system = [{"type": "text", "text": request.system, "cache_control": {"type": "ephemeral"}}]
 
         started = time.monotonic()

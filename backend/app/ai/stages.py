@@ -1,4 +1,4 @@
-"""AI stages A (analyze) and B (tailor). See DESIGN.md §9.
+"""AI stages I (import), A (analyze) and B (tailor). See DESIGN.md §9.
 
 Message layout keeps the stable content first so consecutive calls reuse the prompt cache:
 system → <master_resume> (breakpoint) → <job_posting> (breakpoint) → <task>.
@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.ai import prompts
+from app.ai.import_schema import MasterImportDraft
 from app.ai.llm import Block, LLMClient, LLMError, LLMRequest, LLMResult
 from app.ai.schemas import JobAnalysis, TailorDraft, strict_schema
 
@@ -124,3 +125,19 @@ async def tailor(llm: LLMClient, *, model: str, effort: str, master: dict[str, A
     )
     result = await llm.complete(request)
     return StageResult(_validate(request.stage, TailorDraft, result), result, task.tag)
+
+
+async def transcribe(llm: LLMClient, *, model: str, effort: str, kind: str, text: str = "",
+                     pdf: bytes | None = None) -> StageResult[MasterImportDraft]:
+    """Stage I: a PDF goes in as a document block (the model sees its layout and scanned pages); Word files
+    and pasted text go in as extracted text."""
+    task = prompts.load("import")
+    source = Block(document=pdf) if pdf is not None else Block(
+        f'<resume_document format="{kind}">\n{text.strip()}\n</resume_document>')
+    request = LLMRequest(
+        stage="import", model=model, system=prompts.load("import_system").text,
+        blocks=[source, Block(task.text)], schema=strict_schema(MasterImportDraft), effort=effort,
+        max_tokens=32_000,
+    )
+    result = await llm.complete(request)
+    return StageResult(_validate("import", MasterImportDraft, result), result, task.tag)

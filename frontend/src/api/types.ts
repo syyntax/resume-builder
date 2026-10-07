@@ -69,6 +69,12 @@ export type ApplicationStatus = Application["status"];
 export type AdminUser = S["AdminUserOut"];
 export type AdminAiSettings = S["AdminAiSettingsOut"];
 export type UserUsage = S["UserUsageOut"];
+export type SourceFile = S["SourceFileOut"];
+export type Import = S["ImportOut"];
+export type ImportDetail = S["ImportDetailOut"];
+export type ImportFlag = S["ImportFlagOut"];
+export type ImportPreview = S["ImportPreviewOut"];
+export type ImportStatus = Import["status"];
 
 /** Shape of the stored job analysis (backend app/ai/schemas.py JobAnalysis). */
 export interface JobAnalysis {

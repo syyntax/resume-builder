@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from starlette.exceptions import HTTPException
@@ -9,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.staticfiles import StaticFiles
-from starlette.types import Scope
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import Settings
 
@@ -52,6 +53,35 @@ class SecurityHeaders(BaseHTTPMiddleware):
         if path.startswith("/api/"):
             headers.setdefault("Cache-Control", "no-store")
         return response
+
+
+class BodySizeLimit:
+    """Refuse request bodies over ``limit`` bytes (413) before the app reads them.
+
+    Browsers always send Content-Length, so chunked request bodies (whose size is unknown up front) are
+    refused with 411. Routes that take uploads also count bytes as they read (``read_body``)."""
+
+    def __init__(self, app: ASGIApp, limit: int) -> None:
+        self.app, self.limit = app, limit
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers") or [])
+            declared = headers.get(b"content-length", b"")
+            if b"chunked" in headers.get(b"transfer-encoding", b"").lower():
+                await self._reject(send, 411, "Send the request with a Content-Length header.")
+                return
+            if declared.isdigit() and int(declared) > self.limit:
+                await self._reject(send, 413, "The request is too large.")
+                return
+        await self.app(scope, receive, send)
+
+    @staticmethod
+    async def _reject(send: Send, status: int, detail: str) -> None:
+        body = json.dumps({"detail": detail}).encode()
+        await send({"type": "http.response.start", "status": status,
+                    "headers": [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]})
+        await send({"type": "http.response.body", "body": body})
 
 
 class SinglePageApp(StaticFiles):

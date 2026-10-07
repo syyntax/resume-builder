@@ -48,7 +48,11 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: "masters", element: <MastersPage /> },
+          // The editor and import screens bring in drag-and-drop, Monaco and PDF.js: load them on demand.
+          { path: "masters/import", lazy: () => import("./pages/ImportPages").then((m) => ({ Component: m.ImportStartPage })) },
           { path: "masters/:id", element: <MasterDetailPage /> },
+          { path: "masters/:id/edit", handle: { wide: true }, lazy: () => import("./pages/MasterEditPage").then((m) => ({ Component: m.MasterEditPage })) },
+          { path: "imports/:id", handle: { wide: true }, lazy: () => import("./pages/ImportPages").then((m) => ({ Component: m.ImportReviewPage })) },
           { path: "applications", element: <ApplicationsPage /> },
           { path: "applications/new", element: <NewApplicationPage /> },
           { path: "applications/:id", element: <ApplicationDetailPage /> },

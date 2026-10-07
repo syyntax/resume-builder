@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, Circle, KeyRound, Sparkles, Upload } from "lucide-react";
+import { CheckCircle2, Circle, FileUp, KeyRound, Sparkles, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -56,12 +56,17 @@ export function HomePage() {
           <Step
             done={hasMaster}
             title="Add your master résumé"
-            description="Upload a JSON file with your full history. Start from the example if you don't have one."
+            description="Import your existing PDF or Word résumé (this uses your API key), or upload a master résumé JSON file."
             action={
               !hasMaster && (
-                <Link to="/masters" className={linkButtonClass("primary", "sm")}>
-                  <Upload className="size-4" aria-hidden /> Upload
-                </Link>
+                <span className="flex flex-wrap gap-2">
+                  <Link to="/masters/import" className={linkButtonClass("primary", "sm")}>
+                    <FileUp className="size-4" aria-hidden /> Import
+                  </Link>
+                  <Link to="/masters" className={linkButtonClass("secondary", "sm")}>
+                    <Upload className="size-4" aria-hidden /> Upload JSON
+                  </Link>
+                </span>
               )
             }
           />

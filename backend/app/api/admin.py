@@ -106,6 +106,7 @@ async def delete_user(
     await audit(db, "user.delete", request, actor_id=ctx.user.id, email=user.email, user_id=user.id)
     await db.delete(user)
     await db.commit()
+    request.app.state.files.delete_owner(user.id)  # uploaded résumés (rows were removed by the cascade)
     return Response(status_code=204)
 
 

@@ -1664,6 +1664,99 @@
         }
       }
     },
+    "/api/master-resumes/{master_id}/versions/{version_id}/source": {
+      "get": {
+        "tags": [
+          "master-resumes"
+        ],
+        "summary": "Download Source File",
+        "description": "The résumé file this version was imported from.",
+        "operationId": "download_source_file_api_master_resumes__master_id__versions__version_id__source_get",
+        "parameters": [
+          {
+            "name": "master_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Master Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "master-resumes"
+        ],
+        "summary": "Delete Source File",
+        "description": "Delete the original file. The version (and anything made from it) is kept.",
+        "operationId": "delete_source_file_api_master_resumes__master_id__versions__version_id__source_delete",
+        "parameters": [
+          {
+            "name": "master_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Master Id"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/master-resumes/{master_id}/versions/{version_id}/normalized": {
       "get": {
         "tags": [
@@ -1688,6 +1781,472 @@
             "schema": {
               "type": "string",
               "title": "Version Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Upload Resume",
+        "description": "Upload a PDF or DOCX résumé (the raw file is the request body; up to 5 MB and 10 pages).",
+        "operationId": "upload_resume_api_imports_post",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The original file name, for display.",
+              "title": "Filename"
+            },
+            "description": "The original file name, for display."
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "List Imports",
+        "operationId": "list_imports_api_imports_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportOut"
+                  },
+                  "title": "Response List Imports Api Imports Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/text": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Text",
+        "description": "Import a résumé from pasted plain text.",
+        "operationId": "import_text_api_imports_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportTextIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Get Import",
+        "operationId": "get_import_api_imports__import_id__get",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Delete Import",
+        "description": "Discard an import. Its file is deleted too, unless a saved master version still uses it.",
+        "operationId": "delete_import_api_imports__import_id__delete",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/preview": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Preview",
+        "description": "What the review screen shows beside the draft. PDFs are shown from ``/source``.",
+        "operationId": "preview_api_imports__import_id__preview_get",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/source": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Download Source",
+        "description": "The original uploaded file.",
+        "operationId": "download_source_api_imports__import_id__source_get",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/review": {
+      "put": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Save Review",
+        "description": "Autosave the review: the edited document and which flags were accepted or dismissed.",
+        "operationId": "save_review_api_imports__import_id__review_put",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportReviewIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportReviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/accept": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Accept Import",
+        "description": "Save the reviewed document as a new master résumé. The original file stays attached to its version.",
+        "operationId": "accept_import_api_imports__import_id__accept_post",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MasterSaveOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/retry": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Retry Import",
+        "operationId": "retry_import_api_imports__import_id__retry_post",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/events": {
+      "get": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Events",
+        "operationId": "import_events_api_imports__import_id__events_get",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
             }
           }
         ],
@@ -2720,6 +3279,47 @@
         ],
         "title": "DeleteAccountIn"
       },
+      "FidelityOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold"
+          },
+          "checked": {
+            "type": "integer",
+            "title": "Checked"
+          },
+          "passed": {
+            "type": "integer",
+            "title": "Passed"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "available",
+          "threshold",
+          "checked",
+          "passed",
+          "score"
+        ],
+        "title": "FidelityOut"
+      },
       "GenerationOptions": {
         "properties": {
           "pageLimit": {
@@ -2782,6 +3382,505 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportAcceptIn": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label",
+          "document"
+        ],
+        "title": "ImportAcceptIn"
+      },
+      "ImportDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "transcribing",
+              "checking",
+              "ready",
+              "failed",
+              "accepted"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "text"
+            ],
+            "title": "Sourcekind"
+          },
+          "sourceName": {
+            "type": "string",
+            "title": "Sourcename"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "resultMasterId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultmasterid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "hasTextLayer": {
+            "type": "boolean",
+            "title": "Hastextlayer"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft",
+            "description": "The transcription as first converted (for reverting)."
+          },
+          "document": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document",
+            "description": "The document under review: the draft plus saved edits."
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/ImportFlagOut"
+            },
+            "type": "array",
+            "title": "Flags"
+          },
+          "resolved": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "dismissed"
+              ]
+            },
+            "type": "object",
+            "title": "Resolved"
+          },
+          "fidelity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FidelityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "error",
+          "sourceKind",
+          "sourceName",
+          "model",
+          "resultMasterId",
+          "createdAt",
+          "updatedAt",
+          "pages",
+          "hasTextLayer",
+          "draft",
+          "document",
+          "flags",
+          "resolved",
+          "fidelity",
+          "costUsd"
+        ],
+        "title": "ImportDetailOut"
+      },
+      "ImportFlagOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "note",
+              "fidelity",
+              "inferredSkill"
+            ],
+            "title": "Kind"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning"
+            ],
+            "title": "Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "skill": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skill",
+            "description": "For inferredSkill flags: name, category, evidence."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "severity",
+          "message"
+        ],
+        "title": "ImportFlagOut"
+      },
+      "ImportOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "transcribing",
+              "checking",
+              "ready",
+              "failed",
+              "accepted"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "sourceKind": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "text"
+            ],
+            "title": "Sourcekind"
+          },
+          "sourceName": {
+            "type": "string",
+            "title": "Sourcename"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "resultMasterId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resultmasterid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "error",
+          "sourceKind",
+          "sourceName",
+          "model",
+          "resultMasterId",
+          "createdAt",
+          "updatedAt"
+        ],
+        "title": "ImportOut"
+      },
+      "ImportPreviewOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "html": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html",
+            "description": "Sanitized HTML of a Word file."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Pasted text, or the text extracted from the file."
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "html",
+          "text",
+          "pages"
+        ],
+        "title": "ImportPreviewOut"
+      },
+      "ImportReviewIn": {
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document"
+          },
+          "resolved": {
+            "additionalProperties": {
+              "type": "string",
+              "enum": [
+                "accepted",
+                "dismissed"
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 200
+            },
+            "type": "object",
+            "maxProperties": 2000,
+            "title": "Resolved",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document"
+        ],
+        "title": "ImportReviewIn"
+      },
+      "ImportReviewOut": {
+        "properties": {
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "updatedAt"
+        ],
+        "title": "ImportReviewOut"
+      },
+      "ImportTextIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 100,
+            "title": "Text"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ImportTextIn"
       },
       "InviteCreateIn": {
         "properties": {
@@ -3594,6 +4693,39 @@
         ],
         "title": "SetupStatusOut"
       },
+      "SourceFileOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "docx"
+            ],
+            "title": "Kind"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "size"
+        ],
+        "title": "SourceFileOut"
+      },
       "SpendOut": {
         "properties": {
           "spentUsd": {
@@ -4029,6 +5161,17 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "sourceFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceFileOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The résumé file this version was imported from."
           }
         },
         "additionalProperties": false,
@@ -4071,6 +5214,17 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "sourceFile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceFileOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The résumé file this version was imported from."
           },
           "content": {
             "additionalProperties": true,

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v0.3, open questions resolved |
-| **Last updated** | 2026-10-06 |
+| **Last updated** | 2026-10-07 |
 | **Stack** | FastAPI (Python 3.13) · React + TypeScript (Vite) · SQLite (or PostgreSQL) · Claude API · Playwright/Chromium · Docker Compose |
 | **Mockups** | [`mockups/index.html`](mockups/index.html): four templates, each with a résumé page and a matching cover letter. All four are approved, and **Meridian** is the default. |
 
@@ -822,7 +822,7 @@ Stage instructions live in `prompts/{import,analyze,tailor,letter,audit,refine,c
 | G5 | **Display aliases:** a skill's `display` value is its `name` or one of its `aliases` | Deterministic | Résumé | Error: falls back to `name` |
 | G6 | **Company-fact sourcing:** motivation sentences cite `posting` or `userNotes` | Deterministic and AI | Letter | Warning or `PERSONALIZE` flag |
 | G7 | **Claim audit:** an AI judge checks for inflated scope, ownership, or seniority | AI | Résumé, letter | Warning with a reason |
-| G8 | **Import fidelity:** each imported text field fuzzy-matches the extracted source text (rapidfuzz `partial_ratio` ≥ 90) | Deterministic | Import | Flag for review |
+| G8 | **Import fidelity:** each imported text field fuzzy-matches the extracted source text (rapidfuzz `partial_ratio` ≥ 90) **and** every word of three or more characters, and every number, in it appears in that text (so "40" → "400" or "EKS" → "GKE" can't slip through a high fuzzy score) | Deterministic | Import | Flag for review |
 | G9 | **Human review:** diffs, warning badges, and one-click revert | UX | All | — |
 
 Warnings never block export. The export dialog lists any that are still unresolved.
@@ -901,13 +901,15 @@ flowchart LR
     RV -->|Merge| MG[Duplicate-aware merge] --> M2[(New version of existing master)]
 ```
 
+Sniffing and extraction run **when the file is uploaded**, so a file we won't import (encrypted, too many pages, macros, not a résumé format) is refused right away with a message, and nothing is stored. Only the AI transcription runs as a background job (`queued → transcribing → checking → ready`, then `accepted` once saved), with progress over SSE like applications. A transcription that can't be normalized is repaired where possible: unreadable dates are dropped with a note, required fields that are missing get a visible placeholder ("Unknown company") with a note, and a résumé with no roles or projects gets a placeholder role to replace, rather than failing.
+
 ### 10.3 Extraction details
 
 - **PDF:**
   - The original PDF is sent to Claude as a `document` content block, so the model sees the layout and can read scanned pages.
   - pypdf extracts the text layer separately for the fidelity check. If there's no text layer (a scanned document), the check is skipped and the review screen says "fidelity check unavailable (scanned document)".
 - **DOCX:**
-  - python-docx walks the body paragraphs (keeping style names, such as headings and list items), tables, **headers and footers** (where contact details often are), text boxes (read from `w:txbxContent`), and hyperlink targets.
+  - python-docx walks the body paragraphs (keeping style names, such as headings and list items), tables, **headers and footers** (where contact details often are), text boxes (read from `w:txbxContent` and placed right after the paragraph they're anchored in), and hyperlink targets.
   - The result is serialized as lightly marked-up text and sent to Claude.
   - mammoth converts the DOCX to sanitized HTML for the review screen.
 - **Output:** a `MasterImportDraft`, which is a `MasterResume` plus `importNotes[]` and `inferredSkills[]`. The server assigns IDs and normalizes the draft, then validates it against the schema.
@@ -917,7 +919,8 @@ flowchart LR
 - **Review screen:**
   - The left pane shows the original (PDF.js for PDFs, sanitized HTML for DOCX).
   - The right pane shows the parsed master in the structured editor.
-  - A header shows flag counts (notes, fidelity mismatches, inferred skills) with *next and previous flag* navigation. Each flag can be accepted, edited, or dismissed.
+  - A header shows flag counts (notes, fidelity mismatches, inferred skills) with *next and previous flag* navigation. Each flag can be accepted, edited, or dismissed; an inferred skill can be added to `skills` in one click. The active flag opens and highlights the field it points at.
+  - Edits and flag decisions are autosaved, so the review survives a reload. Saving creates a new master whose first version keeps the original file attached (IMP-8); the file can be downloaded or deleted from the version list.
 - **Merge** (S):
   - Roles are matched on normalized `company`, `position`, and `startDate`. Bullets are matched on fuzzy similarity (≥ 85).
   - New roles and bullets are proposed as additions. Changed fields appear as side-by-side choices.
@@ -926,8 +929,10 @@ flowchart LR
 ### 10.5 File handling security
 
 - The file type is checked by its magic bytes and internal structure (`%PDF-`, or a ZIP containing `word/document.xml`), never just its extension or the MIME type the client sends.
-- PDF and DOCX parsing runs in a **subprocess** with a CPU time limit (20 s) and a memory limit (512 MB), which contains decompression bombs and parser bugs.
-- XML is parsed with entity resolution disabled.
+- PDF and DOCX parsing runs in a **subprocess** (`app.importers.worker`) with a CPU time limit (20 s), a memory limit (512 MB), no file writes, a 30 s wall-clock timeout, and a clean environment (it never sees `APP_SECRET_KEY` or API keys). That contains decompression bombs and parser bugs.
+- XML is parsed with entity resolution disabled, and any DOCX part containing a DTD (`<!DOCTYPE` or `<!ENTITY`) is rejected outright. The real unpacked size is counted while reading, not trusted from the ZIP headers.
+- Request bodies over 6 MB are refused before they're read, and chunked uploads (whose size isn't declared) are refused.
+- The DOCX preview HTML is sanitized (nh3: an allowlist of tags, `http`/`https`/`mailto` links only) and shown in a sandboxed iframe. Downloads of uploaded files carry `Content-Security-Policy: sandbox`.
 - Encrypted PDFs are rejected with a message asking the user to upload an unlocked copy.
 - Files are stored under random names outside any web-served path, and only their owner can access them. When the user deletes a file, it's removed from disk.
 
@@ -1164,10 +1169,13 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | POST · GET | `/master-resumes` | Create from JSON, or list |
 | GET · PUT · DELETE | `/master-resumes/{id}` | A PUT creates a new version |
 | GET | `/master-resumes/{id}/versions` · `/versions/{vid}` · `/versions/{vid}/normalized` | Versions and normalized download |
-| POST | `/imports` (multipart or `{text}`) | Start an import, returns `202 {id}` |
-| GET | `/imports/{id}` · `/imports/{id}/events` (SSE) · `/imports/{id}/source` | Draft, notes, fidelity, progress, and the original file or HTML preview |
-| POST | `/imports/{id}/accept` | `{mode: "new"\|"merge", masterId?, document}` |
-| DELETE | `/imports/{id}` | Discard an import and its file |
+| GET · DELETE | `/master-resumes/{id}/versions/{vid}/source` | The résumé file a version was imported from; delete it (the version stays) |
+| POST | `/imports?filename=` (the raw file as the body) · `/imports/text` (`{text, name?}`) | Start an import from a PDF or DOCX, or from pasted text; returns `202 {id}`. The file is checked and extracted first, so bad files fail here. |
+| GET | `/imports` · `/imports/{id}` · `/imports/{id}/events` (SSE) | List; the draft, flags, review state, fidelity and cost; progress |
+| GET | `/imports/{id}/preview` · `/imports/{id}/source` | Sanitized HTML (DOCX) or text for the review screen; the original file |
+| PUT | `/imports/{id}/review` | Autosave `{document, resolved}` while reviewing |
+| POST | `/imports/{id}/accept` · `/imports/{id}/retry` | Save as a new master `{label, document}` (merging into an existing master comes in M7); re-run a failed import |
+| DELETE | `/imports/{id}` | Discard an import, and its file unless a saved version uses it |
 | POST | `/applications` | `{masterId, job:{text,company?,title?,url?}, options:{pageLimit?,tone?,instructions?}}` uses the master's current version and returns `202` (M2; `coverLetter` options arrive in M5) |
 | GET | `/applications` · `/applications/{id}` · `/applications/{id}/events` (SSE) | List, get (posting, analysis, résumé, cost), and progress |
 | POST | `/applications/{id}/retry` | Re-run a failed application |
@@ -1336,7 +1344,7 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `SESSION_IDLE_DAYS` / `SESSION_MAX_DAYS` | `7` / `30` | |
 | `DEFAULT_MONTHLY_CAP_USD` | `20` | Default cap for each user's own-key and shared-key spending. `0` means unlimited. |
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
-| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | M2 implements `AI_EFFORT_ANALYZE` and `AI_EFFORT_TAILOR` |
+| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | Implemented so far: `AI_EFFORT_ANALYZE`, `AI_EFFORT_TAILOR`, `AI_EFFORT_IMPORT` |
 | `AI_PROVIDER` | `anthropic` | `fake` runs a deterministic offline stand-in model for tests and demos (never for real use) |
 | `AI_FAKE_DELAY_SECONDS` | `0` | With `AI_PROVIDER=fake`, wait this long per step, to demo the progress UI |
 | `APP_SECRET_KEY_PREVIOUS` | (empty) | Only while rotating `APP_SECRET_KEY` (see §8.6) |
@@ -1347,7 +1355,7 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `TRUSTED_PROXIES` | `127.0.0.1` | Set to the Caddy container's network when the `https` profile is used |
 | `ALLOW_INSECURE_HTTP` | `false` | Allows a non-localhost bind without HTTPS (testing only) |
 | `APP_PORT` | `8080` | |
-| `MAX_UPLOAD_BYTES` | `5242880` | |
+| `MAX_UPLOAD_BYTES` | `5242880` | Not configurable yet: imports are fixed at 5 MB and 10 pages |
 | `LOG_LEVEL` | `INFO` | |
 
 ---
@@ -1427,7 +1435,7 @@ resume-builder/
 | **M0: Design sign-off** ✅ | This document plus the **template mockups** | Done 2026-10-06: all four templates approved (Meridian is the default) and open questions answered |
 | **M1: Foundations and auth** ✅ | Scaffold, Dockerfile and compose (with profiles), DB and Alembic (SQLite and Postgres), **setup token, email and password login, sessions, CSRF, rate limits, registration modes (open, invite, closed), roles, owner-scoped repositories, IDOR test harness**, audit log, admin CLI, master schema plus JSON upload and validation | Two users can sign in. Each sees only their own masters. The IDOR matrix passes. |
 | **M2: AI core** ✅ | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
-| **M3: Import and master editor** | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
+| **M3: Import and master editor** ✅ | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
 | **M4: Beautiful output** | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
 | **M6: Formats and templates** | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
@@ -1445,6 +1453,16 @@ resume-builder/
 - **Done:** everything in the M2 row: bring-your-own keys (encrypted, verified, rotatable), the optional shared key, model policy, monthly caps per key source, the usage ledger, the job queue with live progress over SSE, stages A and B with one repair pass, guardrails G1–G5, keyword coverage, Markdown and JSON export, and the Applications, Account → AI and admin AI/Usage screens.
 - **Testing:** 118 backend tests and 10 frontend tests. The Anthropic client is tested against a stubbed SDK (request shape, error mapping, refusals); the full flow runs against `AI_PROVIDER=fake`, whose answers are checked against the exact structured-output schema sent to the real model. The first live run found a schema bug that check now covers (the converter stripped a field named `title`); answers that still fail validation are logged by field path, without résumé text.
 - **Deferred:** editing the analysis before tailoring (JOB-4) and the review-analysis-first mode (JOB-5) move to M5 with the editor.
+
+### M3 notes (2026-10-07)
+
+- **Done:** IMP-1 to IMP-5, IMP-7 (pasted text) and IMP-8 (the original file stays with the version), MST-4 (the structured editor with a JSON tab) and G8.
+  - **Import:** PDF (sent to Claude as a document block, so scans work), DOCX and pasted text, through the sandboxed extraction worker (§10.5) and stage I. Stage I uses its own system prompt (`prompts/import_system.md`) because its inputs and rules differ from tailoring. Its output schema (`MasterImportDraft`) has no optional or nullable fields, to stay inside the structured-output limits; empty strings mean "absent" and the server converts the draft into a master.
+  - **Review:** the original (PDF.js, or sanitized HTML in a sandboxed iframe) beside the structured editor, with a flag navigator, autosave, and "Save as new master".
+  - **Editor:** every section as forms, drag-and-drop (dnd-kit) and move buttons, pin and hide, tags, priority, skill references, bullet variants, undo and redo (⌘Z / ⇧⌘Z), server errors on the fields they're about, an unsaved-changes guard, and a Monaco JSON tab validated against the schema. The editor, Monaco and PDF.js load on demand, outside the main bundle.
+- **Corpus:** generated at test time (`backend/tests/corpus.py`): a plain PDF, a two-column PDF, a LinkedIn export, a scan, and a Word file with its contact details in the header, skills in a table, a certification in a text box, and a link; plus an encrypted PDF, an 11-page PDF, a `.docm`, two ZIP bombs (one that lies about its size) and a DOCX with a DTD. With the offline model every readable document imports at 96–100% fidelity, and every hostile one is refused. Verified on Linux that the worker's limits apply (a 700 MB allocation fails).
+- **Testing:** 159 backend tests and 17 frontend tests, plus a browser walkthrough with the offline model (import a PDF and a DOCX, resolve flags, save, edit in the form and JSON tabs, drag to reorder, the unsaved-changes guard). Stage I hasn't run against the live API yet; the live import eval set (§17) comes with M7.
+- **Deferred:** merging an import into an existing master (IMP-6, M7, as planned) and enrichment coaching (IMP-9).
 
 ---
 

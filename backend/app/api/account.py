@@ -7,6 +7,7 @@ import json
 import zipfile
 
 from fastapi import APIRouter, Depends, Request, Response
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.common import enforce_backoff, user_out, verify_password
@@ -16,6 +17,7 @@ from app.auth.ratelimit import Limits
 from app.auth.sessions import AuthContext, clear_session_cookie
 from app.config import Settings
 from app.db.engine import get_db
+from app.db.models import UploadedFile
 from app.db.types import utcnow
 from app.errors import ApiError
 from app.masters.repository import MasterRepository
@@ -79,6 +81,10 @@ async def export_account(
             for version in versions:
                 archive.writestr(f"{folder}/v{version.version_number}.json",
                                  json.dumps(version.content, indent=2, ensure_ascii=False))
+        files = (await db.execute(select(UploadedFile).where(UploadedFile.owner_id == user.id))).scalars()
+        for file in files:
+            data = request.app.state.files.read(file.storage_key)
+            archive.writestr(f"uploads/{file.id}-{file.original_name.replace('/', '_')}", data)
     await audit(db, "account.export", request, actor_id=user.id, target_id=user.id)
     await db.commit()
     stamp = utcnow().strftime("%Y%m%d")
@@ -105,6 +111,7 @@ async def delete_account(
     await audit(db, "account.delete", request, target_id=None, email=user.email, user_id=user.id)
     await db.delete(user)  # cascades to sessions, tokens and all owned content
     await db.commit()
+    request.app.state.files.delete_owner(user.id)  # and the uploaded résumés on disk
     response = Response(status_code=204)
     clear_session_cookie(response, settings)
     return response

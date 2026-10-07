@@ -159,7 +159,57 @@ class MasterResumeVersion(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     schema_version: Mapped[str] = mapped_column(String(10))
     warnings: Mapped[list[dict[str, str]]] = mapped_column(JSONType, default=list)
+    # The résumé file this version was imported from (IMP-8); the user can delete the file and keep the version.
+    source_file_id: Mapped[str | None] = mapped_column(
+        ForeignKey("uploaded_file.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class UploadedFile(Base):
+    """An uploaded résumé. The bytes live under DATA_DIR/uploads (see `app.importers.storage`)."""
+
+    __tablename__ = "uploaded_file"
+    __table_args__ = (CheckConstraint("kind IN ('pdf', 'docx')", name="kind"),)
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("fil"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(8))
+    original_name: Mapped[str] = mapped_column(String(255))
+    size: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    storage_key: Mapped[str] = mapped_column(String(120), unique=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class ImportJob(Base):
+    """One résumé import: the upload (or pasted text), what was extracted, the AI draft and the review."""
+
+    __tablename__ = "import_job"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'transcribing', 'checking', 'ready', 'failed', 'accepted')",
+                        name="status"),
+        CheckConstraint("source_kind IN ('pdf', 'docx', 'text')", name="source_kind"),
+    )
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("imp"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    file_id: Mapped[str | None] = mapped_column(ForeignKey("uploaded_file.id", ondelete="SET NULL"), nullable=True)
+    source_kind: Mapped[str] = mapped_column(String(8))
+    source_name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    model: Mapped[str] = mapped_column(String(64))
+    extraction: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)  # text, pages, html (DOCX)
+    draft: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)  # normalized master
+    flags: Mapped[list[dict[str, Any]]] = mapped_column(JSONType, default=list)
+    fidelity: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    review: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)  # {document, resolved}
+    result_master_id: Mapped[str | None] = mapped_column(
+        ForeignKey("master_resume.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class JobPosting(Base):
@@ -228,6 +278,9 @@ class AiCall(Base):
     owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
     application_id: Mapped[str | None] = mapped_column(
         ForeignKey("application.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    import_job_id: Mapped[str | None] = mapped_column(
+        ForeignKey("import_job.id", ondelete="SET NULL"), nullable=True, index=True
     )
     stage: Mapped[str] = mapped_column(String(32))
     model: Mapped[str] = mapped_column(String(64))

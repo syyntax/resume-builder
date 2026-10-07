@@ -9,6 +9,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from tests import corpus
 from tests.conftest import POSTING, TEST_KEY, USER_PASSWORD, Api, drain
 
 # Routes whose path parameter is not an owned resource id.
@@ -18,6 +19,8 @@ PUBLIC_TOKEN_ROUTES = {"/api/auth/invites/{token}", "/api/auth/password-reset/{t
 BODIES: dict[tuple[str, str], Any] = {
     ("PATCH", "/api/master-resumes/{master_id}"): {"label": "Hijacked"},
     ("PUT", "/api/master-resumes/{master_id}"): "EXAMPLE",
+    ("PUT", "/api/imports/{import_id}/review"): {"document": {}, "resolved": {}},
+    ("POST", "/api/imports/{import_id}/accept"): {"label": "Hijacked", "document": {}},
 }
 
 
@@ -36,13 +39,22 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
     created = alice.post("/api/master-resumes", json=example).json()
     application = alice.post("/api/applications", json={"masterId": created["master"]["id"],
                                                           "job": {"text": POSTING}}).json()
+    upload = alice.post("/api/imports?filename=cv.pdf", content=corpus.text_pdf(),
+                        headers={"content-type": "application/pdf"}).json()
     drain(app)
+    accepted = alice.post("/api/imports", content=corpus.text_pdf(), headers={"content-type": "application/pdf"})
+    drain(app)
+    imported = alice.post(f"/api/imports/{accepted.json()['id']}/accept", json={
+        "label": "From PDF", "document": alice.get(f"/api/imports/{accepted.json()['id']}").json()["document"]}).json()
     ids = {
         "master_id": created["master"]["id"],
         "version_id": created["version"]["id"],
         "session_id": alice.get("/api/auth/sessions").json()[0]["id"],
         "application_id": application["id"],
+        "import_id": upload["id"],
     }
+    # A version with an original file, so the file routes find something to protect.
+    file_ids = {"master_id": imported["master"]["id"], "version_id": imported["version"]["id"]}
 
     checked = 0
     for method, path in _routes(app):
@@ -51,7 +63,7 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
             continue
         unknown = [p for p in params if p not in ids]
         assert not unknown, f"{method} {path}: classify parameter(s) {unknown} in tests/test_idor.py"
-        url = path.format(**ids)
+        url = path.format(**(ids | file_ids if path.endswith("/source") and "master_id" in params else ids))
         body = BODIES.get((method, path))
         kwargs: dict[str, Any] = {}
         if body == "EXAMPLE":
@@ -61,13 +73,17 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
         response = bob.request(method, url, **kwargs)
         assert response.status_code == 404, f"{method} {url} -> {response.status_code}: {response.text[:200]}"
         checked += 1
-    assert checked >= 13
+    assert checked >= 23
 
     # Alice's data is untouched and still hers.
     detail = alice.get(f"/api/master-resumes/{ids['master_id']}").json()
     assert detail["label"] == "Engineering master" and detail["versionCount"] == 1
     assert bob.get("/api/master-resumes").json() == []
     assert bob.get("/api/applications").json() == []
+    assert bob.get("/api/imports").json() == []
+    assert alice.get(f"/api/imports/{ids['import_id']}").json()["status"] == "ready"
+    source = f"/api/master-resumes/{file_ids['master_id']}/versions/{file_ids['version_id']}/source"
+    assert alice.get(source).status_code == 200
     assert alice.get(f"/api/applications/{ids['application_id']}").json()["status"] == "done"
     assert alice.get("/api/auth/me").status_code == 200
 

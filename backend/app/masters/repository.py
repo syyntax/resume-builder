@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MasterResume, MasterResumeVersion
+from app.db.models import MasterResume, MasterResumeVersion, UploadedFile
 from app.db.types import utcnow
 
 
@@ -116,6 +116,18 @@ class MasterRepository:
         master.current_version_id = version.id
         master.updated_at = version.created_at
         return version
+
+    async def source_file(self, file_id: str | None) -> UploadedFile | None:
+        if file_id is None:
+            return None
+        return (await self.db.execute(select(UploadedFile).where(
+            UploadedFile.id == file_id, UploadedFile.owner_id == self.owner_id))).scalar_one_or_none()
+
+    async def source_files(self, file_ids: set[str]) -> list[UploadedFile]:
+        if not file_ids:
+            return []
+        return list((await self.db.execute(select(UploadedFile).where(
+            UploadedFile.id.in_(file_ids), UploadedFile.owner_id == self.owner_id))).scalars())
 
     async def delete(self, master: MasterResume) -> None:
         await self.db.execute(

@@ -668,6 +668,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/master-resumes/{master_id}/versions/{version_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Source File
+         * @description The résumé file this version was imported from.
+         */
+        get: operations["download_source_file_api_master_resumes__master_id__versions__version_id__source_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Source File
+         * @description Delete the original file. The version (and anything made from it) is kept.
+         */
+        delete: operations["delete_source_file_api_master_resumes__master_id__versions__version_id__source_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/master-resumes/{master_id}/versions/{version_id}/normalized": {
         parameters: {
             query?: never;
@@ -677,6 +701,182 @@ export interface paths {
         };
         /** Download Normalized */
         get: operations["download_normalized_api_master_resumes__master_id__versions__version_id__normalized_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Imports */
+        get: operations["list_imports_api_imports_get"];
+        put?: never;
+        /**
+         * Upload Resume
+         * @description Upload a PDF or DOCX résumé (the raw file is the request body; up to 5 MB and 10 pages).
+         */
+        post: operations["upload_resume_api_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Text
+         * @description Import a résumé from pasted plain text.
+         */
+        post: operations["import_text_api_imports_text_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Import */
+        get: operations["get_import_api_imports__import_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Import
+         * @description Discard an import. Its file is deleted too, unless a saved master version still uses it.
+         */
+        delete: operations["delete_import_api_imports__import_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview
+         * @description What the review screen shows beside the draft. PDFs are shown from ``/source``.
+         */
+        get: operations["preview_api_imports__import_id__preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Source
+         * @description The original uploaded file.
+         */
+        get: operations["download_source_api_imports__import_id__source_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Review
+         * @description Autosave the review: the edited document and which flags were accepted or dismissed.
+         */
+        put: operations["save_review_api_imports__import_id__review_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Import
+         * @description Save the reviewed document as a new master résumé. The original file stays attached to its version.
+         */
+        post: operations["accept_import_api_imports__import_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Import */
+        post: operations["retry_import_api_imports__import_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import Events */
+        get: operations["import_events_api_imports__import_id__events_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1019,6 +1219,19 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** FidelityOut */
+        FidelityOut: {
+            /** Available */
+            available: boolean;
+            /** Threshold */
+            threshold: number;
+            /** Checked */
+            checked: number;
+            /** Passed */
+            passed: number;
+            /** Score */
+            score: number | null;
+        };
         /** GenerationOptions */
         GenerationOptions: {
             /** Pagelimit */
@@ -1032,6 +1245,193 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** ImportAcceptIn */
+        ImportAcceptIn: {
+            /** Label */
+            label: string;
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
+        };
+        /** ImportDetailOut */
+        ImportDetailOut: {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "transcribing" | "checking" | "ready" | "failed" | "accepted";
+            /** Error */
+            error: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Sourcekind
+             * @enum {string}
+             */
+            sourceKind: "pdf" | "docx" | "text";
+            /** Sourcename */
+            sourceName: string;
+            /** Model */
+            model: string;
+            /** Resultmasterid */
+            resultMasterId: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+            /** Pages */
+            pages: number | null;
+            /** Hastextlayer */
+            hasTextLayer: boolean;
+            /**
+             * Draft
+             * @description The transcription as first converted (for reverting).
+             */
+            draft: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Document
+             * @description The document under review: the draft plus saved edits.
+             */
+            document: {
+                [key: string]: unknown;
+            } | null;
+            /** Flags */
+            flags: components["schemas"]["ImportFlagOut"][];
+            /** Resolved */
+            resolved: {
+                [key: string]: "accepted" | "dismissed";
+            };
+            fidelity: components["schemas"]["FidelityOut"] | null;
+            /** Costusd */
+            costUsd: number;
+        };
+        /** ImportFlagOut */
+        ImportFlagOut: {
+            /** Key */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "note" | "fidelity" | "inferredSkill";
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "info" | "warning";
+            /** Message */
+            message: string;
+            /** Path */
+            path?: string | null;
+            /** Targetid */
+            targetId?: string | null;
+            /** Field */
+            field?: string | null;
+            /** Score */
+            score?: number | null;
+            /**
+             * Skill
+             * @description For inferredSkill flags: name, category, evidence.
+             */
+            skill?: {
+                [key: string]: string;
+            } | null;
+        };
+        /** ImportOut */
+        ImportOut: {
+            /** Id */
+            id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "transcribing" | "checking" | "ready" | "failed" | "accepted";
+            /** Error */
+            error: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Sourcekind
+             * @enum {string}
+             */
+            sourceKind: "pdf" | "docx" | "text";
+            /** Sourcename */
+            sourceName: string;
+            /** Model */
+            model: string;
+            /** Resultmasterid */
+            resultMasterId: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** ImportPreviewOut */
+        ImportPreviewOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "docx" | "text";
+            /**
+             * Html
+             * @description Sanitized HTML of a Word file.
+             */
+            html: string | null;
+            /**
+             * Text
+             * @description Pasted text, or the text extracted from the file.
+             */
+            text: string | null;
+            /** Pages */
+            pages: number | null;
+        };
+        /** ImportReviewIn */
+        ImportReviewIn: {
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
+            /**
+             * Resolved
+             * @default {}
+             */
+            resolved: {
+                [key: string]: "accepted" | "dismissed";
+            };
+        };
+        /** ImportReviewOut */
+        ImportReviewOut: {
+            /**
+             * Updatedat
+             * Format: date-time
+             */
+            updatedAt: string;
+        };
+        /** ImportTextIn */
+        ImportTextIn: {
+            /** Text */
+            text: string;
+            /** Name */
+            name?: string | null;
         };
         /** InviteCreateIn */
         InviteCreateIn: {
@@ -1302,6 +1702,20 @@ export interface components {
             /** Needssetup */
             needsSetup: boolean;
         };
+        /** SourceFileOut */
+        SourceFileOut: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "pdf" | "docx";
+            /** Size */
+            size: number;
+        };
         /** SpendOut */
         SpendOut: {
             /** Spentusd */
@@ -1447,6 +1861,8 @@ export interface components {
             summary: components["schemas"]["MasterSummary"];
             /** Warnings */
             warnings: components["schemas"]["IssueOut"][];
+            /** @description The résumé file this version was imported from. */
+            sourceFile?: components["schemas"]["SourceFileOut"] | null;
         };
         /** VersionOut */
         VersionOut: {
@@ -1464,6 +1880,8 @@ export interface components {
             summary: components["schemas"]["MasterSummary"];
             /** Warnings */
             warnings: components["schemas"]["IssueOut"][];
+            /** @description The résumé file this version was imported from. */
+            sourceFile?: components["schemas"]["SourceFileOut"] | null;
             /** Content */
             content: {
                 [key: string]: unknown;
@@ -2808,6 +3226,68 @@ export interface operations {
             };
         };
     };
+    download_source_file_api_master_resumes__master_id__versions__version_id__source_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                master_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_file_api_master_resumes__master_id__versions__version_id__source_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                master_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     download_normalized_api_master_resumes__master_id__versions__version_id__normalized_get: {
         parameters: {
             query?: never;
@@ -2815,6 +3295,345 @@ export interface operations {
             path: {
                 master_id: string;
                 version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_imports_api_imports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"][];
+                };
+            };
+        };
+    };
+    upload_resume_api_imports_post: {
+        parameters: {
+            query?: {
+                /** @description The original file name, for display. */
+                filename?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_text_api_imports_text_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportTextIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_import_api_imports__import_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportDetailOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_import_api_imports__import_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_imports__import_id__preview_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_source_api_imports__import_id__source_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_review_api_imports__import_id__review_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportReviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_import_api_imports__import_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportAcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MasterSaveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_import_api_imports__import_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_events_api_imports__import_id__events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
             };
             cookie?: never;
         };

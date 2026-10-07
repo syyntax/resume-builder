@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+from urllib.parse import quote
 
-from fastapi import Request
+from fastapi import Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import passwords
 from app.auth.ratelimit import FailureBackoff, SlidingWindow
 from app.auth.sessions import client_ip
 from app.config import Settings
-from app.db.models import User, UserSession
+from app.db.models import UploadedFile, User, UserSession
 from app.errors import ApiError
 from app.models.api import MeOut, UserOut
 from app.services import settings_store
@@ -28,6 +29,33 @@ async def me_out(db: AsyncSession, user: User, session: UserSession, settings: S
         if policy.mode == "open" and not policy.domains:
             notices.append("open-registration-exposed")
     return MeOut(user=user_out(user), csrf_token=session.csrf_token, notices=notices)
+
+
+async def read_body(request: Request, limit: int, too_large: str) -> bytes:
+    """The raw request body, refusing (413) anything over ``limit`` bytes without reading it all."""
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > limit:
+        raise ApiError(413, too_large)
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > limit:
+            raise ApiError(413, too_large)
+    return bytes(body)
+
+
+MEDIA_TYPES = {"pdf": "application/pdf",
+               "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+
+
+def file_response(request: Request, file: UploadedFile) -> Response:
+    """An uploaded file as a download. The sandbox CSP keeps it inert if a browser renders it anyway."""
+    data = request.app.state.files.read(file.storage_key)
+    ascii_name = file.original_name.encode("ascii", "replace").decode().replace("?", "_").replace('"', "_")
+    return Response(data, media_type=MEDIA_TYPES[file.kind], headers={
+        "Content-Disposition": f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(file.original_name)}",
+        "Content-Security-Policy": "sandbox; default-src 'none'",
+    })
 
 
 def enforce_window(limiter: SlidingWindow, request: Request, message: str) -> None:

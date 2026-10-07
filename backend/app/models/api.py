@@ -173,6 +173,13 @@ class ValidationOut(CamelModel):
     normalized: dict[str, Any] | None = None
 
 
+class SourceFileOut(CamelModel):
+    id: str
+    name: str
+    kind: Literal["pdf", "docx"]
+    size: int
+
+
 class VersionMeta(CamelModel):
     id: str
     version_number: int
@@ -180,6 +187,8 @@ class VersionMeta(CamelModel):
     created_at: datetime
     summary: MasterSummary
     warnings: list[IssueOut]
+    source_file: SourceFileOut | None = Field(default=None,
+                                              description="The résumé file this version was imported from.")
 
 
 class VersionOut(VersionMeta):
@@ -265,6 +274,84 @@ class UsageOut(CamelModel):
     own: SpendOut
     shared: SpendOut | None
     by_stage: list[StageUsageOut]
+
+
+# ---- imports (DESIGN.md §10) --------------------------------------------------------------------------
+
+ImportStatus = Literal["queued", "transcribing", "checking", "ready", "failed", "accepted"]
+
+
+class ImportTextIn(CamelModel):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=100, max_length=50_000)]
+    name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+
+
+class ImportOut(CamelModel):
+    id: str
+    status: ImportStatus
+    error: dict[str, Any] | None
+    source_kind: Literal["pdf", "docx", "text"]
+    source_name: str
+    model: str
+    result_master_id: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImportFlagOut(CamelModel):
+    key: str
+    kind: Literal["note", "fidelity", "inferredSkill"]
+    severity: Literal["info", "warning"]
+    message: str
+    path: str | None = None
+    target_id: str | None = None
+    field: str | None = None
+    score: float | None = None
+    skill: dict[str, str] | None = Field(default=None, description="For inferredSkill flags: name, category, evidence.")
+
+
+class FidelityOut(CamelModel):
+    available: bool
+    threshold: float
+    checked: int
+    passed: int
+    score: float | None
+
+
+class ImportDetailOut(ImportOut):
+    pages: int | None
+    has_text_layer: bool
+    draft: dict[str, Any] | None = Field(description="The transcription as first converted (for reverting).")
+    document: dict[str, Any] | None = Field(description="The document under review: the draft plus saved edits.")
+    flags: list[ImportFlagOut]
+    resolved: dict[str, Literal["accepted", "dismissed"]]
+    fidelity: FidelityOut | None
+    cost_usd: float
+
+
+class ImportPreviewOut(CamelModel):
+    kind: Literal["pdf", "docx", "text"]
+    html: str | None = Field(description="Sanitized HTML of a Word file.")
+    text: str | None = Field(description="Pasted text, or the text extracted from the file.")
+    pages: int | None
+
+
+Resolution = Literal["accepted", "dismissed"]
+
+
+class ImportReviewIn(CamelModel):
+    document: dict[str, Any]
+    resolved: Annotated[dict[Annotated[str, StringConstraints(max_length=200)], Resolution],
+                        Field(max_length=2000)] = {}
+
+
+class ImportReviewOut(CamelModel):
+    updated_at: datetime
+
+
+class ImportAcceptIn(CamelModel):
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    document: dict[str, Any]
 
 
 # ---- applications -----------------------------------------------------------------------------------

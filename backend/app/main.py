@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.ai.fake import FakeLLM
 from app.ai.llm import AnthropicLLM
-from app.api import account, admin, ai, applications, auth, masters, meta
+from app.api import account, admin, ai, applications, auth, imports, masters, meta
 from app.auth import passwords
 from app.auth.bootstrap import announce_setup_token, ensure_setup_token
 from app.auth.ratelimit import Limits
@@ -20,12 +20,15 @@ from app.auth.sessions import purge_expired
 from app.config import Settings
 from app.db.engine import build_engine, run_migrations
 from app.errors import install_error_handlers
+from app.importers.storage import FileStore
+from app.pipeline import importer
 from app.pipeline.jobs import EventBus, JobRunner
 from app.pipeline.run import mark_interrupted
 from app.services import settings_store
-from app.web import SecurityHeaders, SinglePageApp
+from app.web import BodySizeLimit, SecurityHeaders, SinglePageApp
 
 log = logging.getLogger("resume_tailor")
+MAX_REQUEST_BYTES = 6 * 1024 * 1024  # the largest request is a 5 MB résumé upload
 
 
 @asynccontextmanager
@@ -45,9 +48,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await db.commit()
         token = await ensure_setup_token(db)
         policy = await settings_store.registration_policy(db)
-        interrupted = await mark_interrupted(db)
+        interrupted = await mark_interrupted(db) + await importer.mark_interrupted(db)
     if interrupted:
-        log.warning("%d application(s) were interrupted by a restart and marked failed; users can retry them.",
+        log.warning("%d job(s) were interrupted by a restart and marked failed; users can retry them.",
                     interrupted)
     app.state.jobs = JobRunner(settings.ai_max_concurrent_jobs)
     if settings.ai_provider == "fake":
@@ -84,13 +87,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.setup_token = None
     app.state.events = EventBus()
     app.state.jobs = None  # created in the lifespan, inside the running event loop
+    app.state.files = FileStore(settings.data_dir / "uploads")
     if settings.ai_provider == "fake":
         app.state.llm_factory = lambda key: FakeLLM(key, delay=settings.ai_fake_delay_seconds)
     else:
         app.state.llm_factory = AnthropicLLM
     install_error_handlers(app)
     app.add_middleware(SecurityHeaders, settings=settings)
-    for module in (meta, auth, account, ai, admin, masters, applications):
+    app.add_middleware(BodySizeLimit, limit=MAX_REQUEST_BYTES)
+    for module in (meta, auth, account, ai, admin, masters, imports, applications):
         app.include_router(module.router)
     if settings.static_dir and settings.static_dir.is_dir():
         app.mount("/", SinglePageApp(settings.static_dir), name="spa")

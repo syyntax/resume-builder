@@ -18,7 +18,7 @@ from app.errors import ApiError
 KeySource = Literal["own", "shared"]
 
 # Rough per-stage token estimates for the pre-flight cap check (output includes thinking).
-STAGE_ESTIMATES = {"analyze": (14_000, 6_000), "tailor": (17_000, 12_000)}
+STAGE_ESTIMATES = {"analyze": (14_000, 6_000), "tailor": (17_000, 12_000), "import": (15_000, 12_000)}
 
 
 def month_start(now: datetime | None = None) -> datetime:
@@ -83,14 +83,15 @@ async def ensure_within_cap(db: AsyncSession, user: User, source: KeySource, set
 
 async def record_call(db: AsyncSession, *, owner_id: str, application_id: str | None, stage: str, model: str,
                       key_source: KeySource, prompt_version: str, settings: Settings,
-                      result: LLMResult | None = None, error: LLMError | None = None) -> AiCall | None:
+                      result: LLMResult | None = None, error: LLMError | None = None,
+                      import_job_id: str | None = None) -> AiCall | None:
     usage: Usage | None = result.usage if result else (error.usage if error else None)
     if usage is None:  # nothing was billed (the request never produced output)
         return None
     served = (result.model if result else error.model if error else None) or model
     call = AiCall(
-        owner_id=owner_id, application_id=application_id, stage=stage, model=served, key_source=key_source,
-        prompt_version=prompt_version,
+        owner_id=owner_id, application_id=application_id, import_job_id=import_job_id, stage=stage, model=served,
+        key_source=key_source, prompt_version=prompt_version,
         request_id=result.request_id if result else (error.request_id if error else None),
         input_tokens=usage.input_tokens, output_tokens=usage.output_tokens,
         cache_read_tokens=usage.cache_read_tokens, cache_write_tokens=usage.cache_write_tokens,
