@@ -10,7 +10,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api import account, admin, auth, masters, meta
+from app.ai.fake import FakeLLM
+from app.ai.llm import AnthropicLLM
+from app.api import account, admin, ai, applications, auth, masters, meta
 from app.auth import passwords
 from app.auth.bootstrap import announce_setup_token, ensure_setup_token
 from app.auth.ratelimit import Limits
@@ -18,6 +20,8 @@ from app.auth.sessions import purge_expired
 from app.config import Settings
 from app.db.engine import build_engine, run_migrations
 from app.errors import install_error_handlers
+from app.pipeline.jobs import EventBus, JobRunner
+from app.pipeline.run import mark_interrupted
 from app.services import settings_store
 from app.web import SecurityHeaders, SinglePageApp
 
@@ -41,6 +45,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await db.commit()
         token = await ensure_setup_token(db)
         policy = await settings_store.registration_policy(db)
+        interrupted = await mark_interrupted(db)
+    if interrupted:
+        log.warning("%d application(s) were interrupted by a restart and marked failed; users can retry them.",
+                    interrupted)
+    app.state.jobs = JobRunner(settings.ai_max_concurrent_jobs)
+    if settings.ai_provider == "fake":
+        log.warning("AI_PROVIDER=fake: using the offline stand-in model. Output is mechanical, not real tailoring.")
     app.state.setup_token = token  # in memory only, so tests and the CLI banner can read it
     if token:
         announce_setup_token(token, settings)
@@ -52,6 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await app.state.jobs.shutdown()
         await engine.dispose()
 
 
@@ -70,9 +82,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.limits = Limits()
     app.state.setup_token = None
+    app.state.events = EventBus()
+    app.state.jobs = None  # created in the lifespan, inside the running event loop
+    if settings.ai_provider == "fake":
+        app.state.llm_factory = lambda key: FakeLLM(key, delay=settings.ai_fake_delay_seconds)
+    else:
+        app.state.llm_factory = AnthropicLLM
     install_error_handlers(app)
     app.add_middleware(SecurityHeaders, settings=settings)
-    for module in (meta, auth, account, admin, masters):
+    for module in (meta, auth, account, ai, admin, masters, applications):
         app.include_router(module.router)
     if settings.static_dir and settings.static_dir.is_dir():
         app.mount("/", SinglePageApp(settings.static_dir), name="spa")

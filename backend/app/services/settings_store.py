@@ -13,6 +13,9 @@ from app.db.types import utcnow
 
 REGISTRATION_MODE = "registration_mode"
 REGISTRATION_DOMAINS = "registration_email_domains"
+ALLOW_SHARED_KEY = "allow_shared_key"
+DEFAULT_MODEL = "default_model"
+ALLOWED_MODELS = "allowed_models"
 
 
 @dataclass
@@ -30,6 +33,9 @@ async def init_defaults(db: AsyncSession, settings: Settings) -> None:
     defaults: dict[str, Any] = {
         REGISTRATION_MODE: settings.registration_mode,
         REGISTRATION_DOMAINS: settings.email_domain_allowlist,
+        ALLOW_SHARED_KEY: settings.allow_shared_key,
+        DEFAULT_MODEL: settings.anthropic_model,
+        ALLOWED_MODELS: sorted({*settings.allowed_model_list, settings.anthropic_model}),
     }
     for key, value in defaults.items():
         if await db.get(SystemSetting, key) is None:
@@ -55,3 +61,18 @@ async def registration_policy(db: AsyncSession) -> RegistrationPolicy:
         mode=str(await get_value(db, REGISTRATION_MODE, "open")),
         domains=list(await get_value(db, REGISTRATION_DOMAINS, [])),
     )
+
+
+@dataclass
+class ModelPolicy:
+    default: str
+    allowed: list[str]
+
+    def choose(self, preferred: str | None) -> str:
+        return preferred if preferred in self.allowed else self.default
+
+
+async def model_policy(db: AsyncSession) -> ModelPolicy:
+    default = str(await get_value(db, DEFAULT_MODEL, "claude-opus-5-5"))
+    allowed = list(await get_value(db, ALLOWED_MODELS, [default]))
+    return ModelPolicy(default=default, allowed=allowed if default in allowed else [default, *allowed])

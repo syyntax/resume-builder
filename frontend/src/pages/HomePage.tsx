@@ -1,10 +1,15 @@
+import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Circle, KeyRound, Sparkles, Upload } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
+import { api } from "../api/client";
+import type { Application } from "../api/types";
 import { useMe } from "../auth/auth";
+import { useApiKeyStatus } from "../components/AiSettingsCard";
 import { Badge, Card, CardBody, CardHeader, cn, linkButtonClass } from "../components/ui";
 import { timeAgo } from "../lib/format";
+import { applicationsKey } from "./ApplicationsPages";
 import { useMasters } from "./MastersPages";
 
 function Step({ done, title, description, action, soon }: { done: boolean; title: string; description: string; action?: ReactNode; soon?: boolean }) {
@@ -29,7 +34,11 @@ function Step({ done, title, description, action, soon }: { done: boolean; title
 export function HomePage() {
   const { data: me } = useMe();
   const masters = useMasters();
+  const key = useApiKeyStatus();
+  const apps = useQuery({ queryKey: applicationsKey, queryFn: () => api<Application[]>("GET", "/api/applications") });
   const hasMaster = (masters.data?.length ?? 0) > 0;
+  const hasKey = Boolean(key.data?.using);
+  const hasApplication = (apps.data?.length ?? 0) > 0;
   const firstName = me?.user.displayName.split(" ")[0] ?? "";
 
   return (
@@ -57,18 +66,28 @@ export function HomePage() {
             }
           />
           <Step
-            done={false}
-            soon
+            done={hasKey}
             title="Connect your Anthropic API key"
-            description="AI tailoring runs on your own key, encrypted at rest. This arrives with the next release."
-            action={<KeyRound className="size-5 text-slate-300 dark:text-slate-600" aria-hidden />}
+            description="AI tailoring runs on your own key, stored encrypted. Usage is billed to your Anthropic account."
+            action={
+              !hasKey && (
+                <Link to="/account#ai" className={linkButtonClass(hasMaster ? "primary" : "secondary", "sm")}>
+                  <KeyRound className="size-4" aria-hidden /> Add key
+                </Link>
+              )
+            }
           />
           <Step
-            done={false}
-            soon
+            done={hasApplication}
             title="Tailor your first application"
-            description="Paste a job posting to get a tailored résumé and cover letter."
-            action={<Sparkles className="size-5 text-slate-300 dark:text-slate-600" aria-hidden />}
+            description="Paste a job posting to get a résumé tailored to it. Cover letters arrive in a later release."
+            action={
+              !hasApplication && (
+                <Link to="/applications/new" className={linkButtonClass(hasMaster && hasKey ? "primary" : "secondary", "sm")}>
+                  <Sparkles className="size-4" aria-hidden /> Start
+                </Link>
+              )
+            }
           />
         </ol>
       </Card>

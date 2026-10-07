@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 RegistrationMode = Literal["open", "invite", "closed"]
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
 
 class ConfigError(RuntimeError):
@@ -42,6 +43,23 @@ class Settings(BaseSettings):
 
     session_idle_days: int = 7
     session_max_days: int = 30
+
+    # ---- AI -----------------------------------------------------------------------------------
+    # Optional shared deployment key; users normally bring their own (DESIGN.md §8.6).
+    anthropic_api_key: SecretStr | None = None
+    anthropic_model: str = "claude-opus-5-5"
+    allowed_models: str = "claude-opus-5-5"
+    allow_shared_key: bool = False
+    default_monthly_cap_usd: float = 20.0
+    ai_max_concurrent_jobs: int = 4
+    ai_effort_analyze: Effort = "medium"
+    ai_effort_tailor: Effort = "high"
+    # "fake" runs a deterministic offline model: for tests, demos and UI work. Never for real use.
+    ai_provider: Literal["anthropic", "fake"] = "anthropic"
+    ai_fake_delay_seconds: float = 0.0  # make the fake model take a while, for demos of the progress UI
+    pricing_file: Path | None = None
+    # Set while rotating APP_SECRET_KEY so stored API keys can still be decrypted (`resume-tailor keys rotate`).
+    app_secret_key_previous: SecretStr | None = None
 
     static_dir: Path | None = None
     enable_api_docs: bool = False
@@ -130,6 +148,22 @@ class Settings(BaseSettings):
         if len(raw) < 32:
             raise ConfigError("APP_SECRET_KEY must be at least 32 characters long.")
         return raw.encode("utf-8")
+
+    @property
+    def allowed_model_list(self) -> list[str]:
+        return [m.strip() for m in self.allowed_models.split(",") if m.strip()] or [self.anthropic_model]
+
+    @property
+    def shared_key(self) -> str | None:
+        if self.anthropic_api_key is None:
+            return None
+        return self.anthropic_api_key.get_secret_value().strip() or None
+
+    def previous_secret_key(self) -> bytes | None:
+        if self.app_secret_key_previous is None:
+            return None
+        raw = self.app_secret_key_previous.get_secret_value().strip()
+        return raw.encode("utf-8") if raw else None
 
     def validate_for_startup(self) -> None:
         """Fail fast on configurations that would be unsafe or unusable."""

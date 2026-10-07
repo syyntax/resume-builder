@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.ai.llm import LLMError
+from app.ai.pricing import load_prices
 from app.api.common import user_out
 from app.auth import tokens
 from app.auth.audit import audit
@@ -16,10 +18,14 @@ from app.auth.deps import get_settings, require_admin
 from app.auth.sessions import AuthContext, revoke_all
 from app.config import Settings
 from app.db.engine import get_db
-from app.db.models import AuditLog, AuthToken, User
+from app.db.models import AiCall, Application, AuditLog, AuthToken, User, UserApiKey
 from app.db.types import utcnow
 from app.errors import ApiError
+from app.keys import service as keys
 from app.models.api import (
+    AdminAiSettingsIn,
+    AdminAiSettingsOut,
+    AdminUserOut,
     AdminUserPatchIn,
     AuditEntryOut,
     InviteCreateIn,
@@ -27,8 +33,9 @@ from app.models.api import (
     LinkOut,
     SystemSettingsIn,
     SystemSettingsOut,
-    UserOut,
+    UserUsageOut,
 )
+from app.pipeline import usage
 from app.services import settings_store
 from app.services.users import find_by_email, is_valid_email, normalize_email, would_remove_last_admin
 
@@ -45,20 +52,27 @@ async def _target(db: AsyncSession, user_id: str) -> User:
 # ---- users -----------------------------------------------------------------------------------------
 
 
-@router.get("/users", response_model=list[UserOut])
-async def list_users(db: AsyncSession = Depends(get_db)) -> list[UserOut]:
+async def _admin_user(db: AsyncSession, user: User) -> AdminUserOut:
+    has_key = await keys.get_row(db, user.id) is not None
+    return AdminUserOut(**user_out(user).model_dump(), has_api_key=has_key, shared_cap_usd=user.shared_cap_usd)
+
+
+@router.get("/users", response_model=list[AdminUserOut])
+async def list_users(db: AsyncSession = Depends(get_db)) -> list[AdminUserOut]:
+    with_keys = set((await db.execute(select(UserApiKey.user_id))).scalars())
     users = (await db.execute(select(User).order_by(User.created_at))).scalars()
-    return [user_out(u) for u in users]
+    return [AdminUserOut(**user_out(u).model_dump(), has_api_key=u.id in with_keys, shared_cap_usd=u.shared_cap_usd)
+            for u in users]
 
 
-@router.patch("/users/{user_id}", response_model=UserOut)
+@router.patch("/users/{user_id}", response_model=AdminUserOut)
 async def update_user(
     user_id: str,
     body: AdminUserPatchIn,
     request: Request,
     ctx: AuthContext = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-) -> UserOut:
+) -> AdminUserOut:
     user = await _target(db, user_id)
     if await would_remove_last_admin(db, user, new_role=body.role, new_status=body.status):
         raise ApiError(409, "That would leave no active admin. Make someone else an admin first.")
@@ -72,8 +86,12 @@ async def update_user(
                     actor_id=ctx.user.id, target_id=user.id)
         user.status = body.status
         await revoke_all(db, user.id)
+    if body.reset_shared_cap or body.shared_cap_usd is not None:
+        user.shared_cap_usd = None if body.reset_shared_cap else body.shared_cap_usd
+        await audit(db, "user.shared_cap.change", request, actor_id=ctx.user.id, target_id=user.id,
+                    cap=user.shared_cap_usd)
     await db.commit()
-    return user_out(user)
+    return await _admin_user(db, user)
 
 
 @router.delete("/users/{user_id}", status_code=204)
@@ -234,3 +252,86 @@ async def audit_log(
                       user_agent=row.user_agent, details=row.details or {}, created_at=row.created_at)
         for row, actor_email, target_email in rows
     ]
+
+
+# ---- AI settings, shared key and usage ---------------------------------------------------------------------
+
+
+async def _ai_out(db: AsyncSession, settings: Settings) -> AdminAiSettingsOut:
+    policy = await settings_store.model_policy(db)
+    return AdminAiSettingsOut(
+        shared_key_configured=bool(settings.shared_key),
+        allow_shared_key=bool(await settings_store.get_value(db, settings_store.ALLOW_SHARED_KEY, False)),
+        default_model=policy.default,
+        allowed_models=policy.allowed,
+        known_models=sorted(load_prices()),
+        default_cap_usd=settings.default_monthly_cap_usd,
+    )
+
+
+@router.get("/ai-settings", response_model=AdminAiSettingsOut)
+async def get_ai_settings(db: AsyncSession = Depends(get_db),
+                          settings: Settings = Depends(get_settings)) -> AdminAiSettingsOut:
+    return await _ai_out(db, settings)
+
+
+@router.put("/ai-settings", response_model=AdminAiSettingsOut)
+async def update_ai_settings(body: AdminAiSettingsIn, request: Request, ctx: AuthContext = Depends(require_admin),
+                             db: AsyncSession = Depends(get_db),
+                             settings: Settings = Depends(get_settings)) -> AdminAiSettingsOut:
+    policy = await settings_store.model_policy(db)
+    allowed = sorted(set(body.allowed_models)) if body.allowed_models is not None else policy.allowed
+    default = body.default_model or policy.default
+    if default not in allowed:
+        raise ApiError(422, "The default model must be one of the allowed models.",
+                       errors=[{"field": "defaultModel", "message": "not in allowed models"}])
+    changes: dict[str, object] = {}
+    if body.allow_shared_key is not None:
+        if body.allow_shared_key and not settings.shared_key:
+            raise ApiError(409, "No shared key is configured. Set ANTHROPIC_API_KEY in the server's env file first.")
+        await settings_store.set_value(db, settings_store.ALLOW_SHARED_KEY, body.allow_shared_key,
+                                       updated_by=ctx.user.id)
+        changes["allowSharedKey"] = body.allow_shared_key
+    if body.allowed_models is not None or body.default_model is not None:
+        await settings_store.set_value(db, settings_store.ALLOWED_MODELS, allowed, updated_by=ctx.user.id)
+        await settings_store.set_value(db, settings_store.DEFAULT_MODEL, default, updated_by=ctx.user.id)
+        changes.update(allowedModels=allowed, defaultModel=default)
+    if changes:
+        await audit(db, "admin.settings.change", request, actor_id=ctx.user.id, **changes)
+        await db.commit()
+    return await _ai_out(db, settings)
+
+
+@router.post("/ai-settings/test-connection", status_code=204)
+async def test_shared_key(request: Request, settings: Settings = Depends(get_settings)) -> Response:
+    if not settings.shared_key:
+        raise ApiError(404, "No shared key is configured.")
+    try:
+        await request.app.state.llm_factory(settings.shared_key).verify()
+    except LLMError as exc:
+        raise ApiError(502, f"The shared key didn't work: {exc.message}") from None
+    return Response(status_code=204)
+
+
+@router.get("/usage", response_model=list[UserUsageOut])
+async def usage_by_user(db: AsyncSession = Depends(get_db)) -> list[UserUsageOut]:
+    since = usage.month_start()
+    spend = {
+        (owner, source): (float(cost or 0), int(calls))
+        for owner, source, cost, calls in (await db.execute(
+            select(AiCall.owner_id, AiCall.key_source, func.sum(AiCall.est_cost_usd), func.count())
+            .where(AiCall.created_at >= since).group_by(AiCall.owner_id, AiCall.key_source)
+        )).all()
+    }
+    apps = dict((await db.execute(
+        select(Application.owner_id, func.count()).where(Application.created_at >= since).group_by(Application.owner_id)
+    )).all())
+    with_keys = set((await db.execute(select(UserApiKey.user_id))).scalars())
+    out = []
+    for user in (await db.execute(select(User).order_by(User.created_at))).scalars():
+        own, shared = spend.get((user.id, "own"), (0.0, 0)), spend.get((user.id, "shared"), (0.0, 0))
+        out.append(UserUsageOut(user_id=user.id, email=user.email, display_name=user.display_name,
+                                has_api_key=user.id in with_keys, own_spend_usd=round(own[0], 4),
+                                shared_spend_usd=round(shared[0], 4), calls=own[1] + shared[1],
+                                applications=int(apps.get(user.id, 0))))
+    return out

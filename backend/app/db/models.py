@@ -5,7 +5,18 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -30,6 +41,29 @@ class User(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # Monthly AI spending caps in estimated USD; NULL means the deployment default, 0 means unlimited.
+    monthly_cap_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # own key, set by the user
+    shared_cap_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # shared key, set by an admin
+    preferred_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class UserApiKey(Base):
+    """A user's own Anthropic API key, encrypted (app.secrets). Never returned to clients."""
+
+    __tablename__ = "user_api_key"
+    __table_args__ = (CheckConstraint("status IN ('valid', 'invalid')", name="status"),)
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("key"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), unique=True)
+    provider: Mapped[str] = mapped_column(String(20), default="anthropic")
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary)
+    key_fingerprint: Mapped[str] = mapped_column(String(16))
+    hint: Mapped[str] = mapped_column(String(8))
+    status: Mapped[str] = mapped_column(String(10), default="valid")
+    verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class UserSession(Base):
@@ -125,4 +159,87 @@ class MasterResumeVersion(Base):
     sha256: Mapped[str] = mapped_column(String(64))
     schema_version: Mapped[str] = mapped_column(String(10))
     warnings: Mapped[list[dict[str, str]]] = mapped_column(JSONType, default=list)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class JobPosting(Base):
+    __tablename__ = "job_posting"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("job"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    company: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    title: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    raw_text: Mapped[str] = mapped_column(Text)
+    analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    analysis_edited: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class Application(Base):
+    """One job: a posting, the master version it was tailored from, and its documents."""
+
+    __tablename__ = "application"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('queued', 'analyzing', 'tailoring', 'validating', 'done', 'failed')", name="status"
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("apl"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    master_version_id: Mapped[str] = mapped_column(ForeignKey("master_resume_version.id", ondelete="CASCADE"))
+    job_id: Mapped[str] = mapped_column(ForeignKey("job_posting.id", ondelete="CASCADE"))
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    options: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
+    model: Mapped[str] = mapped_column(String(64))
+    template: Mapped[str] = mapped_column(String(32), default="meridian")
+    theme: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
+    coverage_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class Document(Base):
+    __tablename__ = "document"
+    __table_args__ = (
+        UniqueConstraint("application_id", "kind", name="uq_document_application_kind"),
+        CheckConstraint("kind IN ('resume', 'cover_letter')", name="kind"),
+    )
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("doc"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    application_id: Mapped[str] = mapped_column(ForeignKey("application.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    options: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
+    ai_draft: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    current: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
+class AiCall(Base):
+    """Usage ledger for every model call. Kept when an application is deleted so spending caps hold."""
+
+    __tablename__ = "ai_call"
+    __table_args__ = (Index("ix_ai_call_owner_created", "owner_id", "created_at"),)
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("aic"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    application_id: Mapped[str | None] = mapped_column(
+        ForeignKey("application.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    stage: Mapped[str] = mapped_column(String(32))
+    model: Mapped[str] = mapped_column(String(64))
+    key_source: Mapped[str] = mapped_column(String(8))
+    prompt_version: Mapped[str] = mapped_column(String(32))
+    request_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    est_cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    error: Mapped[str | None] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)

@@ -11,6 +11,7 @@ import { GuestOnly, RequireAdmin, RequireAuth, meKey } from "./auth/auth";
 import { AppShell } from "./layouts/AppShell";
 import { AccountPage } from "./pages/AccountPage";
 import { AdminPage } from "./pages/AdminPage";
+import { ApplicationDetailPage, ApplicationsPage, NewApplicationPage } from "./pages/ApplicationsPages";
 import { LoginPage, RegisterPage, ResetPasswordPage, SetupPage } from "./pages/AuthPages";
 import { HomePage } from "./pages/HomePage";
 import { MasterDetailPage, MastersPage } from "./pages/MastersPages";
@@ -48,6 +49,9 @@ const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           { path: "masters", element: <MastersPage /> },
           { path: "masters/:id", element: <MasterDetailPage /> },
+          { path: "applications", element: <ApplicationsPage /> },
+          { path: "applications/new", element: <NewApplicationPage /> },
+          { path: "applications/:id", element: <ApplicationDetailPage /> },
           { path: "account", element: <AccountPage /> },
           { element: <RequireAdmin />, children: [{ path: "admin", element: <AdminPage /> }] },
           { path: "*", element: <NotFoundPage /> },

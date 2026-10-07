@@ -108,11 +108,6 @@ class DeleteAccountIn(CamelModel):
 # ---- admin ---------------------------------------------------------------------------------------
 
 
-class AdminUserPatchIn(CamelModel):
-    role: Literal["user", "admin"] | None = None
-    status: Literal["active", "disabled"] | None = None
-
-
 class InviteCreateIn(CamelModel):
     email: Email | None = None
 
@@ -213,3 +208,160 @@ class MasterSaveOut(CamelModel):
 
 class MasterPatchIn(CamelModel):
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+
+
+# ---- AI keys, settings and usage (DESIGN.md §4.2) ------------------------------------------------------
+
+
+class ApiKeyStatusOut(CamelModel):
+    has_key: bool
+    hint: str | None = None
+    status: Literal["valid", "invalid"] | None = None
+    verified_at: datetime | None = None
+    last_used_at: datetime | None = None
+    shared_key_available: bool = False
+    using: Literal["own", "shared"] | None = Field(default=None, description="Which key AI calls will use.")
+
+
+class ApiKeyIn(CamelModel):
+    api_key: Annotated[str, StringConstraints(strip_whitespace=True, min_length=10, max_length=400)]
+    password: Password
+
+
+class PasswordConfirmIn(CamelModel):
+    password: Password
+
+
+class AiSettingsOut(CamelModel):
+    model: str
+    allowed_models: list[str]
+    default_model: str
+    monthly_cap_usd: float | None = Field(description="Your cap for your own key; null means the default.")
+    default_cap_usd: float
+
+
+class AiSettingsIn(CamelModel):
+    model: str | None = None
+    monthly_cap_usd: Annotated[float, Field(ge=0, le=100_000)] | None = None
+    reset_cap: bool = False
+
+
+class SpendOut(CamelModel):
+    spent_usd: float
+    cap_usd: float | None
+    percent: float | None
+
+
+class StageUsageOut(CamelModel):
+    stage: str
+    calls: int
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+
+
+class UsageOut(CamelModel):
+    month: str
+    own: SpendOut
+    shared: SpendOut | None
+    by_stage: list[StageUsageOut]
+
+
+# ---- applications -----------------------------------------------------------------------------------
+
+
+class JobIn(CamelModel):
+    text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=40, max_length=50_000)]
+    company: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    title: Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)] | None = None
+    url: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2048)] | None = None
+
+
+class GenerationOptions(CamelModel):
+    page_limit: Literal[1, 2, "auto"] | None = None
+    tone: Literal["neutral", "confident", "conservative"] | None = None
+    instructions: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] | None = None
+
+
+class ApplicationCreateIn(CamelModel):
+    master_id: str
+    job: JobIn
+    options: GenerationOptions = GenerationOptions()
+
+
+class JobRef(CamelModel):
+    id: str
+    company: str | None
+    title: str | None
+    url: str | None
+
+
+class MasterRef(CamelModel):
+    id: str | None
+    label: str | None
+    version_id: str
+    version_number: int
+
+
+class ApplicationOut(CamelModel):
+    id: str
+    status: Literal["queued", "analyzing", "tailoring", "validating", "done", "failed"]
+    error: dict[str, Any] | None
+    model: str
+    options: dict[str, Any]
+    coverage_score: float | None
+    created_at: datetime
+    updated_at: datetime
+    job: JobRef
+    master: MasterRef
+
+
+class ApplicationDetailOut(ApplicationOut):
+    posting: str
+    analysis: dict[str, Any] | None
+    resume: dict[str, Any] | None
+    cost_usd: float
+
+
+# ---- admin (AI) ------------------------------------------------------------------------------------------
+
+
+class AdminUserOut(UserOut):
+    has_api_key: bool
+    shared_cap_usd: float | None
+
+
+class AdminUserPatchIn(CamelModel):
+    role: Literal["user", "admin"] | None = None
+    status: Literal["active", "disabled"] | None = None
+    shared_cap_usd: Annotated[float, Field(ge=0, le=100_000)] | None = None
+    reset_shared_cap: bool = False
+
+
+class AdminAiSettingsOut(CamelModel):
+    shared_key_configured: bool
+    allow_shared_key: bool
+    default_model: str
+    allowed_models: list[str]
+    known_models: list[str]
+    default_cap_usd: float
+
+
+class UserUsageOut(CamelModel):
+    user_id: str
+    email: str
+    display_name: str
+    has_api_key: bool
+    own_spend_usd: float
+    shared_spend_usd: float
+    calls: int
+    applications: int
+
+
+class AdminAiSettingsIn(CamelModel):
+    allow_shared_key: bool | None = None
+    default_model: Annotated[str, StringConstraints(pattern=r"^claude-[a-z0-9.\-]{1,60}$")] | None = None
+    allowed_models: Annotated[
+        list[Annotated[str, StringConstraints(pattern=r"^claude-[a-z0-9.\-]{1,60}$")]],
+        Field(min_length=1, max_length=20),
+    ] | None = None

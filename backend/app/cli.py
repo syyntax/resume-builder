@@ -24,8 +24,10 @@ from app.auth.bootstrap import ensure_setup_token
 from app.auth.sessions import revoke_all
 from app.config import Settings
 from app.db.engine import build_engine, run_migrations
-from app.db.models import User
+from app.db.models import User, UserApiKey
 from app.db.types import utcnow
+from app.keys.service import decrypt, secret_box
+from app.secrets import DecryptionError
 from app.services.users import find_by_email, is_valid_email, normalize_email, would_remove_last_admin
 
 REPO_SCHEMA_DIR = Path(__file__).resolve().parents[2] / "schema"
@@ -123,6 +125,31 @@ async def _setup_token(db: AsyncSession, _: argparse.Namespace) -> int:
     return 0
 
 
+async def _keys_rotate(db: AsyncSession, settings: Settings) -> int:
+    if settings.previous_secret_key() is None:
+        print("Set APP_SECRET_KEY to the new secret and APP_SECRET_KEY_PREVIOUS to the old one, then rerun.",
+              file=sys.stderr)
+        return 2
+    box = secret_box(settings)
+    rows = (await db.execute(select(UserApiKey).where(UserApiKey.key_fingerprint != box.current_fingerprint))).scalars()
+    rotated = unreadable = 0
+    for row in rows:
+        try:
+            plaintext = decrypt(row, settings)
+        except DecryptionError:
+            unreadable += 1
+            continue
+        sealed = box.seal(plaintext, bound_to=row.user_id)
+        row.ciphertext, row.nonce, row.key_fingerprint = sealed.ciphertext, sealed.nonce, sealed.key_fingerprint
+        rotated += 1
+    await audit(db, "cli.keys.rotate", rotated=rotated, unreadable=unreadable)
+    await db.commit()
+    print(f"Re-encrypted {rotated} API key(s) under the new secret."
+          + (f" {unreadable} couldn't be read; those users must enter their key again." if unreadable else ""))
+    print("You can now remove APP_SECRET_KEY_PREVIOUS.")
+    return 0
+
+
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -164,6 +191,8 @@ def build_parser() -> argparse.ArgumentParser:
     admin.add_parser("list", help="list accounts")
 
     sub.add_parser("setup-token", help="print a new first-run setup token (only before the first account)")
+    keys = sub.add_parser("keys", help="manage stored API keys").add_subparsers(dest="action", required=True)
+    keys.add_parser("rotate", help="re-encrypt stored keys after changing APP_SECRET_KEY")
 
     schema = sub.add_parser("schema", help="export the master résumé JSON Schema and example")
     schema.add_argument("--out-dir", default=str(REPO_SCHEMA_DIR))
@@ -183,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
     settings = Settings()
     handlers: dict[str, Callable[[AsyncSession], Awaitable[int]]] = {
         "setup-token": lambda db: _setup_token(db, args),
+        "keys": lambda db: _keys_rotate(db, settings),
     }
     if args.command == "admin":
         handlers["admin"] = {

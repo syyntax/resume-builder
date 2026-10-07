@@ -1,4 +1,8 @@
 # syntax=docker/dockerfile:1.7
+#
+# Stages: frontend → base → test (for `make test-backend`) and runtime.
+# `runtime` must stay the LAST stage: `docker build .` and `docker compose up --build` build the last stage
+# unless a target is named.
 
 # ---- frontend: build the React app -------------------------------------------------------------
 FROM node:24-slim AS frontend
@@ -10,8 +14,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
 COPY frontend/ ./
 RUN pnpm build
 
-# ---- runtime: FastAPI app serving the API and the built frontend -------------------------------
-FROM python:3.13-slim AS runtime
+# ---- base: Python, dependencies and the backend code ----------------------------------------------
+FROM python:3.13-slim AS base
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -28,21 +32,22 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra postgres
-
-COPY --from=frontend /build/frontend/dist /app/static
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin app \
     && mkdir -p /data && chown app:app /data
-USER app
-ENV DATA_DIR=/data \
-    STATIC_DIR=/app/static
-EXPOSE 8080
-CMD ["sh", "-c", "exec uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=\"${TRUSTED_PROXIES:-127.0.0.1}\""]
 
 # ---- test: `docker build --target test -t resume-tailor:test . && docker run --rm resume-tailor:test`
-FROM runtime AS test
-USER root
+FROM base AS test
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --extra dev --extra postgres
 COPY schema/ /schema/
 USER app
 CMD ["pytest", "-p", "no:cacheprovider"]
+
+# ---- runtime: FastAPI app serving the API and the built frontend (the default build target) -------
+FROM base AS runtime
+COPY --from=frontend /build/frontend/dist /app/static
+USER app
+ENV DATA_DIR=/data \
+    STATIC_DIR=/app/static
+EXPOSE 8080
+CMD ["sh", "-c", "exec uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=\"${TRUSTED_PROXIES:-127.0.0.1}\""]

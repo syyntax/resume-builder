@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { ApiError, api, errorMessage, setCsrfToken } from "../api/client";
 import type { Me, Session, User } from "../api/types";
 import { meKey, useMe, useSetMe } from "../auth/auth";
+import { AiSettingsCard } from "../components/AiSettingsCard";
 import { Dialog } from "../components/Dialog";
 import { PasswordFields } from "../components/PasswordFields";
 import { Alert, Badge, Button, Card, CardBody, CardHeader, PageHeader, Spinner, TextField, linkButtonClass } from "../components/ui";
@@ -167,7 +168,7 @@ function DataCard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-medium text-slate-900 dark:text-slate-100">Export everything</p>
-            <p className="text-sm text-slate-500">A ZIP of your profile and every master résumé version.</p>
+            <p className="text-sm text-slate-500">A ZIP of your profile and every master résumé version. Your API key is never included.</p>
           </div>
           <a href="/api/account/export" className={linkButtonClass("secondary", "sm")}>
             <Download className="size-4" aria-hidden /> Download export
@@ -199,8 +200,9 @@ export function AccountPage() {
   if (!me) return null;
   return (
     <>
-      <PageHeader title="Account" description="Your profile, security and data." />
+      <PageHeader title="Account" description="Your AI key, profile, security and data." />
       <div className="space-y-6">
+        <AiSettingsCard />
         <ProfileCard user={me.user} />
         <PasswordCard />
         <SessionsCard />

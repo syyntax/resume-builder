@@ -55,3 +55,22 @@ export function formatPartialDate(value: string | null | undefined): string {
   const date = new Date(Number(year), Number(month) - 1, 1);
   return new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" }).format(date);
 }
+
+export function formatUsd(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  if (value > 0 && value < 0.01) return "<$0.01";
+  return `$${value.toFixed(2)}`;
+}
+
+export const MODEL_LABELS: Record<string, string> = {
+  "claude-opus-5-5": "Claude Opus 5.5",
+  "claude-sonnet-5-5": "Claude Sonnet 5.5",
+  "claude-haiku-4-5": "Claude Haiku 4.5",
+  "claude-fable-5-1": "Claude Fable 5.1",
+  "claude-opus-5": "Claude Opus 5",
+  "claude-opus-4-8": "Claude Opus 4.8",
+};
+
+export function modelLabel(model: string): string {
+  return MODEL_LABELS[model] ?? model;
+}

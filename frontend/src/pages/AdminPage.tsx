@@ -1,10 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Mail, Shield, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
+import { CircleDollarSign, KeyRound, Mail, PlugZap, Shield, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { api, errorMessage } from "../api/client";
-import type { AuditEntry, Invite, Link as ResetLink, RegistrationMode, SystemSettings, User } from "../api/types";
+import type {
+  AdminAiSettings, AdminUser, AuditEntry, Invite, Link as ResetLink, RegistrationMode, SystemSettings, UserUsage,
+} from "../api/types";
 import { meKey, useMe } from "../auth/auth";
 import { Dialog } from "../components/Dialog";
 import {
@@ -14,6 +16,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Checkbox,
   CopyField,
   PageHeader,
   Spinner,
@@ -21,25 +24,28 @@ import {
   TextField,
   cn,
 } from "../components/ui";
-import { formatDateTime, timeAgo } from "../lib/format";
+import { formatDateTime, formatUsd, modelLabel, timeAgo } from "../lib/format";
 
 const tabs = [
   { id: "users", label: "Users" },
   { id: "invites", label: "Invites" },
   { id: "settings", label: "Registration" },
+  { id: "ai", label: "AI" },
+  { id: "usage", label: "Usage" },
   { id: "audit", label: "Audit log" },
 ] as const;
 type TabId = (typeof tabs)[number]["id"];
 
 // ---- users --------------------------------------------------------------------------------------------
 
-type Pending = { kind: "reset"; user: User } | { kind: "delete"; user: User } | null;
+type Pending = { kind: "reset" | "delete" | "cap"; user: AdminUser } | null;
 
 function UsersTab() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
-  const users = useQuery({ queryKey: ["admin", "users"], queryFn: () => api<User[]>("GET", "/api/admin/users") });
+  const users = useQuery({ queryKey: ["admin", "users"], queryFn: () => api<AdminUser[]>("GET", "/api/admin/users") });
   const [pending, setPending] = useState<Pending>(null);
+  const [cap, setCap] = useState("");
   const [resetLink, setResetLink] = useState<ResetLink | null>(null);
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
@@ -47,9 +53,12 @@ function UsersTab() {
   };
 
   const update = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { role?: string; status?: string } }) =>
-      api<User>("PATCH", `/api/admin/users/${id}`, { json: body }),
-    onSuccess: refresh,
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      api<AdminUser>("PATCH", `/api/admin/users/${id}`, { json: body }),
+    onSuccess: () => {
+      refresh();
+      if (pending?.kind === "cap") setPending(null);
+    },
   });
   const remove = useMutation({
     mutationFn: (id: string) => api<void>("DELETE", `/api/admin/users/${id}`),
@@ -96,6 +105,7 @@ function UsersTab() {
                     <div className="flex flex-wrap gap-1">
                       <Badge tone={u.role === "admin" ? "brand" : "neutral"}>{u.role === "admin" ? "Admin" : "User"}</Badge>
                       {u.status === "disabled" && <Badge tone="red">Disabled</Badge>}
+                      {u.hasApiKey && <Badge tone="green">Key on file</Badge>}
                     </div>
                   </td>
                   <td className="px-3 py-3 text-slate-500">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : "Never"}</td>
@@ -113,6 +123,10 @@ function UsersTab() {
                           <span className="sr-only sm:not-sr-only">{u.status === "active" ? "Disable" : "Enable"}</span>
                         </Button>
                       )}
+                      <Button variant="ghost" size="sm" title="Shared-key allowance" icon={<CircleDollarSign className="size-4" aria-hidden />}
+                        onClick={() => { setCap(u.sharedCapUsd === null ? "" : String(u.sharedCapUsd)); setPending({ kind: "cap", user: u }); }}>
+                        <span className="sr-only">Shared-key allowance</span>
+                      </Button>
                       <Button variant="ghost" size="sm" title="Create a password reset link" icon={<KeyRound className="size-4" aria-hidden />}
                         onClick={() => { setResetLink(null); setPending({ kind: "reset", user: u }); reset.mutate(u.id); }}>
                         <span className="sr-only sm:not-sr-only">Reset link</span>
@@ -138,6 +152,13 @@ function UsersTab() {
         {reset.isPending && <Spinner />}
         {reset.isError && <Alert tone="error">{errorMessage(reset.error)}</Alert>}
         {resetLink && <CopyField label="Reset link" value={resetLink.url} />}
+      </Dialog>
+      <Dialog open={pending?.kind === "cap"} title={`Shared-key allowance for ${pending?.user.displayName ?? ""}`}
+        description="Monthly limit on what they can spend through the shared key (if you allow it). Their own key has its own cap, which they set."
+        confirmLabel="Save" busy={update.isPending} onClose={() => setPending(null)}
+        onConfirm={() => pending && update.mutate({ id: pending.user.id, body: cap.trim() === "" ? { resetSharedCap: true } : { sharedCapUsd: Number(cap) } })}>
+        <TextField label="Monthly allowance (USD)" type="number" min={0} step="1" value={cap} onChange={(e) => setCap(e.target.value)}
+          hint="Leave empty for the default. 0 means unlimited." />
       </Dialog>
       <Dialog open={pending?.kind === "delete"} tone="danger" title={`Delete ${pending?.user.displayName ?? ""}?`} confirmLabel="Delete user"
         description="Their account and everything they own (master résumés, applications) are deleted permanently."
@@ -280,6 +301,123 @@ function SettingsTab() {
   return <SettingsForm key={JSON.stringify(settings.data)} settings={settings.data} />;
 }
 
+// ---- AI settings ---------------------------------------------------------------------------------------
+
+function AiForm({ settings }: { settings: AdminAiSettings }) {
+  const queryClient = useQueryClient();
+  const [allowShared, setAllowShared] = useState(settings.allowSharedKey);
+  const [allowed, setAllowed] = useState<string[]>(settings.allowedModels);
+  const [fallbackDefault, setDefault] = useState(settings.defaultModel);
+  const save = useMutation({
+    mutationFn: () => api<AdminAiSettings>("PUT", "/api/admin/ai-settings", {
+      json: { allowSharedKey: settings.sharedKeyConfigured ? allowShared : undefined, allowedModels: allowed, defaultModel: fallbackDefault },
+    }),
+    onSuccess: (value) => queryClient.setQueryData(["admin", "ai"], value),
+  });
+  const test = useMutation({ mutationFn: () => api<void>("POST", "/api/admin/ai-settings/test-connection") });
+  const toggle = (model: string) =>
+    setAllowed((current) => (current.includes(model) ? current.filter((m) => m !== model) : [...current, model]));
+
+  return (
+    <Card>
+      <CardHeader title="AI" description="Models people can use, and the optional shared key." />
+      <CardBody>
+        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Allowed models</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {settings.knownModels.map((m) => (
+                <label key={m} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-700">
+                  <span className="flex items-center gap-2">
+                    <input type="checkbox" checked={allowed.includes(m)} onChange={() => toggle(m)} className="size-4 rounded border-slate-300" />
+                    {modelLabel(m)}
+                  </span>
+                  {allowed.includes(m) && (
+                    <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <input type="radio" name="default-model" checked={fallbackDefault === m} onChange={() => setDefault(m)} aria-label={`Make ${modelLabel(m)} the default`} />
+                      default
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">People pick from these in Account → AI. The default is used when they haven't chosen.</p>
+          </fieldset>
+          <div className="space-y-2 border-t border-slate-200 pt-5 dark:border-slate-800">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Shared key</p>
+            {settings.sharedKeyConfigured ? (
+              <>
+                <Checkbox label="Let people without their own key use the shared key" checked={allowShared} onChange={(e) => setAllowShared(e.target.checked)} />
+                <p className="text-xs text-slate-500">
+                  Each person's shared-key spending is capped at {formatUsd(settings.defaultCapUsd)} a month by default; change it per person on the Users tab.
+                </p>
+                <Button variant="secondary" size="sm" icon={<PlugZap className="size-4" aria-hidden />} loading={test.isPending} onClick={() => test.mutate()}>Test shared key</Button>
+                {test.isSuccess && <p className="text-sm text-emerald-700 dark:text-emerald-400">The shared key works.</p>}
+                {test.isError && <p className="text-sm text-red-600">{errorMessage(test.error)}</p>}
+              </>
+            ) : (
+              <p className="text-sm text-slate-500">
+                None configured. To offer one, set <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">ANTHROPIC_API_KEY</code> in the server's env file and restart.
+                Until then, everyone uses their own key.
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button type="submit" loading={save.isPending} disabled={allowed.length === 0 || !allowed.includes(fallbackDefault)}>Save</Button>
+            {save.isSuccess && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved.</span>}
+            {save.isError && <span className="text-sm text-red-600">{errorMessage(save.error)}</span>}
+          </div>
+        </form>
+      </CardBody>
+    </Card>
+  );
+}
+
+function AiTab() {
+  const settings = useQuery({ queryKey: ["admin", "ai"], queryFn: () => api<AdminAiSettings>("GET", "/api/admin/ai-settings") });
+  if (settings.isPending) return <Spinner />;
+  if (settings.isError) return <Alert tone="error">{errorMessage(settings.error)}</Alert>;
+  return <AiForm key={JSON.stringify(settings.data)} settings={settings.data} />;
+}
+
+function UsageTab() {
+  const rows = useQuery({ queryKey: ["admin", "usage"], queryFn: () => api<UserUsage[]>("GET", "/api/admin/usage") });
+  if (rows.isPending) return <Spinner />;
+  if (rows.isError) return <Alert tone="error">{errorMessage(rows.error)}</Alert>;
+  return (
+    <Card>
+      <CardHeader title="Usage this month" description="Estimated AI spending per person. Totals only; nobody's documents are visible here." />
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-slate-200 text-xs text-slate-500 uppercase dark:border-slate-800">
+            <tr>
+              <th className="px-5 py-2 font-medium">User</th>
+              <th className="px-3 py-2 text-right font-medium">Own key</th>
+              <th className="px-3 py-2 text-right font-medium">Shared key</th>
+              <th className="px-3 py-2 text-right font-medium">Applications</th>
+              <th className="px-5 py-2 text-right font-medium">AI calls</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            {rows.data.map((r) => (
+              <tr key={r.userId}>
+                <td className="px-5 py-3">
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{r.displayName} {r.hasApiKey && <Badge tone="green">Key</Badge>}</p>
+                  <p className="text-slate-500">{r.email}</p>
+                </td>
+                <td className="px-3 py-3 text-right tabular-nums">{formatUsd(r.ownSpendUsd)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{formatUsd(r.sharedSpendUsd)}</td>
+                <td className="px-3 py-3 text-right tabular-nums">{r.applications}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{r.calls}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 // ---- audit log -----------------------------------------------------------------------------------------
 
 function AuditTab() {
@@ -360,6 +498,8 @@ export function AdminPage() {
     users: <UsersTab />,
     invites: <InvitesTab />,
     settings: <SettingsTab />,
+    ai: <AiTab />,
+    usage: <UsageTab />,
     audit: <AuditTab />,
   };
   return (

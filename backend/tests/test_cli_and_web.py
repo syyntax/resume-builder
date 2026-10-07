@@ -94,3 +94,40 @@ def test_spa_fallback_and_api_404(tmp_path: Path, settings: Settings) -> None:
         assert client.get("/assets/missing.js").status_code == 404
         missing_api = client.get("/api/does-not-exist")
         assert missing_api.status_code == 404 and missing_api.headers["content-type"] == "application/json"
+
+
+def test_cli_keys_rotate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    from sqlalchemy import select
+
+    from app.db.models import UserApiKey
+    from app.keys.service import decrypt
+    from tests.conftest import TEST_KEY, USER_PASSWORD
+
+    old_secret, new_secret = "old-secret-value-" * 3, "new-secret-value-" * 3
+    settings = Settings(app_base_url=BASE, app_secret_key=old_secret, data_dir=tmp_path,  # type: ignore[arg-type]
+                        allow_insecure_http=True, argon2_profile="cheapest", ai_provider="fake")
+    application = create_app(settings)
+    with TestClient(application, base_url=BASE) as main:
+        application.state.test_portal = main.portal
+        admin = Api(application)
+        admin.post("/api/auth/setup", json={"token": application.state.setup_token, "email": "a@example.com",
+                                            "password": USER_PASSWORD, "displayName": "Ad Min"})
+        saved = admin.put("/api/account/api-key", json={"apiKey": TEST_KEY, "password": USER_PASSWORD})
+        assert saved.status_code == 200
+
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("APP_SECRET_KEY", new_secret)
+    assert run_cli(monkeypatch, ["keys", "rotate"]) == 2  # needs the previous secret
+    monkeypatch.setenv("APP_SECRET_KEY_PREVIOUS", old_secret)
+    assert run_cli(monkeypatch, ["keys", "rotate"]) == 0
+    assert "Re-encrypted 1 API key(s)" in capsys.readouterr().out
+
+    rotated = Settings(app_secret_key=new_secret, data_dir=tmp_path)  # type: ignore[arg-type]
+    application = create_app(rotated.model_copy(update={"allow_insecure_http": True, "app_base_url": BASE}))
+    with TestClient(application, base_url=BASE) as main:
+        async def load() -> str:
+            async with application.state.sessionmaker() as db:
+                row = (await db.execute(select(UserApiKey))).scalar_one()
+                return decrypt(row, rotated)
+
+        assert main.portal.call(load) == TEST_KEY

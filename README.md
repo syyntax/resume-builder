@@ -4,8 +4,9 @@ A self-hosted, multi-user web app that tailors a master résumé (and, soon, a c
 posting with Claude, then exports polished PDF, DOCX, Markdown or JSON. See [DESIGN.md](DESIGN.md) for
 the full design and [mockups/](mockups/index.html) for the approved templates.
 
-**Status:** milestone M1 (foundations and accounts) is built. You can create accounts and upload, validate,
-version and download master résumés. AI tailoring arrives in M2.
+**Status:** milestones M1 (accounts, master résumés) and M2 (AI tailoring) are built. Add your Anthropic API
+key under **Account → AI**, paste a job posting under **Applications**, and get a tailored, fact-checked résumé
+you can export as Markdown or JSON. Styled PDF/DOCX templates and cover letters come in later milestones.
 
 ## Run it
 
@@ -19,6 +20,11 @@ docker compose logs app | grep "Setup token"
 
 Open http://localhost:8080/setup, paste the setup token and create the admin account. After that, other
 people can register (open registration is the default; switch to invite-only under **Admin → Registration**).
+Each person adds their own Anthropic API key under **Account → AI**; it's verified, stored encrypted, and never
+shown again. AI usage is billed to that key, under a monthly cap ($20 by default).
+
+To try the app without an API key, set `AI_PROVIDER=fake` in your env file: a deterministic offline stand-in
+fills in the AI steps (mechanically, so the output isn't real tailoring).
 
 This folder syncs to OneDrive, so consider keeping your real env file outside it:
 
@@ -40,6 +46,7 @@ docker compose exec app resume-tailor admin list
 docker compose exec app resume-tailor admin create --email you@example.com --name "Your Name"
 docker compose exec app resume-tailor admin reset-password --email you@example.com
 docker compose exec app resume-tailor setup-token   # new setup token, before the first account exists
+docker compose exec app resume-tailor keys rotate    # after changing APP_SECRET_KEY (set APP_SECRET_KEY_PREVIOUS)
 ```
 
 ## Develop
@@ -52,7 +59,7 @@ make api-types   # after changing the API: regenerate schema/openapi.json and th
 
 | Path | What |
 |---|---|
-| `backend/` | FastAPI app (Python 3.13): `app/auth` sign-in and sessions, `app/masters` schema normalization, `app/api` routes |
+| `backend/` | FastAPI app (Python 3.13): `app/auth` sign-in and sessions, `app/masters` schema normalization, `app/ai` model client, prompts and stages, `app/pipeline` hydration, fact checks, coverage and the job queue, `app/api` routes |
 | `frontend/` | React 19 + TypeScript + Tailwind single-page app |
 | `schema/` | Generated JSON Schema for master résumés, an example, and the OpenAPI document |
 | `mockups/` | Static template mockups (Meridian, Atlas, Ledger, Vanguard) |

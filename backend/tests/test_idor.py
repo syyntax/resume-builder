@@ -9,7 +9,7 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from tests.conftest import Api
+from tests.conftest import POSTING, TEST_KEY, USER_PASSWORD, Api, drain
 
 # Routes whose path parameter is not an owned resource id.
 PUBLIC_TOKEN_ROUTES = {"/api/auth/invites/{token}", "/api/auth/password-reset/{token}"}
@@ -31,11 +31,17 @@ def _routes(app: FastAPI) -> list[tuple[str, str]]:
 
 def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make_user, example) -> None:
     alice, bob = make_user("alice@example.com"), make_user("bob@example.com")
+    for user in (alice, bob):  # both have keys, so "no key" can't mask a missing ownership check
+        user.put("/api/account/api-key", json={"apiKey": TEST_KEY, "password": USER_PASSWORD})
     created = alice.post("/api/master-resumes", json=example).json()
+    application = alice.post("/api/applications", json={"masterId": created["master"]["id"],
+                                                          "job": {"text": POSTING}}).json()
+    drain(app)
     ids = {
         "master_id": created["master"]["id"],
         "version_id": created["version"]["id"],
         "session_id": alice.get("/api/auth/sessions").json()[0]["id"],
+        "application_id": application["id"],
     }
 
     checked = 0
@@ -55,12 +61,14 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
         response = bob.request(method, url, **kwargs)
         assert response.status_code == 404, f"{method} {url} -> {response.status_code}: {response.text[:200]}"
         checked += 1
-    assert checked >= 8
+    assert checked >= 13
 
     # Alice's data is untouched and still hers.
     detail = alice.get(f"/api/master-resumes/{ids['master_id']}").json()
     assert detail["label"] == "Engineering master" and detail["versionCount"] == 1
     assert bob.get("/api/master-resumes").json() == []
+    assert bob.get("/api/applications").json() == []
+    assert alice.get(f"/api/applications/{ids['application_id']}").json()["status"] == "done"
     assert alice.get("/api/auth/me").status_code == 200
 
 

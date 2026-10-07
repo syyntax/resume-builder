@@ -554,7 +554,7 @@ Every table that holds user data has an indexed `owner_id` foreign key with `ON 
 | `session` | `id`, `user_id`, `token_hash` (SHA-256), `csrf_token`, `mfa_verified`, `created_at`, `last_seen_at`, `idle_expires_at`, `absolute_expires_at`, `ip`, `user_agent` | Only the token's hash is stored, never the raw token |
 | `auth_token` | `id`, `purpose` (`setup`\|`invite`\|`password_reset`\|`email_verify`), `token_hash`, `user_id`/`email`, `created_by`, `expires_at`, `used_at` | Single-use |
 | `recovery_code` | `id`, `user_id`, `code_hash`, `used_at` | |
-| `user_api_key` | `id`, `user_id` (unique), `provider` (`anthropic`), `ciphertext`, `nonce`, `key_version`, `hint` (last 4 characters), `status` (`valid`\|`invalid`), `verified_at`, `last_used_at`, `created_at` | AES-256-GCM, with the user ID as associated data ([§8.6](#86-api-keys-budgets-and-fair-use)) |
+| `user_api_key` | `id`, `user_id` (unique), `provider` (`anthropic`), `ciphertext`, `nonce`, `key_fingerprint`, `hint` (last 4 characters), `status` (`valid`\|`invalid`), `verified_at`, `last_used_at`, `created_at` | AES-256-GCM, with the user ID as associated data ([§8.6](#86-api-keys-budgets-and-fair-use)) |
 | `audit_log` | `id`, `actor_user_id`, `target_user_id`, `event`, `ip`, `user_agent`, `metadata` (JSON), `created_at` | Security events only, never document content |
 | `system_setting` | `key`, `value` (JSON), `updated_by`, `updated_at` | Admin-editable |
 | `user_preference` | `user_id`, `key`, `value` (JSON) | Defaults such as template and cover letter preference |
@@ -640,10 +640,10 @@ Admins **can't** demote or delete the **last** active admin. Changing a user's r
 **Storing keys**
 
 - A user's Anthropic API key is encrypted with **AES-256-GCM**. The encryption key is derived with HKDF from `APP_SECRET_KEY`, which lives outside the database. Each record has a random nonce and uses the **user ID as associated data**, so a ciphertext copied onto another user's row fails to decrypt.
-- Before saving, the app checks the key with a Models API call (`GET /v1/models`), which uses no tokens. It then stores only the ciphertext, a key version, and a display hint (the last 4 characters).
+- Before saving, the app checks the key with a Models API call (`GET /v1/models`), which uses no tokens. It then stores only the ciphertext, a fingerprint of the server secret it was encrypted under, and a display hint (the last 4 characters).
 - The key is **never returned** to the browser, never included in data exports, and never logged; log redaction removes `sk-ant-` patterns as a backstop. Admins see only whether a user has a key.
 - At call time, the key is decrypted in memory for that request only, and a per-request Anthropic client is built with it.
-- Rotating `APP_SECRET_KEY` uses `resume-tailor keys rotate`, which re-encrypts every stored key under the new key version.
+- To rotate `APP_SECRET_KEY`, set the new value plus `APP_SECRET_KEY_PREVIOUS` (the old one), then run `resume-tailor keys rotate`, which re-encrypts every stored key under the new secret. Remove `APP_SECRET_KEY_PREVIOUS` afterwards.
 
 **Choosing a key** (in this order)
 
@@ -655,7 +655,7 @@ When the API rejects a key (401 or 403), it's marked `invalid`, the user is noti
 
 **Spending caps**
 
-- Every AI call's usage is recorded in `ai_call` with its key source. Its cost is estimated from `config/pricing.yaml`, a per-model price table for input, output, cache-write, and cache-read tokens that can be updated without code changes.
+- Every AI call's usage is recorded in `ai_call` with its key source. Its cost is estimated from `backend/app/ai/pricing.toml` (override with `PRICING_FILE`), a per-model price table for input, output, cache-write, and cache-read tokens that can be updated without code changes.
 - Spending on the user's own key counts against `monthly_cap_usd`, which the user sets (default $20). Spending on the shared key counts against `shared_cap_usd`, which an admin sets (default $20). The two are tracked separately, so adding and removing a key can't be used to get around a cap.
 - Before a job starts, the month-to-date spend for the key it will use, plus the job's estimated cost, is compared against the matching cap. Users see a warning banner at 80%. At 100%, AI actions pause until the next month or until the cap is raised. Editing and export keep working.
 - Caps are estimates computed from token counts, not the provider's bill. The Account → AI page says so and points users to the Anthropic Console for their actual billing.
@@ -1168,15 +1168,16 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | GET | `/imports/{id}` · `/imports/{id}/events` (SSE) · `/imports/{id}/source` | Draft, notes, fidelity, progress, and the original file or HTML preview |
 | POST | `/imports/{id}/accept` | `{mode: "new"\|"merge", masterId?, document}` |
 | DELETE | `/imports/{id}` | Discard an import and its file |
-| POST | `/applications` | `{masterVersionId, job:{text,company?,title?,url?}, options, coverLetter:{enabled, options}}` returns `202 {id}` |
-| GET | `/applications` · `/applications/{id}` · `/applications/{id}/events` (SSE) | List, get, and progress |
+| POST | `/applications` | `{masterId, job:{text,company?,title?,url?}, options:{pageLimit?,tone?,instructions?}}` uses the master's current version and returns `202` (M2; `coverLetter` options arrive in M5) |
+| GET | `/applications` · `/applications/{id}` · `/applications/{id}/events` (SSE) | List, get (posting, analysis, résumé, cost), and progress |
+| POST | `/applications/{id}/retry` | Re-run a failed application |
 | PUT | `/applications/{id}/analysis` | Save edits to the analysis |
 | GET · PUT | `/applications/{id}/resume` | Get or save (autosave) |
 | POST | `/applications/{id}/resume/refine` · `/resume/fit` | `{scope, targetId, instruction}` / `{targetPages}` |
 | POST | `/applications/{id}/cover-letter` | Generate or regenerate with `{options}` |
 | GET · PUT | `/applications/{id}/cover-letter` | Get or save |
 | POST | `/applications/{id}/cover-letter/refine` · `/cover-letter/fit` | |
-| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download |
+| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download (M2 implements the résumé as `md` and `json`) |
 | GET | `/applications/{id}/preview.pdf?doc=…&rev=…` | Preview render |
 | POST · DELETE | `/applications/{id}/duplicate` · `/applications/{id}` | |
 | GET | `/templates` | Manifests, thumbnails, and theme options |
@@ -1192,7 +1193,8 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | GET · POST · DELETE | `/admin/invites` | |
 | GET | `/admin/usage?month=` | Totals per user |
 | GET | `/admin/audit-log` | Filterable |
-| GET · PUT | `/admin/settings` · POST `/admin/settings/test-connection` | System settings. The test checks the shared key, if one is configured. |
+| GET · PUT | `/admin/settings` | Registration settings |
+| GET · PUT | `/admin/ai-settings` · POST `/admin/ai-settings/test-connection` | Allowed and default models, the shared-key switch; the test checks the shared key |
 
 ---
 
@@ -1309,12 +1311,11 @@ A `docker-compose.dev.yml` override runs `uvicorn --reload` and the Vite dev ser
 ### 15.3 Dockerfile (multi-stage)
 
 1. **`frontend`** (`node:24-slim`): `pnpm install --frozen-lockfile && pnpm build`.
-2. **`runtime`** (`python:3.13-slim`):
-   - Install dependencies with `uv sync --frozen`, then `playwright install --with-deps chromium`.
-   - Copy the backend, templates, bundled fonts, `config/pricing.yaml`, and the built SPA.
-   - Add a non-root user and the `resume-tailor` CLI entry point.
-   - Run `uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`. The app applies migrations at startup, waiting up to 60 s for PostgreSQL.
-3. **`test`**: the runtime plus dev dependencies; `docker build --target test` then run it to execute the backend tests.
+2. **`base`** (`python:3.13-slim`): dependencies via `uv sync --frozen`, the backend (including `app/ai/pricing.toml` and the prompts), and a non-root user with the `resume-tailor` CLI entry point.
+3. **`test`**: `base` plus dev dependencies; `docker build --target test` then run it to execute the backend tests.
+4. **`runtime`**: `base` plus `playwright install --with-deps chromium`, templates, bundled fonts, and the built SPA. Runs `uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`. The app applies migrations at startup, waiting up to 60 s for PostgreSQL.
+
+`runtime` must stay the last stage: `docker build .` and `docker compose up --build` build the last stage unless a target is named (compose also names `target: runtime`).
 
 The image will be roughly 0.9–1.1 GB, most of it Chromium.
 
@@ -1335,7 +1336,11 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `SESSION_IDLE_DAYS` / `SESSION_MAX_DAYS` | `7` / `30` | |
 | `DEFAULT_MONTHLY_CAP_USD` | `20` | Default cap for each user's own-key and shared-key spending. `0` means unlimited. |
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
-| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | |
+| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | M2 implements `AI_EFFORT_ANALYZE` and `AI_EFFORT_TAILOR` |
+| `AI_PROVIDER` | `anthropic` | `fake` runs a deterministic offline stand-in model for tests and demos (never for real use) |
+| `AI_FAKE_DELAY_SECONDS` | `0` | With `AI_PROVIDER=fake`, wait this long per step, to demo the progress UI |
+| `APP_SECRET_KEY_PREVIOUS` | (empty) | Only while rotating `APP_SECRET_KEY` (see §8.6) |
+| `PRICING_FILE` | (built in) | Path to a replacement `pricing.toml` |
 | `AI_CLAIM_AUDIT` | `true` | |
 | `AI_DEBUG_LOG` | `false` | Store prompt and response bodies (development only) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_STARTTLS` | (empty: disabled) | Optional. When set, enables emailed password resets, invites, and email verification. |
@@ -1361,7 +1366,6 @@ resume-builder/
 │   ├── tailored-resume.schema.json
 │   ├── cover-letter.schema.json
 │   └── examples/master-resume.example.json
-├── config/pricing.yaml
 ├── backend/
 │   ├── pyproject.toml / uv.lock / alembic/
 │   ├── app/
@@ -1422,7 +1426,7 @@ resume-builder/
 |---|---|---|
 | **M0: Design sign-off** ✅ | This document plus the **template mockups** | Done 2026-10-06: all four templates approved (Meridian is the default) and open questions answered |
 | **M1: Foundations and auth** ✅ | Scaffold, Dockerfile and compose (with profiles), DB and Alembic (SQLite and Postgres), **setup token, email and password login, sessions, CSRF, rate limits, registration modes (open, invite, closed), roles, owner-scoped repositories, IDOR test harness**, audit log, admin CLI, master schema plus JSON upload and validation | Two users can sign in. Each sees only their own masters. The IDOR matrix passes. |
-| **M2: AI core** | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
+| **M2: AI core** ✅ | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
 | **M3: Import and master editor** | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
 | **M4: Beautiful output** | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
@@ -1435,6 +1439,12 @@ resume-builder/
 
 - **Done:** everything in the M1 row, plus a basic admin console (users, invites, registration settings, audit log), account export and deletion, and a read-only master résumé overview. Verified with 77 backend tests (SQLite) and 8 frontend tests, plus an end-to-end smoke test on the `postgres` profile.
 - **Still to do:** the backup and restore CLI commands (ADM-6), mypy and eslint in CI, and container image scanning.
+
+### M2 notes (2026-10-06)
+
+- **Done:** everything in the M2 row: bring-your-own keys (encrypted, verified, rotatable), the optional shared key, model policy, monthly caps per key source, the usage ledger, the job queue with live progress over SSE, stages A and B with one repair pass, guardrails G1–G5, keyword coverage, Markdown and JSON export, and the Applications, Account → AI and admin AI/Usage screens.
+- **Testing:** 118 backend tests and 10 frontend tests. The Anthropic client is tested against a stubbed SDK (request shape, error mapping, refusals); the full flow runs against `AI_PROVIDER=fake`, whose answers are checked against the exact structured-output schema sent to the real model. The first live run found a schema bug that check now covers (the converter stripped a field named `title`); answers that still fail validation are logged by field path, without résumé text.
+- **Deferred:** editing the analysis before tailoring (JOB-4) and the review-analysis-first mode (JOB-5) move to M5 with the editor.
 
 ---
 

@@ -8,7 +8,9 @@
 
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: runtime # the app image, never the test stage
     image: resume-tailor:latest
     env_file: ${RT_ENV_FILE:-.env}
     environment:

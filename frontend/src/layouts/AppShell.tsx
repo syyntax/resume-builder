@@ -67,7 +67,7 @@ export function AppShell() {
   const items: NavItem[] = [
     { to: "/", label: "Home", icon: <Home className={icon} aria-hidden />, end: true },
     { to: "/masters", label: "Master résumés", icon: <FileText className={icon} aria-hidden /> },
-    { to: "/applications", label: "Applications", icon: <Briefcase className={icon} aria-hidden />, soon: true },
+    { to: "/applications", label: "Applications", icon: <Briefcase className={icon} aria-hidden /> },
     { to: "/account", label: "Account", icon: <UserRound className={icon} aria-hidden /> },
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: <Shield className={icon} aria-hidden /> }] : []),
   ];

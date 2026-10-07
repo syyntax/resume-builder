@@ -588,6 +588,200 @@
         }
       }
     },
+    "/api/account/api-key": {
+      "get": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Get Api Key",
+        "operationId": "get_api_key_api_account_api_key_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyStatusOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Save Api Key",
+        "operationId": "save_api_key_api_account_api_key_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiKeyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Delete Api Key",
+        "operationId": "delete_api_key_api_account_api_key_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/api-key/test": {
+      "post": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Test Api Key",
+        "operationId": "test_api_key_api_account_api_key_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/ai-settings": {
+      "get": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Get Ai Settings",
+        "operationId": "get_ai_settings_api_account_ai_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Update Ai Settings",
+        "operationId": "update_ai_settings_api_account_ai_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/usage": {
+      "get": {
+        "tags": [
+          "account-ai"
+        ],
+        "summary": "Get Usage",
+        "operationId": "get_usage_api_account_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/users": {
       "get": {
         "tags": [
@@ -602,7 +796,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/UserOut"
+                    "$ref": "#/components/schemas/AdminUserOut"
                   },
                   "type": "array",
                   "title": "Response List Users Api Admin Users Get"
@@ -647,7 +841,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserOut"
+                  "$ref": "#/components/schemas/AdminUserOut"
                 }
               }
             }
@@ -1001,6 +1195,105 @@
         }
       }
     },
+    "/api/admin/ai-settings": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Ai Settings",
+        "operationId": "get_ai_settings_api_admin_ai_settings_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiSettingsOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Update Ai Settings",
+        "operationId": "update_ai_settings_api_admin_ai_settings_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAiSettingsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminAiSettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/ai-settings/test-connection": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Shared Key",
+        "operationId": "test_shared_key_api_admin_ai_settings_test_connection_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/admin/usage": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage By User",
+        "operationId": "usage_by_user_api_admin_usage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserUsageOut"
+                  },
+                  "type": "array",
+                  "title": "Response Usage By User Api Admin Usage Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/master-resumes/validate": {
       "post": {
         "tags": [
@@ -1243,6 +1536,18 @@
               "type": "string",
               "title": "Master Id"
             }
+          },
+          {
+            "name": "cascade",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Also delete the applications made from it.",
+              "default": false,
+              "title": "Cascade"
+            },
+            "description": "Also delete the applications made from it."
           }
         ],
         "responses": {
@@ -1407,10 +1712,451 @@
           }
         }
       }
+    },
+    "/api/applications": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "List Applications",
+        "operationId": "list_applications_api_applications_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ApplicationOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Applications Api Applications Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Create Application",
+        "operationId": "create_application_api_applications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Get Application",
+        "operationId": "get_application_api_applications__application_id__get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Delete Application",
+        "operationId": "delete_application_api_applications__application_id__delete",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/retry": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Retry Application",
+        "operationId": "retry_application_api_applications__application_id__retry_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/events": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Application Events",
+        "operationId": "application_events_api_applications__application_id__events_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/export": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Export Application",
+        "operationId": "export_application_api_applications__application_id__export_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(md|json)$",
+              "default": "md",
+              "title": "Format"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdminAiSettingsIn": {
+        "properties": {
+          "allowSharedKey": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowsharedkey"
+          },
+          "defaultModel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^claude-[a-z0-9.\\-]{1,60}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Defaultmodel"
+          },
+          "allowedModels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "pattern": "^claude-[a-z0-9.\\-]{1,60}$"
+                },
+                "type": "array",
+                "maxItems": 20,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowedmodels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AdminAiSettingsIn"
+      },
+      "AdminAiSettingsOut": {
+        "properties": {
+          "sharedKeyConfigured": {
+            "type": "boolean",
+            "title": "Sharedkeyconfigured"
+          },
+          "allowSharedKey": {
+            "type": "boolean",
+            "title": "Allowsharedkey"
+          },
+          "defaultModel": {
+            "type": "string",
+            "title": "Defaultmodel"
+          },
+          "allowedModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowedmodels"
+          },
+          "knownModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Knownmodels"
+          },
+          "defaultCapUsd": {
+            "type": "number",
+            "title": "Defaultcapusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sharedKeyConfigured",
+          "allowSharedKey",
+          "defaultModel",
+          "allowedModels",
+          "knownModels",
+          "defaultCapUsd"
+        ],
+        "title": "AdminAiSettingsOut"
+      },
+      "AdminUserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "admin"
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "title": "Status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "lastLoginAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastloginat"
+          },
+          "hasApiKey": {
+            "type": "boolean",
+            "title": "Hasapikey"
+          },
+          "sharedCapUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharedcapusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "displayName",
+          "role",
+          "status",
+          "createdAt",
+          "hasApiKey",
+          "sharedCapUsd"
+        ],
+        "title": "AdminUserOut"
+      },
       "AdminUserPatchIn": {
         "properties": {
           "role": {
@@ -1442,11 +2188,442 @@
               }
             ],
             "title": "Status"
+          },
+          "sharedCapUsd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sharedcapusd"
+          },
+          "resetSharedCap": {
+            "type": "boolean",
+            "title": "Resetsharedcap",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "AdminUserPatchIn"
+      },
+      "AiSettingsIn": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "monthlyCapUsd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthlycapusd"
+          },
+          "resetCap": {
+            "type": "boolean",
+            "title": "Resetcap",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AiSettingsIn"
+      },
+      "AiSettingsOut": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "allowedModels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowedmodels"
+          },
+          "defaultModel": {
+            "type": "string",
+            "title": "Defaultmodel"
+          },
+          "monthlyCapUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthlycapusd",
+            "description": "Your cap for your own key; null means the default."
+          },
+          "defaultCapUsd": {
+            "type": "number",
+            "title": "Defaultcapusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "model",
+          "allowedModels",
+          "defaultModel",
+          "monthlyCapUsd",
+          "defaultCapUsd"
+        ],
+        "title": "AiSettingsOut"
+      },
+      "ApiKeyIn": {
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "maxLength": 400,
+            "minLength": 10,
+            "title": "Apikey"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "apiKey",
+          "password"
+        ],
+        "title": "ApiKeyIn"
+      },
+      "ApiKeyStatusOut": {
+        "properties": {
+          "hasKey": {
+            "type": "boolean",
+            "title": "Haskey"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "valid",
+                  "invalid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "verifiedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifiedat"
+          },
+          "lastUsedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastusedat"
+          },
+          "sharedKeyAvailable": {
+            "type": "boolean",
+            "title": "Sharedkeyavailable",
+            "default": false
+          },
+          "using": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "own",
+                  "shared"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Using",
+            "description": "Which key AI calls will use."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "hasKey"
+        ],
+        "title": "ApiKeyStatusOut"
+      },
+      "ApplicationCreateIn": {
+        "properties": {
+          "masterId": {
+            "type": "string",
+            "title": "Masterid"
+          },
+          "job": {
+            "$ref": "#/components/schemas/JobIn"
+          },
+          "options": {
+            "$ref": "#/components/schemas/GenerationOptions",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "masterId",
+          "job"
+        ],
+        "title": "ApplicationCreateIn"
+      },
+      "ApplicationDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "analyzing",
+              "tailoring",
+              "validating",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "options": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Options"
+          },
+          "coverageScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragescore"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "job": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "master": {
+            "$ref": "#/components/schemas/MasterRef"
+          },
+          "posting": {
+            "type": "string",
+            "title": "Posting"
+          },
+          "analysis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analysis"
+          },
+          "resume": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "error",
+          "model",
+          "options",
+          "coverageScore",
+          "createdAt",
+          "updatedAt",
+          "job",
+          "master",
+          "posting",
+          "analysis",
+          "resume",
+          "costUsd"
+        ],
+        "title": "ApplicationDetailOut"
+      },
+      "ApplicationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "analyzing",
+              "tailoring",
+              "validating",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "options": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Options"
+          },
+          "coverageScore": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coveragescore"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updatedat"
+          },
+          "job": {
+            "$ref": "#/components/schemas/JobRef"
+          },
+          "master": {
+            "$ref": "#/components/schemas/MasterRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "error",
+          "model",
+          "options",
+          "coverageScore",
+          "createdAt",
+          "updatedAt",
+          "job",
+          "master"
+        ],
+        "title": "ApplicationOut"
       },
       "AuditEntryOut": {
         "properties": {
@@ -1542,6 +2719,56 @@
           "password"
         ],
         "title": "DeleteAccountIn"
+      },
+      "GenerationOptions": {
+        "properties": {
+          "pageLimit": {
+            "anyOf": [
+              {
+                "enum": [
+                  1,
+                  2,
+                  "auto"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pagelimit"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "neutral",
+                  "confident",
+                  "conservative"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GenerationOptions"
       },
       "HTTPValidationError": {
         "properties": {
@@ -1656,6 +2883,108 @@
           "message"
         ],
         "title": "IssueOut"
+      },
+      "JobIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 50000,
+            "minLength": 40,
+            "title": "Text"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2048
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "JobIn"
+      },
+      "JobRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "company",
+          "title",
+          "url"
+        ],
+        "title": "JobRef"
       },
       "LinkOut": {
         "properties": {
@@ -1828,6 +3157,49 @@
         ],
         "title": "MasterPatchIn"
       },
+      "MasterRef": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "versionId": {
+            "type": "string",
+            "title": "Versionid"
+          },
+          "versionNumber": {
+            "type": "integer",
+            "title": "Versionnumber"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "versionId",
+          "versionNumber"
+        ],
+        "title": "MasterRef"
+      },
       "MasterSaveOut": {
         "properties": {
           "master": {
@@ -1951,6 +3323,22 @@
           "newPassword"
         ],
         "title": "PasswordChangeIn"
+      },
+      "PasswordConfirmIn": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "PasswordConfirmIn"
       },
       "PasswordResetIn": {
         "properties": {
@@ -2206,6 +3594,78 @@
         ],
         "title": "SetupStatusOut"
       },
+      "SpendOut": {
+        "properties": {
+          "spentUsd": {
+            "type": "number",
+            "title": "Spentusd"
+          },
+          "capUsd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capusd"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Percent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "spentUsd",
+          "capUsd",
+          "percent"
+        ],
+        "title": "SpendOut"
+      },
+      "StageUsageOut": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "inputTokens": {
+            "type": "integer",
+            "title": "Inputtokens"
+          },
+          "outputTokens": {
+            "type": "integer",
+            "title": "Outputtokens"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stage",
+          "calls",
+          "inputTokens",
+          "outputTokens",
+          "costUsd"
+        ],
+        "title": "StageUsageOut"
+      },
       "SystemSettingsIn": {
         "properties": {
           "registrationMode": {
@@ -2303,6 +3763,43 @@
         ],
         "title": "TokenCheckOut"
       },
+      "UsageOut": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "own": {
+            "$ref": "#/components/schemas/SpendOut"
+          },
+          "shared": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpendOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "byStage": {
+            "items": {
+              "$ref": "#/components/schemas/StageUsageOut"
+            },
+            "type": "array",
+            "title": "Bystage"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "month",
+          "own",
+          "shared",
+          "byStage"
+        ],
+        "title": "UsageOut"
+      },
       "UserOut": {
         "properties": {
           "id": {
@@ -2362,6 +3859,55 @@
           "createdAt"
         ],
         "title": "UserOut"
+      },
+      "UserUsageOut": {
+        "properties": {
+          "userId": {
+            "type": "string",
+            "title": "Userid"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "Displayname"
+          },
+          "hasApiKey": {
+            "type": "boolean",
+            "title": "Hasapikey"
+          },
+          "ownSpendUsd": {
+            "type": "number",
+            "title": "Ownspendusd"
+          },
+          "sharedSpendUsd": {
+            "type": "number",
+            "title": "Sharedspendusd"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "applications": {
+            "type": "integer",
+            "title": "Applications"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "userId",
+          "email",
+          "displayName",
+          "hasApiKey",
+          "ownSpendUsd",
+          "sharedSpendUsd",
+          "calls",
+          "applications"
+        ],
+        "title": "UserUsageOut"
       },
       "ValidationError": {
         "properties": {

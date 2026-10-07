@@ -6,12 +6,13 @@ import json
 import re
 
 from fastapi import APIRouter, Depends, Query, Request, Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import current_user
 from app.auth.sessions import AuthContext
 from app.db.engine import get_db
-from app.db.models import MasterResume, MasterResumeVersion
+from app.db.models import Application, MasterResume, MasterResumeVersion
 from app.errors import ApiError
 from app.masters.normalize import (
     MAX_DOCUMENT_BYTES,
@@ -158,8 +159,20 @@ async def rename_master(master_id: str, body: MasterPatchIn, repo: MasterReposit
 
 
 @router.delete("/{master_id}", status_code=204)
-async def delete_master(master_id: str, repo: MasterRepository = Depends(get_repo)) -> Response:
+async def delete_master(
+    master_id: str,
+    cascade: bool = Query(default=False, description="Also delete the applications made from it."),
+    repo: MasterRepository = Depends(get_repo),
+) -> Response:
     master = await _master_or_404(repo, master_id)
+    used_by = (await repo.db.execute(
+        select(func.count()).select_from(Application)
+        .join(MasterResumeVersion, MasterResumeVersion.id == Application.master_version_id)
+        .where(MasterResumeVersion.master_id == master.id, Application.owner_id == repo.owner_id)
+    )).scalar_one()
+    if used_by and not cascade:
+        raise ApiError(409, f"{used_by} application(s) were made from this master résumé. Delete them too, "
+                            "or keep the master.", extra={"code": "in_use", "applications": used_by})
     await repo.delete(master)
     await repo.db.commit()
     return Response(status_code=204)
