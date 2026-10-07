@@ -1,0 +1,69 @@
+# Resume Tailor
+#   Local (default):     docker compose up -d --build        → http://localhost:8080
+#   With HTTPS (Caddy):  docker compose --profile https up -d
+#   With PostgreSQL:     docker compose --profile postgres up -d   (and set DATABASE_URL in your env file)
+#
+# Secrets live in the env file. This folder syncs to OneDrive, so you can keep the real file elsewhere:
+#   RT_ENV_FILE=~/.config/resume-tailor/.env docker compose up -d
+
+services:
+  app:
+    build: .
+    image: resume-tailor:latest
+    env_file: ${RT_ENV_FILE:-.env}
+    environment:
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:${APP_PORT:-8080}:8080" # local-only by default
+    volumes:
+      - app-data:/data # database and uploads (a named volume, not the synced folder)
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  caddy:
+    image: caddy:2
+    profiles: ["https"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: resume_tailor
+      POSTGRES_USER: resume_tailor
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resume_tailor"]
+      interval: 10s
+    restart: unless-stopped
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:
+  pg-data:

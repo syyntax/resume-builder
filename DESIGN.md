@@ -321,7 +321,7 @@ flowchart TB
 | Frontend | **React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui** | |
 | Frontend state | **TanStack Query**, **Zustand + zundo** (undo/redo), **dnd-kit** | |
 | Frontend editors | **Monaco** (raw JSON), **PDF.js** (`react-pdf`), **zxcvbn-ts** (password strength) | |
-| Tooling | uv, ruff, mypy, pytest · pnpm, eslint, vitest, Playwright Test | |
+| Tooling | uv, ruff, pytest · pnpm, TypeScript 5.9, vitest, Playwright Test | TypeScript stays on 5.x because openapi-typescript needs its compiler API |
 
 ---
 
@@ -1135,19 +1135,24 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 |---|---|---|
 | GET | `/health` **public** | Liveness and readiness |
 | GET | `/auth/setup-status` **public** · POST `/auth/setup` **public** | Create the first admin with the setup token |
+| GET | `/auth/registration` **public** | Registration mode, whether setup is pending, whether domains are restricted |
+| GET | `/auth/invites/{token}` **public** | Check an invite link (and the email it's bound to) |
 | POST | `/auth/register` **public** | Register through an invite or open registration |
 | POST | `/auth/login` **public** | Returns `{mfaRequired}` when a second step is needed |
 | POST | `/auth/mfa/verify` | Complete a pending MFA session |
 | POST | `/auth/logout` | |
 | GET | `/auth/me` | Current user, role, CSRF token, key status, and spending status |
-| POST | `/auth/password/forgot` **public** · `/auth/password/reset` **public** · `/auth/password/change` | |
+| GET · POST | `/auth/password-reset/{token}` **public** · `/auth/password-reset` **public** | Check, then use, a single-use reset link |
+| POST | `/auth/password/change` | Change your password (signs out other sessions) |
+| POST | `/auth/password/forgot` **public** | Email a reset link (when SMTP is configured; M7) |
 | POST | `/auth/mfa/setup` · `/auth/mfa/enable` · `/auth/mfa/disable` · `/auth/mfa/recovery-codes` | |
 | GET · DELETE | `/auth/sessions` · `/auth/sessions/{id}` | List sessions, revoke one or all others |
 | GET · PUT · DELETE | `/account/api-key` | Key status (hint, verified date, validity); save or replace the key (verified first, requires the password); remove it (requires the password) |
 | POST | `/account/api-key/test` | Re-test the stored key |
 | GET · PUT | `/account/ai-settings` | Model choice and monthly cap |
 | GET | `/account/usage` | Your own usage and spending against each cap |
-| POST | `/account/export` → GET `/account/export/{id}` | Download a ZIP of your data |
+| PATCH | `/account/profile` | Change name, or email (requires the password) |
+| GET | `/account/export` | Download a ZIP of your data |
 | DELETE | `/account` | Delete your account (requires re-entering the password) |
 
 **Content**
@@ -1288,7 +1293,7 @@ volumes:
   - This project lives in a OneDrive-synced folder. Syncing a live SQLite database and its WAL files risks lock conflicts and corruption, so data lives on Docker named volumes instead.
   - Back up the instance with `docker compose exec app resume-tailor backup` (an online SQLite backup or `pg_dump`, plus uploads, written as a ZIP to `/data/backups`).
 - **Postgres startup:** the app retries the database connection at startup, so it doesn't need a conditional `depends_on` on the Postgres profile.
-- **Secrets and OneDrive:** `.env` holds `APP_SECRET_KEY` and, if used, the shared key. This project folder syncs to OneDrive, so keep the real `.env` outside it (for example `docker compose --env-file ~/.config/resume-tailor/.env up -d`), or mount the secret as a Docker secret file and point `APP_SECRET_KEY_FILE` at it. Either way, `.env` is git-ignored.
+- **Secrets and OneDrive:** `.env` holds `APP_SECRET_KEY` and, if used, the shared key. This project folder syncs to OneDrive, so keep the real `.env` outside it (for example `RT_ENV_FILE=~/.config/resume-tailor/.env docker compose up -d`), or mount the secret as a Docker secret file and point `APP_SECRET_KEY_FILE` at it. Either way, `.env` is git-ignored.
 
 **First run:**
 
@@ -1303,12 +1308,13 @@ A `docker-compose.dev.yml` override runs `uvicorn --reload` and the Vite dev ser
 
 ### 15.3 Dockerfile (multi-stage)
 
-1. **`frontend`** (`node:22-slim`): `pnpm install --frozen-lockfile && pnpm build`.
+1. **`frontend`** (`node:24-slim`): `pnpm install --frozen-lockfile && pnpm build`.
 2. **`runtime`** (`python:3.13-slim`):
    - Install dependencies with `uv sync --frozen`, then `playwright install --with-deps chromium`.
    - Copy the backend, templates, bundled fonts, `config/pricing.yaml`, and the built SPA.
    - Add a non-root user and the `resume-tailor` CLI entry point.
-   - On startup, run `alembic upgrade head`, then `uvicorn app.main:app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`.
+   - Run `uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`. The app applies migrations at startup, waiting up to 60 s for PostgreSQL.
+3. **`test`**: the runtime plus dev dependencies; `docker build --target test` then run it to execute the backend tests.
 
 The image will be roughly 0.9–1.1 GB, most of it Chromium.
 
@@ -1415,13 +1421,20 @@ resume-builder/
 | Milestone | Scope | Exit criteria |
 |---|---|---|
 | **M0: Design sign-off** ✅ | This document plus the **template mockups** | Done 2026-10-06: all four templates approved (Meridian is the default) and open questions answered |
-| **M1: Foundations and auth** | Scaffold, Dockerfile and compose (with profiles), DB and Alembic (SQLite and Postgres), **setup token, email and password login, sessions, CSRF, rate limits, registration modes (open, invite, closed), roles, owner-scoped repositories, IDOR test harness**, audit log, admin CLI, master schema plus JSON upload and validation | Two users can sign in. Each sees only their own masters. The IDOR matrix passes. |
+| **M1: Foundations and auth** ✅ | Scaffold, Dockerfile and compose (with profiles), DB and Alembic (SQLite and Postgres), **setup token, email and password login, sessions, CSRF, rate limits, registration modes (open, invite, closed), roles, owner-scoped repositories, IDOR test harness**, audit log, admin CLI, master schema plus JSON upload and validation | Two users can sign in. Each sees only their own masters. The IDOR matrix passes. |
 | **M2: AI core** | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
 | **M3: Import and master editor** | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
 | **M4: Beautiful output** | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
 | **M6: Formats and templates** | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
 | **M7: Hardening and polish** | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
+
+---
+
+### M1 notes (2026-10-06)
+
+- **Done:** everything in the M1 row, plus a basic admin console (users, invites, registration settings, audit log), account export and deletion, and a read-only master résumé overview. Verified with 77 backend tests (SQLite) and 8 frontend tests, plus an end-to-end smoke test on the `postgres` profile.
+- **Still to do:** the backup and restore CLI commands (ADM-6), mypy and eslint in CI, and container image scanning.
 
 ---
 

@@ -1,0 +1,32 @@
+# Development: hot-reloading backend and Vite dev server.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   → frontend http://localhost:5173 (proxies /api to the backend), backend http://localhost:8080
+services:
+  app:
+    command: >
+      uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --reload --reload-dir /app/app
+    environment:
+      ALLOWED_ORIGINS: http://localhost:5173
+      ENABLE_API_DOCS: "true"
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./backend/app:/app/app
+
+  web:
+    image: node:24-slim
+    working_dir: /repo/frontend
+    command: sh -c "corepack enable && pnpm config set store-dir /pnpm-store && pnpm install && pnpm dev"
+    environment:
+      BACKEND_URL: http://app:8080
+    ports:
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - .:/repo
+      - fe-node-modules:/repo/frontend/node_modules # keeps node_modules out of the synced folder
+      - pnpm-store:/pnpm-store
+    depends_on:
+      - app
+
+volumes:
+  fe-node-modules:
+  pnpm-store:

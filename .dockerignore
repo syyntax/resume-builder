@@ -1,0 +1,13 @@
+.git
+.gitignore
+.env
+*.env
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/node_modules
+frontend/dist
+data
+mockups
+DESIGN.md

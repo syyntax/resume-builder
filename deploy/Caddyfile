@@ -1,0 +1,7 @@
+# Reverse proxy with automatic HTTPS. Set SITE_ADDRESS in your env file:
+#   - a public domain (resumes.example.com) gets a Let's Encrypt certificate;
+#   - "localhost" or a LAN name uses Caddy's internal CA (add "tls internal" below for LAN names).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}

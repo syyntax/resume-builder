@@ -1,0 +1,397 @@
+{
+  "$schema": "http://localhost:8080/schema/master-resume.schema.json",
+  "meta": {
+    "schemaVersion": "1.0",
+    "label": "Engineering master"
+  },
+  "basics": {
+    "name": "Jordan Rivera",
+    "email": "jordan@example.com",
+    "phone": "(555) 010-0199",
+    "url": "https://jordan.example.dev",
+    "summary": "Platform engineer focused on Kubernetes, developer platforms, and reliability.",
+    "location": {
+      "city": "Denver",
+      "region": "CO",
+      "countryCode": "US",
+      "remote": true
+    },
+    "profiles": [
+      {
+        "network": "LinkedIn",
+        "username": "jrivera",
+        "url": "https://linkedin.com/in/jrivera"
+      },
+      {
+        "network": "GitHub",
+        "username": "jrivera",
+        "url": "https://github.com/jrivera"
+      }
+    ],
+    "workAuthorization": "US citizen"
+  },
+  "headlines": [
+    {
+      "id": "h-platform",
+      "text": "Senior Platform Engineer",
+      "tags": [
+        "platform",
+        "infrastructure"
+      ]
+    },
+    {
+      "id": "h-sre",
+      "text": "Site Reliability Engineer",
+      "tags": [
+        "sre",
+        "reliability"
+      ]
+    },
+    {
+      "id": "h-lead",
+      "text": "Engineering Lead, Cloud Infrastructure",
+      "tags": [
+        "leadership"
+      ]
+    }
+  ],
+  "summaries": [
+    {
+      "id": "s-platform",
+      "tags": [
+        "platform",
+        "kubernetes"
+      ],
+      "text": "Platform engineer with 9 years of experience building and running distributed systems at scale. Led Kubernetes migrations, self-service developer platforms, and CI/CD modernization that cut deploy times from hours to minutes. Pairs deep infrastructure expertise with mentorship and clear technical writing."
+    },
+    {
+      "id": "s-lead",
+      "tags": [
+        "leadership"
+      ],
+      "text": "Hands-on engineering lead who grows teams while shipping infrastructure that product engineers love to use. Known for turning reliability goals into concrete, measurable practices."
+    }
+  ],
+  "work": [
+    {
+      "id": "acme",
+      "company": "Acme Payments",
+      "position": "Senior Software Engineer, Platform",
+      "location": "Denver, CO",
+      "url": "https://acme.example.com",
+      "startDate": "2021-03",
+      "endDate": null,
+      "employmentType": "full-time",
+      "summary": "Core payments platform team (40 engineers).",
+      "tags": [
+        "payments",
+        "fintech",
+        "platform"
+      ],
+      "skills": [
+        "python",
+        "go",
+        "kubernetes",
+        "aws",
+        "terraform",
+        "argo-cd",
+        "backstage"
+      ],
+      "highlights": [
+        {
+          "id": "acme-b1",
+          "text": "Led migration of 40 payment services from EC2 to Kubernetes (EKS), cutting p99 latency 45% and infrastructure cost $380K per year.",
+          "tags": [
+            "kubernetes",
+            "migration",
+            "cost",
+            "leadership"
+          ],
+          "skills": [
+            "kubernetes",
+            "aws",
+            "terraform"
+          ],
+          "priority": 5,
+          "pin": true,
+          "variants": [
+            {
+              "text": "Drove the company's largest infrastructure migration (40 services to Kubernetes), cutting p99 latency 45% and saving $380K per year.",
+              "tags": [
+                "leadership"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "acme-b2",
+          "text": "Designed a self-service developer platform on Backstage, Argo CD, and reusable Terraform modules; adopted by 22 teams, reducing new-service setup from 2 weeks to 1 day.",
+          "tags": [
+            "developer-experience",
+            "platform"
+          ],
+          "skills": [
+            "Backstage",
+            "Argo CD",
+            "Terraform"
+          ],
+          "priority": 5
+        },
+        {
+          "id": "acme-b3",
+          "text": "Built an SLO-driven canary release pipeline with Argo Rollouts and automated rollback, reducing failed production releases by 60%.",
+          "tags": [
+            "reliability",
+            "ci-cd"
+          ],
+          "skills": [
+            "k8s"
+          ]
+        },
+        "Redesigned on-call and incident review for the platform group, lowering mean time to recovery from 54 to 18 minutes.",
+        "Mentored 4 engineers through design reviews and pairing; two were promoted to senior within 18 months.",
+        {
+          "text": "Wrote the team's infrastructure RFC process; 30+ RFCs reviewed in the first year.",
+          "tags": [
+            "writing",
+            "process"
+          ],
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "id": "initech-2",
+      "company": "Initech",
+      "position": "Software Engineer II",
+      "location": "Austin, TX",
+      "startDate": "2019-02",
+      "endDate": "2021-02",
+      "tags": [
+        "build-systems",
+        "platform"
+      ],
+      "skills": [
+        "go",
+        "bazel",
+        "postgresql"
+      ],
+      "highlights": [
+        "Rebuilt the monorepo build on Bazel with remote caching, cutting CI time from 42 to 9 minutes for 150 engineers.",
+        "Created Go tooling that standardized service-mesh mTLS configuration across 60 services.",
+        "Ran Postgres fleet upgrades (9.6 to 12) across 30 clusters with zero customer-facing downtime."
+      ]
+    },
+    {
+      "id": "initech-1",
+      "company": "Initech",
+      "position": "Software Engineer",
+      "location": "Austin, TX",
+      "startDate": "2017-06",
+      "endDate": "2019-02",
+      "skills": [
+        "python"
+      ],
+      "highlights": [
+        "Built internal deployment tooling in Python used by 12 product teams.",
+        "Automated database schema migrations, removing a weekly manual release step."
+      ]
+    },
+    {
+      "id": "hooli",
+      "company": "Hooli",
+      "position": "Junior Software Engineer",
+      "location": "Austin, TX",
+      "startDate": "2016-07",
+      "endDate": "2017-05",
+      "priority": 1,
+      "highlights": [
+        "Maintained Jenkins pipelines for a 20-service platform."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "tf-guard",
+      "name": "tf-guard",
+      "description": "Open-source Terraform policy linter, written in Go",
+      "url": "https://github.com/jrivera/tf-guard",
+      "startDate": "2022-01",
+      "skills": [
+        "go",
+        "terraform"
+      ],
+      "tags": [
+        "open-source",
+        "security"
+      ],
+      "highlights": [
+        "Reached 1.2K GitHub stars; used in CI by 40+ organizations to block insecure infrastructure changes before merge."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "cu-boulder",
+      "institution": "University of Colorado Boulder",
+      "studyType": "B.S.",
+      "area": "Computer Science",
+      "startDate": "2012-08",
+      "endDate": "2016-05",
+      "honors": [
+        "Cum laude"
+      ]
+    }
+  ],
+  "certifications": [
+    {
+      "id": "cka",
+      "name": "Certified Kubernetes Administrator (CKA)",
+      "issuer": "CNCF",
+      "date": "2023-05"
+    },
+    {
+      "id": "aws-saa",
+      "name": "AWS Certified Solutions Architect – Associate",
+      "issuer": "Amazon Web Services",
+      "date": "2022-09"
+    }
+  ],
+  "skills": [
+    {
+      "id": "go",
+      "name": "Go",
+      "category": "Languages",
+      "level": "advanced",
+      "years": 6,
+      "aliases": [
+        "Golang"
+      ]
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "category": "Languages",
+      "level": "expert",
+      "years": 9
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "category": "Languages",
+      "level": "intermediate"
+    },
+    {
+      "name": "Bash",
+      "category": "Languages"
+    },
+    {
+      "id": "kubernetes",
+      "name": "Kubernetes",
+      "category": "Cloud & Infrastructure",
+      "level": "expert",
+      "years": 6,
+      "aliases": [
+        "K8s",
+        "EKS",
+        "GKE"
+      ]
+    },
+    {
+      "id": "aws",
+      "name": "AWS",
+      "category": "Cloud & Infrastructure",
+      "aliases": [
+        "Amazon Web Services",
+        "EC2",
+        "RDS"
+      ]
+    },
+    {
+      "id": "terraform",
+      "name": "Terraform",
+      "category": "Cloud & Infrastructure",
+      "aliases": [
+        "IaC"
+      ]
+    },
+    {
+      "name": "Helm",
+      "category": "Cloud & Infrastructure"
+    },
+    {
+      "id": "argo-cd",
+      "name": "Argo CD",
+      "category": "Cloud & Infrastructure",
+      "aliases": [
+        "ArgoCD",
+        "GitOps"
+      ]
+    },
+    {
+      "id": "backstage",
+      "name": "Backstage",
+      "category": "Developer Platforms"
+    },
+    {
+      "id": "bazel",
+      "name": "Bazel",
+      "category": "Build & CI"
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "category": "Data",
+      "aliases": [
+        "Postgres"
+      ]
+    },
+    {
+      "name": "Prometheus",
+      "category": "Observability"
+    },
+    {
+      "name": "Grafana",
+      "category": "Observability"
+    },
+    {
+      "name": "OpenTelemetry",
+      "category": "Observability",
+      "aliases": [
+        "OTel"
+      ]
+    }
+  ],
+  "languages": [
+    {
+      "language": "English",
+      "fluency": "Native"
+    },
+    {
+      "language": "Spanish",
+      "fluency": "Professional working proficiency"
+    }
+  ],
+  "customSections": [
+    {
+      "id": "speaking",
+      "title": "Speaking",
+      "items": [
+        {
+          "title": "Migrating Payments to Kubernetes Without Downtime",
+          "subtitle": "KubeCon North America",
+          "date": "2023-11",
+          "url": "https://example.com/talks/payments-k8s"
+        }
+      ]
+    }
+  ],
+  "preferences": {
+    "pageLimit": 1,
+    "recentYears": 12,
+    "minBulletsPerRecentRole": 2,
+    "tone": "confident",
+    "spelling": "en-US",
+    "showWorkAuthorization": false
+  }
+}

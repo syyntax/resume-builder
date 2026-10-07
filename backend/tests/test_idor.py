@@ -1,0 +1,75 @@
+"""Data isolation (DESIGN.md §8.5): every route that takes a resource id must answer 404 when the
+resource belongs to someone else. Routes are enumerated from the OpenAPI document, so a new route that
+isn't covered here makes this test fail until it is classified."""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from fastapi import FastAPI
+
+from tests.conftest import Api
+
+# Routes whose path parameter is not an owned resource id.
+PUBLIC_TOKEN_ROUTES = {"/api/auth/invites/{token}", "/api/auth/password-reset/{token}"}
+
+# Bodies that pass request validation, so the ownership check (not a 422) decides the outcome.
+BODIES: dict[tuple[str, str], Any] = {
+    ("PATCH", "/api/master-resumes/{master_id}"): {"label": "Hijacked"},
+    ("PUT", "/api/master-resumes/{master_id}"): "EXAMPLE",
+}
+
+
+def _routes(app: FastAPI) -> list[tuple[str, str]]:
+    routes = []
+    for path, operations in app.openapi()["paths"].items():
+        for method in operations:
+            routes.append((method.upper(), path))
+    return routes
+
+
+def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make_user, example) -> None:
+    alice, bob = make_user("alice@example.com"), make_user("bob@example.com")
+    created = alice.post("/api/master-resumes", json=example).json()
+    ids = {
+        "master_id": created["master"]["id"],
+        "version_id": created["version"]["id"],
+        "session_id": alice.get("/api/auth/sessions").json()[0]["id"],
+    }
+
+    checked = 0
+    for method, path in _routes(app):
+        params = re.findall(r"{(\w+)}", path)
+        if not params or path in PUBLIC_TOKEN_ROUTES or path.startswith("/api/admin/"):
+            continue
+        unknown = [p for p in params if p not in ids]
+        assert not unknown, f"{method} {path}: classify parameter(s) {unknown} in tests/test_idor.py"
+        url = path.format(**ids)
+        body = BODIES.get((method, path))
+        kwargs: dict[str, Any] = {}
+        if body == "EXAMPLE":
+            kwargs["json"] = example
+        elif body is not None:
+            kwargs["json"] = body
+        response = bob.request(method, url, **kwargs)
+        assert response.status_code == 404, f"{method} {url} -> {response.status_code}: {response.text[:200]}"
+        checked += 1
+    assert checked >= 8
+
+    # Alice's data is untouched and still hers.
+    detail = alice.get(f"/api/master-resumes/{ids['master_id']}").json()
+    assert detail["label"] == "Engineering master" and detail["versionCount"] == 1
+    assert bob.get("/api/master-resumes").json() == []
+    assert alice.get("/api/auth/me").status_code == 200
+
+
+def test_non_admins_get_403_on_every_admin_route(app: FastAPI, admin: Api, make_user) -> None:
+    user = make_user("curious@example.com")
+    target = admin.user["id"]
+    for method, path in _routes(app):
+        if not path.startswith("/api/admin/"):
+            continue
+        url = re.sub(r"{\w+}", target, path)
+        response = user.request(method, url, json={})
+        assert response.status_code == 403, f"{method} {url} -> {response.status_code}"

@@ -1,0 +1,2557 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://resume-tailor.local/schema/master-resume.schema.json",
+  "$defs": {
+    "Award": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "awarder": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Awarder"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Award",
+      "type": "object"
+    },
+    "Basics": {
+      "additionalProperties": true,
+      "properties": {
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        },
+        "email": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Email"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Location"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profiles": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Profile"
+          },
+          "maxItems": 20,
+          "title": "Profiles",
+          "type": "array"
+        },
+        "workAuthorization": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Workauthorization"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Basics",
+      "type": "object"
+    },
+    "Certification": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "issuer": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issuer"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "expires": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "credentialId": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Credentialid"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Certification",
+      "type": "object"
+    },
+    "CustomItem": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "subtitle": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subtitle"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "endDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY, YYYY-MM, or YYYY-MM-DD. Omit, or use null or \"present\", for a current role.",
+          "examples": [
+            "2023-06"
+          ],
+          "title": "Enddate"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "highlights": {
+          "default": [],
+          "description": "Bullets: plain strings or objects.",
+          "items": {
+            "oneOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Highlight"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Highlights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "CustomItem",
+      "type": "object"
+    },
+    "CustomSection": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "items": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/CustomItem"
+          },
+          "maxItems": 100,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "CustomSection",
+      "type": "object"
+    },
+    "Education": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "institution": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Institution",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "area": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Area"
+        },
+        "studyType": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Studytype"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "endDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY, YYYY-MM, or YYYY-MM-DD. Omit, or use null or \"present\", for a current role.",
+          "examples": [
+            "2023-06"
+          ],
+          "title": "Enddate"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "courses": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Courses",
+          "type": "array"
+        },
+        "honors": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Honors",
+          "type": "array"
+        },
+        "highlights": {
+          "default": [],
+          "description": "Bullets: plain strings or objects.",
+          "items": {
+            "oneOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Highlight"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Highlights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "institution"
+      ],
+      "title": "Education",
+      "type": "object"
+    },
+    "Headline": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "text": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Headline",
+      "type": "object"
+    },
+    "Highlight": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "text": {
+          "maxLength": 5000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "skills": {
+          "default": [],
+          "description": "Skill ids (or names) this bullet demonstrates.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Skills",
+          "type": "array"
+        },
+        "variants": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Variant"
+          },
+          "maxItems": 10,
+          "title": "Variants",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Highlight",
+      "type": "object"
+    },
+    "Interest": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Keywords",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Interest",
+      "type": "object"
+    },
+    "Language": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "language": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Language",
+          "type": "string"
+        },
+        "fluency": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fluency"
+        }
+      },
+      "required": [
+        "language"
+      ],
+      "title": "Language",
+      "type": "object"
+    },
+    "Location": {
+      "additionalProperties": true,
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "postalCode": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Postalcode"
+        },
+        "city": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "City"
+        },
+        "countryCode": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Countrycode"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Remote"
+        }
+      },
+      "title": "Location",
+      "type": "object"
+    },
+    "Meta": {
+      "additionalProperties": true,
+      "properties": {
+        "schemaVersion": {
+          "default": "1.0",
+          "pattern": "^1\\.\\d+$",
+          "title": "Schemaversion",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "canonical": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Canonical"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "lastModified": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lastmodified"
+        }
+      },
+      "title": "Meta",
+      "type": "object"
+    },
+    "Preferences": {
+      "additionalProperties": true,
+      "properties": {
+        "pageLimit": {
+          "anyOf": [
+            {
+              "enum": [
+                1,
+                2,
+                "auto"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pagelimit"
+        },
+        "recentYears": {
+          "anyOf": [
+            {
+              "maximum": 60,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recentyears"
+        },
+        "minBulletsPerRecentRole": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minbulletsperrecentrole"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "enum": [
+                "neutral",
+                "confident",
+                "conservative"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tone"
+        },
+        "spelling": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spelling"
+        },
+        "showWorkAuthorization": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Showworkauthorization"
+        }
+      },
+      "title": "Preferences",
+      "type": "object"
+    },
+    "Profile": {
+      "additionalProperties": true,
+      "properties": {
+        "network": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Network"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "title": "Profile",
+      "type": "object"
+    },
+    "Project": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "endDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY, YYYY-MM, or YYYY-MM-DD. Omit, or use null or \"present\", for a current role.",
+          "examples": [
+            "2023-06"
+          ],
+          "title": "Enddate"
+        },
+        "roles": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Roles",
+          "type": "array"
+        },
+        "entity": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entity"
+        },
+        "type": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Type"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Keywords",
+          "type": "array"
+        },
+        "skills": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Skills",
+          "type": "array"
+        },
+        "highlights": {
+          "default": [],
+          "description": "Bullets: plain strings or objects.",
+          "items": {
+            "oneOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Highlight"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Highlights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Project",
+      "type": "object"
+    },
+    "Publication": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "publisher": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publisher"
+        },
+        "releaseDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Releasedate"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Publication",
+      "type": "object"
+    },
+    "Reference": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Reference",
+      "type": "object"
+    },
+    "Skill": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "category": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "level": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. expert, advanced, intermediate, familiar",
+          "title": "Level"
+        },
+        "years": {
+          "anyOf": [
+            {
+              "maximum": 80,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Years"
+        },
+        "aliases": {
+          "default": [],
+          "description": "Other names, e.g. 'K8s' for Kubernetes.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Aliases",
+          "type": "array"
+        },
+        "keywords": {
+          "default": [],
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Keywords",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Skill",
+      "type": "object"
+    },
+    "Summary": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "text": {
+          "maxLength": 5000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Summary",
+      "type": "object"
+    },
+    "Variant": {
+      "additionalProperties": true,
+      "description": "An alternative phrasing of a bullet that the AI may choose instead of the main text.",
+      "properties": {
+        "text": {
+          "maxLength": 5000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Variant",
+      "type": "object"
+    },
+    "Volunteer": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "organization": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Organization",
+          "type": "string"
+        },
+        "position": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Position"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "endDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY, YYYY-MM, or YYYY-MM-DD. Omit, or use null or \"present\", for a current role.",
+          "examples": [
+            "2023-06"
+          ],
+          "title": "Enddate"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "highlights": {
+          "default": [],
+          "description": "Bullets: plain strings or objects.",
+          "items": {
+            "oneOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Highlight"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Highlights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "organization"
+      ],
+      "title": "Volunteer",
+      "type": "object"
+    },
+    "Work": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "anyOf": [
+            {
+              "description": "Unique within the document. Letters, digits, '.', '_' or '-'. Assigned if omitted.",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
+        "tags": {
+          "default": [],
+          "description": "Topics used for relevance matching, e.g. 'leadership'.",
+          "items": {
+            "maxLength": 60,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 50,
+          "title": "Tags",
+          "type": "array"
+        },
+        "priority": {
+          "default": 3,
+          "description": "1-5; higher = prefer when relevance is similar.",
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "pin": {
+          "default": false,
+          "description": "Always include this item.",
+          "title": "Pin",
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Never include this item (but keep it in the master).",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "company": {
+          "description": "Employer. JSON Resume's 'name' is also accepted.",
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Company",
+          "type": "string"
+        },
+        "position": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Position",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "startDate": {
+          "anyOf": [
+            {
+              "description": "YYYY, YYYY-MM, or YYYY-MM-DD",
+              "examples": [
+                "2021-03"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Startdate"
+        },
+        "endDate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "YYYY, YYYY-MM, or YYYY-MM-DD. Omit, or use null or \"present\", for a current role.",
+          "examples": [
+            "2023-06"
+          ],
+          "title": "Enddate"
+        },
+        "employmentType": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Employmenttype"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "skills": {
+          "default": [],
+          "description": "Skill ids (or names) used in this role.",
+          "items": {
+            "maxLength": 300,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Skills",
+          "type": "array"
+        },
+        "highlights": {
+          "default": [],
+          "description": "Bullets: plain strings or objects.",
+          "items": {
+            "oneOf": [
+              {
+                "maxLength": 5000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "$ref": "#/$defs/Highlight"
+              }
+            ]
+          },
+          "maxItems": 100,
+          "title": "Highlights",
+          "type": "array"
+        }
+      },
+      "required": [
+        "company",
+        "position"
+      ],
+      "title": "Work",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Master résumé (Resume Tailor schema 1.0, a superset of JSON Resume v1).",
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "meta": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Meta"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "basics": {
+      "$ref": "#/$defs/Basics"
+    },
+    "headlines": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Headline"
+      },
+      "maxItems": 20,
+      "title": "Headlines",
+      "type": "array"
+    },
+    "summaries": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Summary"
+      },
+      "maxItems": 20,
+      "title": "Summaries",
+      "type": "array"
+    },
+    "work": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Work"
+      },
+      "maxItems": 100,
+      "title": "Work",
+      "type": "array"
+    },
+    "projects": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Project"
+      },
+      "maxItems": 100,
+      "title": "Projects",
+      "type": "array"
+    },
+    "education": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Education"
+      },
+      "maxItems": 50,
+      "title": "Education",
+      "type": "array"
+    },
+    "certifications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Certification"
+      },
+      "maxItems": 100,
+      "title": "Certifications",
+      "type": "array"
+    },
+    "skills": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Skill"
+      },
+      "maxItems": 300,
+      "title": "Skills",
+      "type": "array"
+    },
+    "awards": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Award"
+      },
+      "maxItems": 100,
+      "title": "Awards",
+      "type": "array"
+    },
+    "publications": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Publication"
+      },
+      "maxItems": 100,
+      "title": "Publications",
+      "type": "array"
+    },
+    "volunteer": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Volunteer"
+      },
+      "maxItems": 50,
+      "title": "Volunteer",
+      "type": "array"
+    },
+    "languages": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Language"
+      },
+      "maxItems": 50,
+      "title": "Languages",
+      "type": "array"
+    },
+    "interests": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Interest"
+      },
+      "maxItems": 50,
+      "title": "Interests",
+      "type": "array"
+    },
+    "references": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Reference"
+      },
+      "maxItems": 50,
+      "title": "References",
+      "type": "array"
+    },
+    "customSections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/CustomSection"
+      },
+      "maxItems": 30,
+      "title": "Customsections",
+      "type": "array"
+    },
+    "preferences": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Preferences"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "basics"
+  ],
+  "title": "Resume Tailor master résumé",
+  "type": "object"
+}
