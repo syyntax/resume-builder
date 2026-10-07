@@ -74,6 +74,7 @@ def isolated_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     error" fails wherever a real APP_SECRET_KEY is set. Tests that need a variable set it explicitly."""
     for name in Settings.model_fields:
         monkeypatch.delenv(name.upper(), raising=False)
+    monkeypatch.setenv("PDF_WARMUP", "false")  # Chromium starts only in tests that render
 
 
 @pytest.fixture(autouse=True)
@@ -107,6 +108,7 @@ def settings(tmp_path: Path) -> Settings:
         argon2_profile="cheapest",
         log_level="WARNING",
         ai_provider="fake",
+        pdf_warmup=False,  # Chromium starts on the first render, only in tests that render
     )
 
 

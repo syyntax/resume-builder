@@ -21,6 +21,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright \
     PATH="/opt/venv/bin:$PATH"
 COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /usr/local/bin/uv
 WORKDIR /app
@@ -29,11 +30,15 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra postgres --no-install-project
+# Headless Chromium for PDF rendering: the "shell" build (no GUI), plus its system libraries and fonts.
+RUN playwright install --with-deps --only-shell chromium && rm -rf /var/lib/apt/lists/*
 COPY backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra postgres
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin app \
     && mkdir -p /data && chown app:app /data
+# The root filesystem is read-only at runtime; Chromium and fontconfig write their profile and caches to /tmp.
+ENV HOME=/tmp XDG_CACHE_HOME=/tmp/.cache XDG_CONFIG_HOME=/tmp/.config
 
 # ---- test: `docker build --target test -t resume-tailor:test . && docker run --rm resume-tailor:test`
 FROM base AS test

@@ -955,6 +955,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/applications/{application_id}/preview.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Preview Pdf
+         * @description The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.
+         */
+        get: operations["preview_pdf_api_applications__application_id__preview_pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/design": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Design
+         * @description Choose the template and theme (accent, fonts, density, paper, margins, date format, contact icons).
+         */
+        put: operations["save_design_api_applications__application_id__design_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/applications/{application_id}/export": {
         parameters: {
             query?: never;
@@ -964,6 +1004,23 @@ export interface paths {
         };
         /** Export Application */
         get: operations["export_application_api_applications__application_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Templates */
+        get: operations["list_templates_api_templates_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1143,6 +1200,9 @@ export interface components {
             updatedAt: string;
             job: components["schemas"]["JobRef"];
             master: components["schemas"]["MasterRef"];
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
             /** Posting */
             posting: string;
             /** Analysis */
@@ -1189,6 +1249,9 @@ export interface components {
             updatedAt: string;
             job: components["schemas"]["JobRef"];
             master: components["schemas"]["MasterRef"];
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
         };
         /** AuditEntryOut */
         AuditEntryOut: {
@@ -1218,6 +1281,18 @@ export interface components {
         DeleteAccountIn: {
             /** Password */
             password: string;
+        };
+        /** DesignIn */
+        DesignIn: {
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
+        };
+        /** DesignOut */
+        DesignOut: {
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
         };
         /** FidelityOut */
         FidelityOut: {
@@ -1606,6 +1681,13 @@ export interface components {
              */
             notices: string[];
         };
+        /** OptionOut */
+        OptionOut: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+        };
         /** PasswordChangeIn */
         PasswordChangeIn: {
             /** Currentpassword */
@@ -1756,6 +1838,91 @@ export interface components {
             registrationEmailDomains: string[];
             /** Openregistrationexposed */
             openRegistrationExposed: boolean;
+        };
+        /** TemplateOut */
+        TemplateOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Description */
+            description: string;
+            /** Layout */
+            layout: string;
+            /** Ats */
+            ats: string;
+            /**
+             * Available
+             * @description False for templates that arrive in a later release.
+             */
+            available: boolean;
+        };
+        /** TemplatesOut */
+        TemplatesOut: {
+            /** Templates */
+            templates: components["schemas"]["TemplateOut"][];
+            options: components["schemas"]["ThemeOptionsOut"];
+            /** Defaulttemplate */
+            defaultTemplate: string;
+            defaultTheme: components["schemas"]["Theme"];
+        };
+        /** Theme */
+        Theme: {
+            /**
+             * Accent
+             * @default #1F3A5F
+             */
+            accent: string;
+            /**
+             * Fonts
+             * @default inter
+             * @enum {string}
+             */
+            fonts: "inter" | "plex" | "source" | "garamond" | "lato";
+            /**
+             * Density
+             * @default balanced
+             * @enum {string}
+             */
+            density: "comfortable" | "balanced" | "compact";
+            /**
+             * Paper
+             * @default letter
+             * @enum {string}
+             */
+            paper: "letter" | "a4";
+            /**
+             * Margins
+             * @default normal
+             * @enum {string}
+             */
+            margins: "normal" | "narrow";
+            /**
+             * Dateformat
+             * @default MMM YYYY
+             * @enum {string}
+             */
+            dateFormat: "MMM YYYY" | "MM/YYYY" | "YYYY";
+            /**
+             * Contacticons
+             * @default true
+             */
+            contactIcons: boolean;
+        };
+        /** ThemeOptionsOut */
+        ThemeOptionsOut: {
+            /** Accents */
+            accents: components["schemas"]["OptionOut"][];
+            /** Fonts */
+            fonts: components["schemas"]["OptionOut"][];
+            /** Densities */
+            densities: components["schemas"]["OptionOut"][];
+            /** Papers */
+            papers: components["schemas"]["OptionOut"][];
+            /** Margins */
+            margins: components["schemas"]["OptionOut"][];
+            /** Dateformats */
+            dateFormats: components["schemas"]["OptionOut"][];
         };
         /** TokenCheckOut */
         TokenCheckOut: {
@@ -3834,6 +4001,72 @@ export interface operations {
             };
         };
     };
+    preview_pdf_api_applications__application_id__preview_pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_design_api_applications__application_id__design_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DesignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     export_application_api_applications__application_id__export_get: {
         parameters: {
             query?: {
@@ -3863,6 +4096,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_templates_api_templates_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TemplatesOut"];
                 };
             };
         };

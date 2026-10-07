@@ -4,11 +4,12 @@ A self-hosted, multi-user web app that tailors a master résumé (and, soon, a c
 posting with Claude, then exports polished PDF, DOCX, Markdown or JSON. See [DESIGN.md](DESIGN.md) for
 the full design and [mockups/](mockups/index.html) for the approved templates.
 
-**Status:** milestones M1 (accounts, master résumés), M2 (AI tailoring) and M3 (résumé import and the master
-editor) are built. Add your Anthropic API key under **Account → AI**, import your existing PDF or Word résumé
-(or upload JSON), review and edit it, then paste a job posting under **Applications** to get a tailored,
-fact-checked résumé you can export as Markdown or JSON. Styled PDF/DOCX templates and cover letters come in
-later milestones.
+**Status:** milestones M1 (accounts, master résumés), M2 (AI tailoring), M3 (résumé import and the master
+editor) and M4 (the Meridian template and PDF export) are built. Add your Anthropic API key under
+**Account → AI**, import your existing PDF or Word résumé (or upload JSON), review and edit it, then paste a job
+posting under **Applications** to get a tailored, fact-checked résumé. Preview it as a PDF, adjust the design
+(accent color, fonts, density, paper size), and download it as PDF, Markdown or JSON. Word export, the other
+three templates and cover letters come in later milestones.
 
 ## Run it
 
@@ -61,7 +62,7 @@ make api-types   # after changing the API: regenerate schema/openapi.json and th
 
 | Path | What |
 |---|---|
-| `backend/` | FastAPI app (Python 3.13): `app/auth` sign-in and sessions, `app/masters` schema normalization, `app/importers` sandboxed PDF/DOCX extraction, fidelity checks and draft conversion, `app/ai` model client, prompts and stages, `app/pipeline` imports, hydration, fact checks, coverage and the job queue, `app/api` routes |
+| `backend/` | FastAPI app (Python 3.13): `app/auth` sign-in and sessions, `app/masters` schema normalization, `app/importers` sandboxed PDF/DOCX extraction, fidelity checks and draft conversion, `app/ai` model client, prompts and stages, `app/pipeline` imports, hydration, fact checks, coverage and the job queue, `app/render` templates, bundled fonts and the Chromium PDF renderer, `app/api` routes |
 | `frontend/` | React 19 + TypeScript + Tailwind single-page app: `src/editor` the structured master editor (and its Monaco JSON tab), `src/preview` the PDF.js viewer |
 | `schema/` | Generated JSON Schema for master résumés, an example, and the OpenAPI document |
 | `mockups/` | Static template mockups (Meridian, Atlas, Ledger, Vanguard) |

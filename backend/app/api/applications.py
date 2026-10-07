@@ -21,10 +21,20 @@ from app.db.types import utcnow
 from app.errors import ApiError
 from app.keys import service as keys
 from app.masters.repository import MasterRepository
-from app.models.api import ApplicationCreateIn, ApplicationDetailOut, ApplicationOut, JobRef, MasterRef
+from app.models.api import (
+    ApplicationCreateIn,
+    ApplicationDetailOut,
+    ApplicationOut,
+    DesignIn,
+    DesignOut,
+    JobRef,
+    MasterRef,
+)
 from app.pipeline import usage
 from app.pipeline.export import filename, to_markdown
 from app.pipeline.run import ACTIVE, run_application
+from app.render.service import render_resume, stored_design
+from app.render.theme import TEMPLATES
 from app.services import settings_store
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -72,7 +82,9 @@ def get_repo(ctx: AuthContext = Depends(current_user), db: AsyncSession = Depend
 
 def _out(row: Any) -> dict[str, Any]:
     application, job, version, master = row
+    template, theme = stored_design(application.template, application.theme)
     return {
+        "template": template, "theme": theme,
         "id": application.id, "status": application.status, "error": application.error, "model": application.model,
         "options": application.options, "coverage_score": application.coverage_score,
         "created_at": application.created_at, "updated_at": application.updated_at,
@@ -206,15 +218,55 @@ async def application_events(application_id: str, request: Request,
 # ---- exports -----------------------------------------------------------------------------------------------
 
 
-@router.get("/{application_id}/export")
-async def export_application(application_id: str, format: str = Query("md", pattern="^(md|json)$"),
-                             repo: ApplicationRepository = Depends(get_repo)) -> Response:
+async def _resume_or_409(repo: ApplicationRepository, application_id: str) -> tuple[Any, dict[str, Any]]:
     row = await repo.get(application_id)
     document = await repo.resume(application_id)
     if document is None or document.current is None:
         raise ApiError(409, "This application has no résumé yet.")
-    resume = document.current
+    return row, document.current
+
+
+@router.get("/{application_id}/preview.pdf")
+async def preview_pdf(application_id: str, request: Request,
+                      repo: ApplicationRepository = Depends(get_repo)) -> Response:
+    """The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages."""
+    row, resume = await _resume_or_409(repo, application_id)
+    application, job = row[0], {"company": row[1].company, "title": row[1].title}
+    pdf = await render_resume(request.app, resume, job, application.template, application.theme)
+    return Response(pdf.data, media_type="application/pdf", headers={
+        "X-Page-Count": str(pdf.pages), "Content-Disposition": "inline", "Cache-Control": "no-store"})
+
+
+@router.put("/{application_id}/design", response_model=DesignOut)
+async def save_design(application_id: str, body: DesignIn,
+                      repo: ApplicationRepository = Depends(get_repo)) -> DesignOut:
+    """Choose the template and theme (accent, fonts, density, paper, margins, date format, contact icons)."""
+    template = TEMPLATES.get(body.template)
+    if template is None or not template.available:
+        raise ApiError(422, f"The {body.template} template isn't available yet.",
+                       errors=[{"field": "template", "message": "not available"}])
+    application = (await repo.get(application_id))[0]
+    theme = body.theme.model_dump(mode="json", by_alias=True)
+    application.template, application.theme, application.updated_at = body.template, theme, utcnow()
+    document = await repo.resume(application_id)
+    if document is not None and document.current is not None:  # keep the JSON export's metadata in step
+        meta = {**(document.current.get("meta") or {}), "template": body.template, "theme": theme}
+        document.current = {**document.current, "meta": meta}
+    await repo.db.commit()
+    return DesignOut(template=body.template, theme=body.theme)
+
+
+@router.get("/{application_id}/export")
+async def export_application(request: Request, application_id: str,
+                             format: str = Query("md", pattern="^(md|json|pdf)$"),
+                             repo: ApplicationRepository = Depends(get_repo)) -> Response:
+    row, resume = await _resume_or_409(repo, application_id)
     job = {"company": row[1].company, "title": row[1].title}
+    if format == "pdf":
+        pdf = await render_resume(request.app, resume, job, row[0].template, row[0].theme)
+        name = filename(resume, job, "Resume", "pdf")
+        return Response(pdf.data, media_type="application/pdf",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
     if format == "json":
         body, media = json.dumps(resume, indent=2, ensure_ascii=False) + "\n", "application/json"
     else:

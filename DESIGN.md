@@ -316,7 +316,7 @@ flowchart TB
 | Auth and secrets | **argon2-cffi** (hashing), **pyotp** (TOTP), **cryptography** (AES-256-GCM and HKDF for stored API keys and TOTP secrets), **aiosmtplib** (optional email) | A thin in-house auth module built on these vetted libraries ([§19](#19-key-decisions-and-alternatives)) |
 | AI | **Anthropic Python SDK** (async) | Structured outputs, PDF document input, prompt caching, streaming |
 | Import | **pypdf** (page count, text layer), **python-docx** (DOCX extraction), **mammoth** (DOCX → HTML preview), **rapidfuzz** (fidelity matching) | |
-| Rendering | **Jinja2** (sandboxed) → **Playwright Chromium** → **pikepdf** (metadata) | |
+| Rendering | **Jinja2** (autoescaped) → **Playwright Chromium** (headless shell) → **pypdf** (metadata) | |
 | DOCX output | **python-docx** | Per-template builders on a shared style kit |
 | Frontend | **React 19, TypeScript, Vite, Tailwind CSS, shadcn/ui** | |
 | Frontend state | **TanStack Query**, **Zustand + zundo** (undo/redo), **dnd-kit** | |
@@ -944,7 +944,7 @@ Sniffing and extraction run **when the file is uploaded**, so a file we won't im
 
 ```
 Document JSON ──► Jinja2 (resume.html.j2 | cover_letter.html.j2 + style.css + theme tokens) ──► HTML
-                                                                                           ├─► Chromium (Playwright) ──► PDF ──► pikepdf (metadata, packet merge)
+                                                                                           ├─► Chromium (Playwright) ──► PDF ──► pypdf (metadata, packet merge)
                                                                                            └─► preview = the same PDF, shown with PDF.js
 Document JSON ──► DOCX builder (per template, shared style kit) ──► .docx
 Document JSON ──► Jinja2 markdown / text templates ──► .md / .txt
@@ -952,7 +952,7 @@ Document JSON ──► serialize ──► .json
 ```
 
 - **The preview is the PDF.** It's rendered on the server about 400 ms after the last edit (debounced) and displayed with PDF.js, so the pagination always matches the export.
-- A **warm Chromium pool**, shared by all users (one browser with N pages), keeps renders around 200–500 ms. Each render uses an isolated, fresh browser context.
+- A **warm Chromium pool**, shared by all users (one browser, `PDF_RENDER_CONCURRENCY` renders at a time), keeps renders around 100–300 ms. Each render uses an isolated, fresh browser context with JavaScript off and **every network request blocked**: fonts are inlined as `data:` URIs and the documents contain no scripts (their own CSP says so too). Recent results are cached, so the preview and the export of the same document are one render.
 - Theme options are injected as CSS custom properties (`--accent`, `--font-heading`, `--font-body`, `--base-size`, `--leading`, `--margin`).
 - Inline formatting in text is limited to a safe subset (`**bold**`, `*italic*`, and links). Everything else is escaped.
 
@@ -1014,7 +1014,8 @@ Static, high-fidelity mockups with sample data are in [`mockups/`](mockups/). Op
 | Font pairing | *Inter*, *IBM Plex Sans*, *Source Sans 3 / Source Serif 4*, *EB Garamond / Source Serif 4*, *Lato / Merriweather* (all OFL-licensed and bundled) |
 | Density | Comfortable, Balanced, Compact |
 | Paper | **US Letter (default)**, A4 |
-| Margins | Normal (0.75 in), Narrow (0.5 in) |
+| Margins | Normal and Narrow, set per template (Meridian: 0.55 in top, 0.65 in sides, 0.5 in bottom; narrow 0.42 / 0.5 / 0.42 in) |
+| Density | Comfortable (10.2 pt), Balanced (9.5 pt, the default), Compact (9.5 pt with tighter leading and spacing). Body text never goes below 9.5 pt. |
 | Date format | `Mar 2021`, `03/2021`, `2021` |
 | Extras | Contact icons, keyword bolding (off by default), "Earlier Experience" collapse |
 
@@ -1024,7 +1025,9 @@ The cover letter inherits the résumé's theme unless it's overridden.
 
 - Playwright's `page.pdf()` produces a **tagged PDF** with a **document outline** and backgrounds printed, using the paper size and margins from CSS `@page`. Fonts are embedded and subset.
 - Chromium **blocks all network and `file://` requests** except the app's internal font and asset routes.
-- pikepdf sets the Title (for example `Jordan Rivera – Staff Platform Engineer – Globex`), Author, Subject, and Keywords. It also builds the **application packet** (the cover letter followed by the résumé) with an outline entry for each.
+- pypdf sets the Title (for example `Jordan Rivera – Staff Platform Engineer – Globex`), Author, Subject, and Keywords (the posting's matched keywords) **as an incremental update**, which leaves Chromium's objects untouched; rewriting the file would drop the structure tree that makes it a tagged PDF. It will also build the **application packet** (the cover letter followed by the résumé) with an outline entry for each.
+- Fonts are bundled as **static** weights (Latin and Latin Extended). Chromium can only embed variable fonts as Type3 glyph outlines, which some parsers read badly; static fonts embed as ordinary TrueType. Characters outside the bundled subsets fall back to the Liberation fonts in the image, which also embed normally.
+- The first page's accent bar and the "Name · Page 2 of 3" footer on later pages are CSS `@page` margin boxes.
 - CI checks reading order by extracting text with pdfminer.
 
 ### 11.6 DOCX
@@ -1056,6 +1059,9 @@ These rules are enforced by templates and tests:
 - [x] Standard section headings
 - [x] Contact details in the body, not in headers or footers
 - [x] Standard bullet characters and no layout tables in single-column templates
+- [x] No ligatures (`fi` must extract as two letters, not `ﬁ`, or keyword matching fails)
+- [x] Heading letter-spacing of at most 0.08em: from about 0.12em, extractors read the gaps as spaces ("S U M M A R Y")
+- [x] No positioned elements in the text flow: Chromium paints positioned boxes last, which moves their text to the end of the PDF's text stream (bullet markers are backgrounds)
 - [x] Consistent date formats
 - [x] Keyword coverage measured and shown
 
@@ -1185,10 +1191,11 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | POST | `/applications/{id}/cover-letter` | Generate or regenerate with `{options}` |
 | GET · PUT | `/applications/{id}/cover-letter` | Get or save |
 | POST | `/applications/{id}/cover-letter/refine` · `/cover-letter/fit` | |
-| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download (M2 implements the résumé as `md` and `json`) |
-| GET | `/applications/{id}/preview.pdf?doc=…&rev=…` | Preview render |
+| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download (implemented so far: the résumé as `pdf`, `md` and `json`) |
+| GET | `/applications/{id}/preview.pdf?doc=…&rev=…` | Preview render: the same PDF as the export, with `X-Page-Count` |
+| PUT | `/applications/{id}/design` | `{template, theme}`: the template and theme options (§11.4) |
 | POST · DELETE | `/applications/{id}/duplicate` · `/applications/{id}` | |
-| GET | `/templates` | Manifests, thumbnails, and theme options |
+| GET | `/templates` | Templates (and which are available yet), theme options, and defaults |
 | GET · PUT | `/preferences` | Per-user defaults |
 
 **Admin** (`require_admin`)
@@ -1321,7 +1328,7 @@ A `docker-compose.dev.yml` override runs `uvicorn --reload` and the Vite dev ser
 1. **`frontend`** (`node:24-slim`): `pnpm install --frozen-lockfile && pnpm build`.
 2. **`base`** (`python:3.13-slim`): dependencies via `uv sync --frozen`, the backend (including `app/ai/pricing.toml` and the prompts), and a non-root user with the `resume-tailor` CLI entry point.
 3. **`test`**: `base` plus dev dependencies; `docker build --target test` then run it to execute the backend tests.
-4. **`runtime`**: `base` plus `playwright install --with-deps chromium`, templates, bundled fonts, and the built SPA. Runs `uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`. The app applies migrations at startup, waiting up to 60 s for PostgreSQL.
+4. **`runtime`**: `base` (which includes `playwright install --with-deps --only-shell chromium`, the headless Chromium build, and the templates and bundled fonts in the backend) plus the built SPA. Chromium and fontconfig write their profile and caches to `/tmp`, since the root filesystem is read-only. Runs `uvicorn --factory app.main:create_app --host 0.0.0.0 --port 8080 --proxy-headers --forwarded-allow-ips=${TRUSTED_PROXIES}`. The app applies migrations at startup, waiting up to 60 s for PostgreSQL.
 
 `runtime` must stay the last stage: `docker build .` and `docker compose up --build` build the last stage unless a target is named (compose also names `target: runtime`).
 
@@ -1344,6 +1351,8 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `SESSION_IDLE_DAYS` / `SESSION_MAX_DAYS` | `7` / `30` | |
 | `DEFAULT_MONTHLY_CAP_USD` | `20` | Default cap for each user's own-key and shared-key spending. `0` means unlimited. |
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
+| `PDF_RENDER_CONCURRENCY` | `2` | PDF renders at a time (one shared Chromium) |
+| `PDF_WARMUP` | `true` | Start Chromium at startup (in the background), so the first preview is fast |
 | `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | Implemented so far: `AI_EFFORT_ANALYZE`, `AI_EFFORT_TAILOR`, `AI_EFFORT_IMPORT` |
 | `AI_PROVIDER` | `anthropic` | `fake` runs a deterministic offline stand-in model for tests and demos (never for real use) |
 | `AI_FAKE_DELAY_SECONDS` | `0` | With `AI_PROVIDER=fake`, wait this long per step, to demo the progress UI |
@@ -1436,7 +1445,7 @@ resume-builder/
 | **M1: Foundations and auth** ✅ | Scaffold, Dockerfile and compose (with profiles), DB and Alembic (SQLite and Postgres), **setup token, email and password login, sessions, CSRF, rate limits, registration modes (open, invite, closed), roles, owner-scoped repositories, IDOR test harness**, audit log, admin CLI, master schema plus JSON upload and validation | Two users can sign in. Each sees only their own masters. The IDOR matrix passes. |
 | **M2: AI core** ✅ | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
 | **M3: Import and master editor** ✅ | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
-| **M4: Beautiful output** | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
+| **M4: Beautiful output** ✅ | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
 | **M6: Formats and templates** | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
 | **M7: Hardening and polish** | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
@@ -1463,6 +1472,15 @@ resume-builder/
 - **Corpus:** generated at test time (`backend/tests/corpus.py`): a plain PDF, a two-column PDF, a LinkedIn export, a scan, and a Word file with its contact details in the header, skills in a table, a certification in a text box, and a link; plus an encrypted PDF, an 11-page PDF, a `.docm`, two ZIP bombs (one that lies about its size) and a DOCX with a DTD. With the offline model every readable document imports at 96–100% fidelity, and every hostile one is refused. Verified on Linux that the worker's limits apply (a 700 MB allocation fails).
 - **Testing:** 159 backend tests and 17 frontend tests, plus a browser walkthrough with the offline model (import a PDF and a DOCX, resolve flags, save, edit in the form and JSON tabs, drag to reorder, the unsaved-changes guard). Stage I hasn't run against the live API yet; the live import eval set (§17) comes with M7.
 - **Deferred:** merging an import into an existing master (IMP-6, M7, as planned) and enrichment coaching (IMP-9).
+
+### M4 notes (2026-10-07)
+
+- **Done:** the rendering pipeline (§11.1), **Meridian** for the résumé and the cover letter (ported from the approved mockup; the sample fits one Letter page, as the mockup did), all theme options (TPL-3: eight accents plus a contrast-checked custom color, five font pairings, three densities, Letter or A4, normal or narrow margins, three date formats, contact icons), the PDF preview in the app (PDF.js, re-rendered when the design changes, with the page count against the target), and PDF export (EXP-1) named per EXP-6.
+- **ATS findings:** three problems found by extracting text from the real PDFs, now fixed and in the checklist (§11.8): ligatures, heading letter-spacing above about 0.1em, and positioned bullet markers. Tests read every PDF with both pypdf and pdfminer and check reading order, whole headings, embedded fonts, tagging (structure tree, language, outline), metadata, and links.
+- **The cover letter template** is built and tested with a sample letter. Cover letters are generated in M5, which wires up their preview and export.
+- **Image size:** the Chromium layer adds about 620 MB unpacked: 270 MB for the headless shell, the rest its system libraries and fallback fonts (including CJK and emoji). Installing a hand-picked set of libraries instead of `--with-deps` could trim it later.
+- **Testing:** 172 backend tests (14 on rendering, several against real PDFs from Chromium) and 20 frontend tests, plus a browser walkthrough of the preview and design panel in the production container.
+- **Deferred:** auto-fit (TPL-4, M6), the template gallery thumbnails (M6), and the other three templates (M6). Templates that aren't built yet show as "Soon" in the design panel.
 
 ---
 

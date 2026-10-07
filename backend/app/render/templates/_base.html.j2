@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+{# Nothing in a rendered document may load or run anything: fonts are inlined, and there are no scripts. #}
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; font-src data:; style-src 'unsafe-inline'; img-src data:">
+<title>{{ title }}</title>
+<style>
+{{ css }}
+</style>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block content %}{% endblock %}
+</body>
+</html>

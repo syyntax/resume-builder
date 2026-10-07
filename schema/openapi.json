@@ -2493,6 +2493,100 @@
         }
       }
     },
+    "/api/applications/{application_id}/preview.pdf": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Preview Pdf",
+        "description": "The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.",
+        "operationId": "preview_pdf_api_applications__application_id__preview_pdf_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/design": {
+      "put": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Save Design",
+        "description": "Choose the template and theme (accent, fonts, density, paper, margins, date format, contact icons).",
+        "operationId": "save_design_api_applications__application_id__design_put",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DesignIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DesignOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/applications/{application_id}/export": {
       "get": {
         "tags": [
@@ -2516,7 +2610,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "pattern": "^(md|json)$",
+              "pattern": "^(md|json|pdf)$",
               "default": "md",
               "title": "Format"
             }
@@ -2537,6 +2631,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "List Templates",
+        "operationId": "list_templates_api_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplatesOut"
                 }
               }
             }
@@ -3048,6 +3163,13 @@
           "master": {
             "$ref": "#/components/schemas/MasterRef"
           },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
           "posting": {
             "type": "string",
             "title": "Posting"
@@ -3094,6 +3216,8 @@
           "updatedAt",
           "job",
           "master",
+          "template",
+          "theme",
           "posting",
           "analysis",
           "resume",
@@ -3166,6 +3290,13 @@
           },
           "master": {
             "$ref": "#/components/schemas/MasterRef"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
           }
         },
         "additionalProperties": false,
@@ -3180,7 +3311,9 @@
           "createdAt",
           "updatedAt",
           "job",
-          "master"
+          "master",
+          "template",
+          "theme"
         ],
         "title": "ApplicationOut"
       },
@@ -3278,6 +3411,43 @@
           "password"
         ],
         "title": "DeleteAccountIn"
+      },
+      "DesignIn": {
+        "properties": {
+          "template": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template",
+          "theme"
+        ],
+        "title": "DesignIn"
+      },
+      "DesignOut": {
+        "properties": {
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template",
+          "theme"
+        ],
+        "title": "DesignOut"
       },
       "FidelityOut": {
         "properties": {
@@ -4400,6 +4570,25 @@
         ],
         "title": "MeOut"
       },
+      "OptionOut": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "OptionOut"
+      },
       "PasswordChangeIn": {
         "properties": {
           "currentPassword": {
@@ -4869,6 +5058,200 @@
           "openRegistrationExposed"
         ],
         "title": "SystemSettingsOut"
+      },
+      "TemplateOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "layout": {
+            "type": "string",
+            "title": "Layout"
+          },
+          "ats": {
+            "type": "string",
+            "title": "Ats"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "False for templates that arrive in a later release."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "description",
+          "layout",
+          "ats",
+          "available"
+        ],
+        "title": "TemplateOut"
+      },
+      "TemplatesOut": {
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateOut"
+            },
+            "type": "array",
+            "title": "Templates"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ThemeOptionsOut"
+          },
+          "defaultTemplate": {
+            "type": "string",
+            "title": "Defaulttemplate"
+          },
+          "defaultTheme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "templates",
+          "options",
+          "defaultTemplate",
+          "defaultTheme"
+        ],
+        "title": "TemplatesOut"
+      },
+      "Theme": {
+        "properties": {
+          "accent": {
+            "type": "string",
+            "title": "Accent",
+            "default": "#1F3A5F"
+          },
+          "fonts": {
+            "type": "string",
+            "enum": [
+              "inter",
+              "plex",
+              "source",
+              "garamond",
+              "lato"
+            ],
+            "title": "Fonts",
+            "default": "inter"
+          },
+          "density": {
+            "type": "string",
+            "enum": [
+              "comfortable",
+              "balanced",
+              "compact"
+            ],
+            "title": "Density",
+            "default": "balanced"
+          },
+          "paper": {
+            "type": "string",
+            "enum": [
+              "letter",
+              "a4"
+            ],
+            "title": "Paper",
+            "default": "letter"
+          },
+          "margins": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "narrow"
+            ],
+            "title": "Margins",
+            "default": "normal"
+          },
+          "dateFormat": {
+            "type": "string",
+            "enum": [
+              "MMM YYYY",
+              "MM/YYYY",
+              "YYYY"
+            ],
+            "title": "Dateformat",
+            "default": "MMM YYYY"
+          },
+          "contactIcons": {
+            "type": "boolean",
+            "title": "Contacticons",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Theme"
+      },
+      "ThemeOptionsOut": {
+        "properties": {
+          "accents": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Accents"
+          },
+          "fonts": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Fonts"
+          },
+          "densities": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Densities"
+          },
+          "papers": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Papers"
+          },
+          "margins": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Margins"
+          },
+          "dateFormats": {
+            "items": {
+              "$ref": "#/components/schemas/OptionOut"
+            },
+            "type": "array",
+            "title": "Dateformats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accents",
+          "fonts",
+          "densities",
+          "papers",
+          "margins",
+          "dateFormats"
+        ],
+        "title": "ThemeOptionsOut"
       },
       "TokenCheckOut": {
         "properties": {

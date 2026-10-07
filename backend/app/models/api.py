@@ -8,6 +8,8 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from pydantic.alias_generators import to_camel
 
+from app.render.theme import Theme
+
 Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254)]
 Password = Annotated[str, StringConstraints(min_length=1, max_length=1024)]
 DisplayName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
@@ -401,6 +403,51 @@ class ApplicationOut(CamelModel):
     updated_at: datetime
     job: JobRef
     master: MasterRef
+    template: str
+    theme: Theme
+
+
+class DesignIn(CamelModel):
+    template: Annotated[str, StringConstraints(max_length=32)]
+    theme: Theme
+
+
+class DesignOut(CamelModel):
+    template: str
+    theme: Theme
+
+
+# ---- templates (DESIGN.md §11.2–11.4) ------------------------------------------------------------------
+
+
+class TemplateOut(CamelModel):
+    key: str
+    label: str
+    description: str
+    layout: str
+    ats: str
+    available: bool = Field(description="False for templates that arrive in a later release.")
+
+
+class OptionOut(CamelModel):
+    value: str
+    label: str
+
+
+class ThemeOptionsOut(CamelModel):
+    accents: list[OptionOut]
+    fonts: list[OptionOut]
+    densities: list[OptionOut]
+    papers: list[OptionOut]
+    margins: list[OptionOut]
+    date_formats: list[OptionOut]
+
+
+class TemplatesOut(CamelModel):
+    templates: list[TemplateOut]
+    options: ThemeOptionsOut
+    default_template: str
+    default_theme: Theme
 
 
 class ApplicationDetailOut(ApplicationOut):

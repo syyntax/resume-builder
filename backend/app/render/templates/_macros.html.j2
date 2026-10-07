@@ -1,0 +1,32 @@
+{# Shared pieces for all templates: contact icons, the contact list, bullets. #}
+
+{% macro icon(name) -%}
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true">
+{%- if name == "mail" -%}<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/>
+{%- elif name == "phone" -%}<path d="M5 4h3.5l1.6 4.2-2.2 1.4a11 11 0 0 0 6.5 6.5l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5A16.5 16.5 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/>
+{%- elif name == "pin" -%}<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>
+{%- elif name == "linkedin" -%}<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8.5 10.5v6M8.5 7.6v.1M12.2 16.5v-6M12.2 13a2.6 2.6 0 0 1 5.2 0v3.5"/>
+{%- elif name == "code" -%}<path d="m8.5 7-5 5 5 5M15.5 7l5 5-5 5"/>
+{%- elif name == "check" -%}<path d="m5 12.5 4.5 4.5L19 7.5"/>
+{%- else -%}<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+
+{% macro contact_list(items, icons) -%}
+<ul class="contact">
+{% for item in items %}
+  <li>{% if icons %}{{ icon(item.icon) }}{% endif %}{% if item.href %}<a href="{{ item.href }}">{{ item.text }}</a>{% else %}{{ item.text }}{% endif %}</li>
+{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro bullets(list) -%}
+{% if list %}
+<ul class="bullets">
+{% for b in list %}
+  <li>{{ b.text | inline }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}

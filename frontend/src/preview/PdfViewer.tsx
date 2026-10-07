@@ -35,11 +35,19 @@ function Page({ pdf, number, width }: { pdf: PDFDocumentProxy; number: number; w
   return <canvas ref={canvas} className="mx-auto block bg-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-700" aria-label={`Page ${number}`} />;
 }
 
-export default function PdfViewer({ url }: { url: string }) {
+export interface PdfViewerProps {
+  url: string;
+  /** Called with the page count once the document has loaded. */
+  onLoad?: (pages: number) => void;
+}
+
+export default function PdfViewer({ url, onLoad }: PdfViewerProps) {
   const container = useRef<HTMLDivElement>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
+  const onLoadRef = useRef(onLoad);
+  onLoadRef.current = onLoad;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,8 +55,11 @@ export default function PdfViewer({ url }: { url: string }) {
     setPdf(null);
     setError(null);
     fetch(url, { credentials: "same-origin" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+          throw new Error(body?.detail ?? `The document couldn't be displayed (HTTP ${response.status}).`);
+        }
         return response.arrayBuffer();
       })
       .then((data) => {
@@ -57,9 +68,12 @@ export default function PdfViewer({ url }: { url: string }) {
         return task.promise;
       })
       .then((doc) => {
-        if (doc && !cancelled) setPdf(doc);
+        if (doc && !cancelled) {
+          setPdf(doc);
+          onLoadRef.current?.(doc.numPages);
+        }
       })
-      .catch(() => !cancelled && setError("The original document couldn't be displayed."));
+      .catch((e: unknown) => !cancelled && setError(e instanceof Error && e.message ? e.message : "The document couldn't be displayed."));
     return () => {
       cancelled = true;
       void task?.destroy();

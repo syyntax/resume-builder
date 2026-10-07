@@ -1,0 +1,89 @@
+{% extends "_base.html.j2" %}
+{% from "_macros.html.j2" import contact_list, bullets %}
+{% block body_class %}meridian resume{% endblock %}
+{% block content %}
+<header>
+  <h1 class="name">{{ view.name }}</h1>
+  {% if view.headline %}<p class="headline">{{ view.headline }}</p>{% endif %}
+  {{ contact_list(view.contact, theme.contact_icons) }}
+</header>
+
+<main>
+{% if view.summary %}
+<section>
+  <h2>Summary</h2>
+  <p>{{ view.summary | inline }}</p>
+</section>
+{% endif %}
+
+{% macro entries_section(section) -%}
+<section>
+  <h2>{{ section.title }}</h2>
+  {% for e in section.entries %}
+  <div class="item">
+    <h3 class="title">{{ e.title }}</h3>
+    {% if e.meta %}<p class="meta">{{ e.meta }}</p>{% endif %}
+    {% if e.summary %}<p class="note">{{ e.summary | inline }}</p>{% endif %}
+    {{ bullets(e.bullets) }}
+  </div>
+  {% endfor %}
+</section>
+{%- endmacro %}
+
+{% for section in view.sections %}
+{% if section.kind == "experience" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  {% for group in section.groups %}
+  <div class="role">
+    {% if group.roles | length == 1 %}
+      {% set role = group.roles[0] %}
+      <div class="row"><h3 class="title">{{ role.position }}</h3><span class="dates">{{ role.dates }}</span></div>
+      <p class="org">{{ group.company }}{% if group.location %} <span class="loc">· {{ group.location }}</span>{% endif %}</p>
+      {{ bullets(role.bullets) }}
+    {% else %}
+      <p class="org">{{ group.company }}{% if group.location %} <span class="loc">· {{ group.location }}</span>{% endif %}</p>
+      {% for role in group.roles %}
+      <div class="row"><h3 class="title">{{ role.position }}</h3><span class="dates">{{ role.dates }}</span></div>
+      {{ bullets(role.bullets) }}
+      {% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% elif section.kind == "earlier-experience" %}
+<section class="earlier-section">
+  <p class="earlier"><b>{{ section.title }}:</b> {{ section.entries | join("; ") }}</p>
+</section>
+{% elif section.kind == "projects" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  {% for p in section.entries %}
+  <div class="role">
+    <div class="row"><h3 class="title">{{ p.name }}{% if p.aside %} <span class="aside">· {{ p.aside }}</span>{% endif %}</h3>{% if p.right %}<span class="dates">{{ p.right }}</span>{% endif %}</div>
+    {{ bullets(p.bullets) }}
+  </div>
+  {% endfor %}
+</section>
+{% elif section.kind == "skills" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <dl class="skills">
+    {% for g in section.groups %}<dt>{{ g.name }}</dt><dd>{{ g.text }}</dd>{% endfor %}
+  </dl>
+</section>
+{% elif section.kind == "languages" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <p>{{ section.text }}</p>
+</section>
+{% elif section.kind == "split" %}
+<div class="split">
+  {% for part in section.parts %}{{ entries_section(part) }}{% endfor %}
+</div>
+{% else %}
+{{ entries_section(section) }}
+{% endif %}
+{% endfor %}
+</main>
+{% endblock %}

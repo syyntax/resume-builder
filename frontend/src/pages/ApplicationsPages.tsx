@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Briefcase, Check, Download, FileJson, Lightbulb, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { ApiError, api, errorMessage } from "../api/client";
-import type { AiSettings, Application, ApplicationDetail, ApplicationStatus, JobAnalysis, TailoredResume } from "../api/types";
+import type { AiSettings, Application, ApplicationDetail, ApplicationStatus, JobAnalysis, TailoredResume, Theme } from "../api/types";
 import { aiSettingsKey, useApiKeyStatus } from "../components/AiSettingsCard";
 import { Dialog } from "../components/Dialog";
+import { DesignPanel } from "../components/design";
 import { AnalysisPanel, ResumePreview } from "../components/resume";
 import {
   Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader, Spinner, TextArea, TextField, cn, linkButtonClass,
@@ -14,6 +15,8 @@ import {
 import { formatDateTime, formatUsd, modelLabel, timeAgo } from "../lib/format";
 import { useMasters } from "./MastersPages";
 import { NotFoundPage } from "./NotFoundPage";
+
+const PdfViewer = lazy(() => import("../preview/PdfViewer"));
 
 export const applicationsKey = ["applications"] as const;
 const ACTIVE: ApplicationStatus[] = ["queued", "analyzing", "tailoring", "validating"];
@@ -246,6 +249,98 @@ function errorHelp(code: string | undefined) {
   return null;
 }
 
+// ---- résumé preview and design -----------------------------------------------------------------------
+
+/** The design (template and theme) is saved a moment after the last change. Saving updates the cached
+ * application, whose template and theme are part of the preview URL, so the preview re-renders. */
+function useDesign(application: ApplicationDetail) {
+  const queryClient = useQueryClient();
+  const [design, setDesign] = useState({ template: application.template, theme: application.theme });
+  const [error, setError] = useState<string | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const change = (template: string, theme: Theme) => {
+    setDesign({ template, theme });
+    setError(null);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      api("PUT", `/api/applications/${application.id}/design`, { json: { template, theme } })
+        .then(() => {
+          queryClient.setQueryData<ApplicationDetail>(["application", application.id], (old) => (old ? { ...old, template, theme } : old));
+        })
+        .catch((e: unknown) => {
+          const detail = e instanceof ApiError ? e.errors[0]?.message ?? e.message : errorMessage(e);
+          setError(detail.replace(/^Value error, /, ""));
+        });
+    }, 400);
+  };
+  return { design, change, error };
+}
+
+function DesignCard({ application }: { application: ApplicationDetail }) {
+  const { design, change, error } = useDesign(application);
+  return (
+    <Card>
+      <CardHeader title="Design" description="Changes update the preview and the PDF." />
+      <CardBody>
+        <DesignPanel template={design.template} theme={design.theme} error={error} onChange={change} />
+      </CardBody>
+    </Card>
+  );
+}
+
+export function pageNote(pages: number, limit: unknown, theme: Theme): { ok: boolean; text: string } {
+  const label = `${pages} ${pages === 1 ? "page" : "pages"}`;
+  if (typeof limit !== "number") return { ok: true, text: label };
+  if (pages <= limit) return { ok: true, text: `${label} · fits the ${limit}-page target` };
+  const tries = [theme.density !== "compact" && "Compact density", theme.margins !== "narrow" && "Narrow margins"].filter(Boolean);
+  const hint = tries.length ? `Try ${tries.join(" or ")}.` : "Hide less relevant bullets in your master résumé, or allow a longer résumé.";
+  return { ok: false, text: `${label} · over the ${limit}-page target. ${hint}` };
+}
+
+function ResumeTabs({ application, resume, flagged }: { application: ApplicationDetail; resume: TailoredResume; flagged: number }) {
+  const [tab, setTab] = useState<"pdf" | "content">("pdf");
+  const [pages, setPages] = useState<number | null>(null);
+  // The saved design is part of the URL, so a design change (or a newer résumé) fetches a fresh render.
+  const savedDesign = `${application.template}:${JSON.stringify(application.theme)}`;
+  const url = `/api/applications/${application.id}/preview.pdf?d=${encodeURIComponent(savedDesign)}&u=${encodeURIComponent(application.updatedAt)}`;
+  const note = pages !== null ? pageNote(pages, application.options.pageLimit, application.theme) : null;
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Résumé view" className="inline-flex rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+          {([["pdf", "Preview"], ["content", flagged ? `Check content (${flagged})` : "Check content"]] as const).map(([key, label]) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
+              className={cn("rounded-md px-3 py-1.5 text-sm font-medium", tab === key ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-600 dark:text-slate-400")}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === "pdf" && note && (
+          <span className={cn("text-sm", note.ok ? "text-slate-500" : "text-amber-700 dark:text-amber-400")} aria-live="polite">{note.text}</span>
+        )}
+      </div>
+      {tab === "pdf" ? (
+        <div className="rounded-xl bg-slate-200/60 p-4 dark:bg-slate-800/60">
+          <Suspense fallback={<Spinner />}>
+            <PdfViewer url={url} onLoad={setPages} />
+          </Suspense>
+          <p className="mt-3 text-xs text-slate-500">This is the PDF exactly as it downloads.</p>
+        </div>
+      ) : (
+        <>
+          {flagged > 0 && (
+            <Alert tone="warning" title={`${flagged} ${flagged === 1 ? "line needs" : "lines need"} a check`}>
+              Highlighted lines mention a number or term that their source in your master résumé doesn't. Hover the warning icon for details.
+            </Alert>
+          )}
+          <ResumePreview resume={resume} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ApplicationDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -283,6 +378,7 @@ export function ApplicationDetailPage() {
           <>
             {resume && (
               <>
+                <a href={`/api/applications/${id}/export?format=pdf`} className={linkButtonClass("primary", "sm")}><Download className="size-4" aria-hidden /> PDF</a>
                 <a href={`/api/applications/${id}/export?format=md`} className={linkButtonClass("secondary", "sm")}><Download className="size-4" aria-hidden /> Markdown</a>
                 <a href={`/api/applications/${id}/export?format=json`} className={linkButtonClass("ghost", "sm")}><FileJson className="size-4" aria-hidden /> JSON</a>
               </>
@@ -305,13 +401,7 @@ export function ApplicationDetailPage() {
         <div className="min-w-0 space-y-6">
           {resume ? (
             <>
-              {flagged > 0 && (
-                <Alert tone="warning" title={`${flagged} ${flagged === 1 ? "line needs" : "lines need"} a check`}>
-                  Highlighted lines mention a number or term that their source in your master résumé doesn't. Hover the warning icon for details.
-                </Alert>
-              )}
-              <ResumePreview resume={resume} />
-              <p className="text-xs text-slate-500">This preview shows content and structure. Styled PDF and Word exports with your chosen template arrive in a later release.</p>
+              <ResumeTabs application={a} resume={resume} flagged={flagged} />
             </>
           ) : running ? (
             <Card><CardBody className="py-16 text-center text-sm text-slate-500">Your tailored résumé will appear here.</CardBody></Card>
@@ -319,6 +409,7 @@ export function ApplicationDetailPage() {
         </div>
 
         <aside className="space-y-6">
+          {resume && <DesignCard application={a} />}
           {report?.coverage.score !== undefined && report.coverage.score !== null && (
             <Card>
               <CardHeader title="Keyword coverage" />

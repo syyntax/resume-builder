@@ -21,6 +21,7 @@ BODIES: dict[tuple[str, str], Any] = {
     ("PUT", "/api/master-resumes/{master_id}"): "EXAMPLE",
     ("PUT", "/api/imports/{import_id}/review"): {"document": {}, "resolved": {}},
     ("POST", "/api/imports/{import_id}/accept"): {"label": "Hijacked", "document": {}},
+    ("PUT", "/api/applications/{application_id}/design"): {"template": "meridian", "theme": {}},
 }
 
 

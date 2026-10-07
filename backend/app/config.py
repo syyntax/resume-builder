@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # Set while rotating APP_SECRET_KEY so stored API keys can still be decrypted (`resume-tailor keys rotate`).
     app_secret_key_previous: SecretStr | None = None
 
+    # ---- rendering ---------------------------------------------------------------------------------
+    pdf_render_concurrency: int = 2  # PDF renders at once (one shared Chromium)
+    pdf_warmup: bool = True  # start Chromium at startup, so the first preview is fast
+
     static_dir: Path | None = None
     enable_api_docs: bool = False
     argon2_profile: Literal["rfc9106_low_memory", "cheapest"] = "rfc9106_low_memory"

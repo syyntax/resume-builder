@@ -75,6 +75,9 @@ export type ImportDetail = S["ImportDetailOut"];
 export type ImportFlag = S["ImportFlagOut"];
 export type ImportPreview = S["ImportPreviewOut"];
 export type ImportStatus = Import["status"];
+export type Theme = S["Theme"];
+export type TemplateCatalog = S["TemplatesOut"];
+export type Design = S["DesignOut"];
 
 /** Shape of the stored job analysis (backend app/ai/schemas.py JobAnalysis). */
 export interface JobAnalysis {

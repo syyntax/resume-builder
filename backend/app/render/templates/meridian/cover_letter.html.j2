@@ -1,0 +1,26 @@
+{% extends "_base.html.j2" %}
+{% from "_macros.html.j2" import contact_list %}
+{% block body_class %}meridian letter{% endblock %}
+{% block content %}
+<header class="letterhead">
+  <h1 class="name">{{ view.name }}</h1>
+  {% if view.headline %}<p class="headline">{{ view.headline }}</p>{% endif %}
+  {{ contact_list(view.contact, theme.contact_icons) }}
+</header>
+
+<main class="letter-body">
+  {% if view.date %}<p class="date">{{ view.date }}</p>{% endif %}
+  {% if view.recipient %}
+  <address>
+    {% for line in view.recipient %}{% if loop.first %}<b>{{ line }}</b>{% else %}{{ line }}{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}
+  </address>
+  {% endif %}
+  {% if view.subject %}<p class="re">Re: {{ view.subject }}</p>{% endif %}
+  {% if view.salutation %}<p class="salutation">{{ view.salutation }}</p>{% endif %}
+  <div class="paragraphs">
+    {% for p in view.paragraphs %}<p>{{ p | inline }}</p>{% endfor %}
+  </div>
+  <p class="closing">{{ view.closing }}</p>
+  <p class="signature">{{ view.signature }}</p>
+</main>
+{% endblock %}

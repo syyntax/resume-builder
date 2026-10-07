@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -12,7 +13,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.ai.fake import FakeLLM
 from app.ai.llm import AnthropicLLM
-from app.api import account, admin, ai, applications, auth, imports, masters, meta
+from app.api import account, admin, ai, applications, auth, imports, masters, meta, templates
 from app.auth import passwords
 from app.auth.bootstrap import announce_setup_token, ensure_setup_token
 from app.auth.ratelimit import Limits
@@ -24,6 +25,7 @@ from app.importers.storage import FileStore
 from app.pipeline import importer
 from app.pipeline.jobs import EventBus, JobRunner
 from app.pipeline.run import mark_interrupted
+from app.render.pdf import PdfRenderer
 from app.services import settings_store
 from app.web import BodySizeLimit, SecurityHeaders, SinglePageApp
 
@@ -62,11 +64,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         log.warning("Registration is OPEN and %s is not a local address. Anyone who can reach the app can "
                     "create an account. Consider invite-only mode or an email-domain allowlist.",
                     settings.app_base_url)
+    if settings.pdf_warmup:  # in the background: startup doesn't wait for Chromium
+        app.state.pdf_warmup = asyncio.create_task(app.state.pdf.warm_up())
     log.info("Resume Tailor %s ready at %s", __version__, settings.app_base_url)
     try:
         yield
     finally:
         await app.state.jobs.shutdown()
+        if warmup := getattr(app.state, "pdf_warmup", None):
+            # Let a launch in progress finish: cancelling Playwright mid-launch can leave it unable to stop.
+            with contextlib.suppress(TimeoutError, asyncio.CancelledError):
+                await asyncio.wait_for(warmup, timeout=20)
+        await app.state.pdf.close()
         await engine.dispose()
 
 
@@ -88,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.events = EventBus()
     app.state.jobs = None  # created in the lifespan, inside the running event loop
     app.state.files = FileStore(settings.data_dir / "uploads")
+    app.state.pdf = PdfRenderer(concurrency=settings.pdf_render_concurrency)
     if settings.ai_provider == "fake":
         app.state.llm_factory = lambda key: FakeLLM(key, delay=settings.ai_fake_delay_seconds)
     else:
@@ -95,7 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
     app.add_middleware(SecurityHeaders, settings=settings)
     app.add_middleware(BodySizeLimit, limit=MAX_REQUEST_BYTES)
-    for module in (meta, auth, account, ai, admin, masters, imports, applications):
+    for module in (meta, auth, account, ai, admin, masters, imports, applications, templates):
         app.include_router(module.router)
     if settings.static_dir and settings.static_dir.is_dir():
         app.mount("/", SinglePageApp(settings.static_dir), name="spa")
