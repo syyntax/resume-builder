@@ -43,6 +43,16 @@ class Settings(BaseSettings):
 
     session_idle_days: int = 7
     session_max_days: int = 30
+    require_mfa: Literal["none", "admins", "all"] = "none"  # initial value; an admin can change it
+
+    # ---- email (optional: emailed password resets, invites and address verification) --------------------
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: SecretStr | None = None
+    smtp_from: str = ""
+    # starttls: the submission port (587) · ssl: implicit TLS (465) · none: only for a relay on the same host or network
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
 
     # ---- AI -----------------------------------------------------------------------------------
     # Optional shared deployment key; users normally bring their own (DESIGN.md §8.6).
@@ -118,6 +128,10 @@ class Settings(BaseSettings):
                 if origin:
                     origins.add(origin)
         return frozenset(origins)
+
+    @property
+    def smtp_enabled(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
 
     @property
     def email_domain_allowlist(self) -> list[str]:

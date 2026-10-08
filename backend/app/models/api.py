@@ -31,12 +31,57 @@ class UserOut(CamelModel):
     status: Literal["active", "disabled"]
     created_at: datetime
     last_login_at: datetime | None = None
+    mfa_enabled: bool = False
+
+
+SessionStage = Literal["active", "mfa", "enroll"]
 
 
 class MeOut(CamelModel):
     user: UserOut
     csrf_token: str
     notices: list[str] = []
+    stage: SessionStage = Field(default="active", description="What's left of signing in: nothing (active), "
+                                                                "a code from the authenticator (mfa), or setting "
+                                                                "up two-step verification, which is required (enroll)")
+
+
+# ---- two-step verification (DESIGN.md §8.2) -------------------------------------------------------------
+
+
+class MfaStatusOut(CamelModel):
+    enabled: bool
+    required: bool = Field(description="The admins require it for this account.")
+    recovery_codes_left: int
+
+
+class MfaSetupIn(CamelModel):
+    password: Password | None = Field(default=None, description="Not needed while finishing a sign-in that "
+                                                                "requires setting it up.")
+
+
+class MfaSetupOut(CamelModel):
+    secret: str
+    otpauth_uri: str
+    qr_svg: str
+
+
+class MfaCodeIn(CamelModel):
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=32)]
+
+
+class MfaDisableIn(CamelModel):
+    password: Password
+    code: Annotated[str, StringConstraints(strip_whitespace=True, min_length=6, max_length=32)]
+
+
+class RecoveryCodesOut(CamelModel):
+    recovery_codes: list[str]
+
+
+class MfaEnableOut(CamelModel):
+    recovery_codes: list[str] = Field(description="Shown once. Each works once if the authenticator is lost.")
+    me: MeOut
 
 
 class SetupStatusOut(CamelModel):
@@ -47,6 +92,24 @@ class RegistrationInfoOut(CamelModel):
     needs_setup: bool
     mode: Literal["open", "invite", "closed"]
     domain_restricted: bool
+    email_enabled: bool = Field(default=False, description="SMTP is configured: \"Forgot password\" works, and "
+                                                           "open sign-ups confirm their address by email.")
+
+
+class VerificationSentOut(CamelModel):
+    """Sign-up is done but the address must be confirmed: a link was emailed (or, if the address already has an
+    account, a note saying so: the answer is the same either way)."""
+
+    verification_sent: bool = True
+    email: str
+
+
+class ForgotPasswordIn(CamelModel):
+    email: Email
+
+
+class VerifyEmailIn(CamelModel):
+    token: Token
 
 
 class SetupIn(CamelModel):
@@ -121,6 +184,7 @@ class InviteOut(CamelModel):
     expires_at: datetime
     created_by: str | None
     url: str | None = Field(default=None, description="Only returned when the invite is created.")
+    emailed: bool = Field(default=False, description="Sent to the invited address (SMTP configured).")
 
 
 class LinkOut(CamelModel):
@@ -128,10 +192,39 @@ class LinkOut(CamelModel):
     expires_at: datetime
 
 
+MfaPolicy = Literal["none", "admins", "all"]
+
+
+class DefaultDesign(CamelModel):
+    template: Annotated[str, StringConstraints(max_length=32)]
+    theme: Theme
+
+
+FILE_NAME_TOKENS = ("name", "first", "last", "company", "role", "doc", "date")
+DEFAULT_FILE_NAME = "{name}_{company}_{role}_{doc}"
+
+
+class Preferences(CamelModel):
+    """A user's own defaults (EXP-6 and new applications)."""
+
+    design: DefaultDesign | None = Field(default=None, description="Template and theme for new applications; "
+                                                                   "the instance's default if not set.")
+    cover_letter: bool = Field(default=True, description="Write a cover letter with each new application.")
+    file_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120,
+                                                pattern=r"^[^/\\:*?\"<>|]*$")] = Field(
+        default=DEFAULT_FILE_NAME,
+        description="Export file names, from {name} {first} {last} {company} {role} {doc} {date}.")
+
+
 class SystemSettingsOut(CamelModel):
     registration_mode: Literal["open", "invite", "closed"]
     registration_email_domains: list[str]
     open_registration_exposed: bool
+    require_mfa: MfaPolicy
+    email_enabled: bool = Field(description="SMTP is configured: password resets, invites and verification "
+                                            "go by email.")
+    default_design: DefaultDesign = Field(description="Template and theme for new applications, unless a user "
+                                                      "chose their own.")
 
 
 class SystemSettingsIn(CamelModel):
@@ -140,6 +233,8 @@ class SystemSettingsIn(CamelModel):
         list[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=253)]],
         Field(max_length=50),
     ] | None = None
+    require_mfa: MfaPolicy | None = None
+    default_design: DefaultDesign | None = None
 
 
 class AuditEntryOut(CamelModel):
@@ -271,11 +366,28 @@ class StageUsageOut(CamelModel):
     cost_usd: float
 
 
-class UsageOut(CamelModel):
+class MonthUsageOut(CamelModel):
     month: str
+    calls: int
+    cost_usd: float
+
+
+class ItemUsageOut(CamelModel):
+    kind: Literal["application", "import"]
+    id: str | None = Field(description="None once the application or import was deleted.")
+    label: str
+    calls: int
+    cost_usd: float
+
+
+class UsageOut(CamelModel):
+    month: str = Field(description="The month the breakdowns are for (YYYY-MM). Spending against caps is always "
+                                   "this month's.")
     own: SpendOut
     shared: SpendOut | None
     by_stage: list[StageUsageOut]
+    by_item: list[ItemUsageOut] = Field(default=[], description="Per application and per import (KEY-5).")
+    months: list[MonthUsageOut] = Field(default=[], description="The last 12 months, newest first.")
 
 
 # ---- imports (DESIGN.md §10) --------------------------------------------------------------------------
@@ -354,6 +466,36 @@ class ImportReviewOut(CamelModel):
 class ImportAcceptIn(CamelModel):
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     document: dict[str, Any]
+
+
+class MergePlanIn(CamelModel):
+    master_id: str
+    document: dict[str, Any] = Field(description="The reviewed import, as it would be saved.")
+
+
+class MergeItemOut(CamelModel):
+    key: str
+    section: str
+    title: str
+    detail: str
+    status: Literal["new", "match", "same"] = Field(description="new: not in the master · match: in it, with "
+                                                                "bullets it lacks · same: nothing to add")
+    bullets: list[str] = Field(description="new: all the item's bullets · match: only the ones the master lacks")
+    similar_to: list[str | None] = Field(default=[], description="For a match, per bullet: a bullet in the master "
+                                                                 "that says much the same, if any")
+
+
+class MergePlanOut(CamelModel):
+    master_id: str
+    base_version_id: str
+    items: list[MergeItemOut]
+
+
+class MergeIn(MergePlanIn):
+    base_version_id: str = Field(description="The version the plan was made against: if the master changed since, "
+                                             "the merge is refused so nothing is merged blind.")
+    selections: dict[str, list[int] | None] = Field(description="Plan keys to add: null for a whole new item, or "
+                                                                "indexes into a matched item's bullets.")
 
 
 # ---- applications -----------------------------------------------------------------------------------
@@ -598,6 +740,19 @@ class AdminUserPatchIn(CamelModel):
     reset_shared_cap: bool = False
 
 
+EffortLevel = Literal["low", "medium", "high", "xhigh", "max"]
+
+
+class StageEfforts(CamelModel):
+    analyze: EffortLevel
+    tailor: EffortLevel
+    letter: EffortLevel
+    import_: EffortLevel = Field(alias="import")
+    refine: EffortLevel
+    audit: EffortLevel
+    condense: EffortLevel
+
+
 class AdminAiSettingsOut(CamelModel):
     shared_key_configured: bool
     allow_shared_key: bool
@@ -605,6 +760,8 @@ class AdminAiSettingsOut(CamelModel):
     allowed_models: list[str]
     known_models: list[str]
     default_cap_usd: float
+    effort: StageEfforts
+    claim_audit: bool
 
 
 class UserUsageOut(CamelModel):
@@ -616,10 +773,13 @@ class UserUsageOut(CamelModel):
     shared_spend_usd: float
     calls: int
     applications: int
+    imports: int = 0
 
 
 class AdminAiSettingsIn(CamelModel):
     allow_shared_key: bool | None = None
+    effort: StageEfforts | None = None
+    claim_audit: bool | None = None
     default_model: Annotated[str, StringConstraints(pattern=r"^claude-[a-z0-9.\-]{1,60}$")] | None = None
     allowed_models: Annotated[
         list[Annotated[str, StringConstraints(pattern=r"^claude-[a-z0-9.\-]{1,60}$")]],

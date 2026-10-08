@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.ai.fake import FakeLLM
 from app.ai.llm import AnthropicLLM
-from app.api import account, admin, ai, applications, auth, imports, masters, meta, templates, workspace
+from app.api import account, admin, ai, applications, auth, imports, masters, meta, mfa, templates, workspace
 from app.auth import passwords
 from app.auth.bootstrap import announce_setup_token, ensure_setup_token
 from app.auth.ratelimit import Limits
@@ -26,7 +26,7 @@ from app.pipeline import importer
 from app.pipeline.jobs import EventBus, JobRunner
 from app.pipeline.run import mark_interrupted
 from app.render.pdf import PdfRenderer
-from app.services import settings_store
+from app.services import mail, settings_store
 from app.web import BodySizeLimit, SecurityHeaders, SinglePageApp
 
 log = logging.getLogger("resume_tailor")
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine, app.state.sessionmaker = engine, sessionmaker
     async with sessionmaker() as db:
         await settings_store.init_defaults(db, settings)
+        app.state.mfa_policy = await settings_store.apply_runtime(db, settings)
         await purge_expired(db)
         await db.commit()
         token = await ensure_setup_token(db)
@@ -93,6 +94,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.limits = Limits()
+    app.state.mfa_policy = "none"  # set from the database at startup
+    app.state.mailer = mail.SmtpMailer(settings) if settings.smtp_enabled else None
     app.state.setup_token = None
     app.state.events = EventBus()
     app.state.jobs = None  # created in the lifespan, inside the running event loop
@@ -105,7 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
     app.add_middleware(SecurityHeaders, settings=settings)
     app.add_middleware(BodySizeLimit, limit=MAX_REQUEST_BYTES)
-    for module in (meta, auth, account, ai, admin, masters, imports, applications, workspace, templates):
+    for module in (meta, auth, mfa, account, ai, admin, masters, imports, applications, workspace, templates):
         app.include_router(module.router)
     if settings.static_dir and settings.static_dir.is_dir():
         app.mount("/", SinglePageApp(settings.static_dir), name="spa")

@@ -21,6 +21,7 @@ dependencies = [
     "nh3>=0.3",
     "playwright>=1.50",
     "jinja2>=3.1",
+    "segno>=1.6",  # QR codes for setting up two-step verification
 ]
 
 [project.optional-dependencies]
@@ -61,3 +62,7 @@ ignore = ["B008"]  # FastAPI dependencies are declared as call defaults
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
 "app/db/migrations/**" = ["E501"]
+
+[tool.bandit]
+# Asserts only narrow types for the type checker (never security checks), and ruff's S101 reviews them already.
+skips = ["B101"]

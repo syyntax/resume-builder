@@ -17,11 +17,13 @@ from app.auth.ratelimit import Limits
 from app.auth.sessions import AuthContext, clear_session_cookie
 from app.config import Settings
 from app.db.engine import get_db
-from app.db.models import UploadedFile
+from app.db.models import Application, Document, JobPosting, UploadedFile
 from app.db.types import utcnow
 from app.errors import ApiError
 from app.masters.repository import MasterRepository
-from app.models.api import DeleteAccountIn, ProfileIn, UserOut
+from app.models.api import DeleteAccountIn, Preferences, ProfileIn, UserOut
+from app.render.theme import TEMPLATES
+from app.services import defaults, mail
 from app.services.users import find_by_email, is_valid_email, normalize_email, would_remove_last_admin
 
 router = APIRouter(prefix="/api/account", tags=["account"])
@@ -34,6 +36,23 @@ async def _confirm_password(ctx: AuthContext, password: str | None, limits: Limi
         limits.password_check.failure(ctx.user.id)
         raise ApiError(400, "Your password is incorrect.", errors=[{"field": field, "message": "incorrect"}])
     limits.password_check.reset(ctx.user.id)
+
+
+@router.get("/preferences", response_model=Preferences)
+async def get_preferences(ctx: AuthContext = Depends(current_user)) -> Preferences:
+    return defaults.preferences(ctx.user)
+
+
+@router.put("/preferences", response_model=Preferences)
+async def save_preferences(body: Preferences, ctx: AuthContext = Depends(current_user),
+                           db: AsyncSession = Depends(get_db)) -> Preferences:
+    """Defaults for new applications (template and theme, cover letter or not) and export file names."""
+    if body.design is not None and body.design.template not in TEMPLATES:
+        raise ApiError(422, "There's no such template.", errors=[{"field": "design.template",
+                                                                  "message": "unknown template"}])
+    ctx.user.preferences = body.model_dump(mode="json", by_alias=True)
+    await db.commit()
+    return body
 
 
 @router.patch("/profile", response_model=UserOut)
@@ -53,6 +72,7 @@ async def update_profile(
         await _confirm_password(ctx, body.current_password, limits, "currentPassword")
         if await find_by_email(db, new_email) is not None:
             raise ApiError(409, "Another account already uses that email.")
+        mail.send_later(request.app.state.mailer, mail.email_changed(user.email, new_email))
         user.email = new_email
         changed.append("email")
     if body.display_name is not None and body.display_name != user.display_name:
@@ -68,12 +88,30 @@ async def update_profile(
 async def export_account(
     request: Request, ctx: AuthContext = Depends(current_user), db: AsyncSession = Depends(get_db)
 ) -> Response:
-    """A ZIP of everything the account owns. API keys and password hashes are never included."""
+    """A ZIP of everything the account owns. API keys, password hashes and two-step verification secrets are
+    never included."""
     user = ctx.user
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         profile = user_out(user).model_dump(mode="json", by_alias=True)
-        archive.writestr("account.json", json.dumps({"exportedAt": utcnow().isoformat(), "user": profile}, indent=2))
+        archive.writestr("account.json", json.dumps({"exportedAt": utcnow().isoformat(), "user": profile,
+                                                     "preferences": defaults.preferences(user).model_dump(
+                                                         mode="json", by_alias=True)}, indent=2))
+        applications = (await db.execute(select(Application, JobPosting).join(
+            JobPosting, JobPosting.id == Application.job_id).where(Application.owner_id == user.id))).all()
+        for application, job in applications:
+            folder = f"applications/{application.id}"
+            archive.writestr(f"{folder}/application.json", json.dumps({
+                "id": application.id, "status": application.status, "createdAt": application.created_at.isoformat(),
+                "masterVersionId": application.master_version_id, "options": application.options,
+                "template": application.template, "theme": application.theme,
+                "job": {"company": job.company, "title": job.title, "url": job.url, "posting": job.raw_text,
+                        "analysis": job.analysis}}, indent=2, ensure_ascii=False))
+            documents = (await db.execute(select(Document).where(Document.application_id == application.id))).scalars()
+            for document in documents:
+                if document.current:
+                    archive.writestr(f"{folder}/{document.kind.replace('_', '-')}.json",
+                                     json.dumps(document.current, indent=2, ensure_ascii=False))
         for master, versions in await MasterRepository(db, user.id).all_with_versions():
             folder = f"master-resumes/{master.id}"
             archive.writestr(f"{folder}/master.json", json.dumps(

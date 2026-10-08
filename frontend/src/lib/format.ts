@@ -56,6 +56,20 @@ export function formatPartialDate(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", year: "numeric" }).format(date);
 }
 
+/** "October 2026" for YYYY-MM. */
+export function monthLabel(month: string): string {
+  const [year, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(year!, m! - 1, 1)).toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+/** This month and the ones before it, newest first, as YYYY-MM (UTC, like the server's months). */
+export function recentMonths(count = 12, now = new Date()): string[] {
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  });
+}
+
 export function formatUsd(value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
   if (value > 0 && value < 0.01) return "<$0.01";

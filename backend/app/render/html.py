@@ -39,7 +39,8 @@ def inline(text: str | None) -> Markup:
     out = str(escape(text or ""))
     out = re.sub(r"\*\*(\S(?:.*?\S)?)\*\*", r"<strong>\1</strong>", out)
     out = re.sub(r"(?<![*\w])\*(\S(?:.*?\S)?)\*(?![*\w])", r"<em>\1</em>", out)
-    return Markup(out)  # noqa: S704  (built from escaped text; only <strong> and <em> are added)
+    # Built from escaped text: only <strong> and <em> are added.
+    return Markup(out)  # noqa: S704  # nosec B704
 
 
 _env.filters["inline"] = inline
@@ -285,10 +286,8 @@ def page_css(template: str, theme: Theme, footer_name: str) -> str:
 def _document(template: str, kind: str, context: dict[str, Any], theme: Theme, title: str, footer: str) -> str:
     style = (TEMPLATE_DIR / template / "style.css").read_text(encoding="utf-8")
     page = _env.get_template(f"{template}/{kind}.html.j2")
-    return page.render(
-        title=title, theme=theme, css=Markup(font_css(theme.fonts) + "\n" + page_css(template, theme, footer) + style),  # noqa: S704
-        **context,
-    )
+    css = font_css(theme.fonts) + "\n" + page_css(template, theme, footer) + style  # ours: fonts, page setup, template
+    return page.render(title=title, theme=theme, css=Markup(css), **context)  # noqa: S704  # nosec B704
 
 
 def render_resume_html(resume: dict[str, Any], template: str, theme: Theme, *, title: str) -> str:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 from typing import Any
 
 _MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -97,12 +98,27 @@ def to_markdown(resume: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def filename(resume: dict[str, Any], job: dict[str, Any], kind: str, ext: str) -> str:
+DEFAULT_PATTERN = "{name}_{company}_{role}_{doc}"
+
+
+def filename(resume: dict[str, Any], job: dict[str, Any], kind: str, ext: str, pattern: str = DEFAULT_PATTERN,
+             *, today: date | None = None) -> str:
+    """A download's file name from the user's pattern (EXP-6), e.g. "Jordan-Rivera_Globex_Staff-Engineer_Resume".
+    Each value is reduced to letters, digits and dashes; separators the pattern adds are kept if they're safe."""
     def slug(value: str | None) -> str:
         return re.sub(r"[^A-Za-z0-9]+", "-", value or "").strip("-")
 
-    parts = [slug((resume.get("basics") or {}).get("name")), slug(job.get("company")), slug(job.get("title")), kind]
-    return "_".join(p for p in parts if p)[:150] + f".{ext}"
+    name = (resume.get("basics") or {}).get("name") or ""
+    words = name.split()
+    values = {"name": slug(name), "first": slug(words[0] if words else ""), "last": slug(words[-1] if len(words) > 1
+                                                                                         else ""),
+              "company": slug(job.get("company")), "role": slug(job.get("title")), "doc": kind,
+              "date": (today or date.today()).isoformat()}
+    out = re.sub(r"\{(\w+)\}", lambda m: values.get(m.group(1), ""), pattern)
+    out = re.sub(r"[^A-Za-z0-9._ ,()-]+", "", out)  # nothing a file system or a header would trip on
+    out = re.sub(r"([_ .,-])\1+", r"\1", out)  # doubled separators, left by empty values
+    out = re.sub(r"\(\s*\)", "", out).strip("_ .,-")
+    return (out or kind)[:150] + f".{ext}"
 
 
 def markdown_to_text(markdown: str) -> str:

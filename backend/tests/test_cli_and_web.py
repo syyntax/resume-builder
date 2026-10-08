@@ -77,6 +77,9 @@ def test_security_headers(app, admin: Api) -> None:
     assert "default-src 'self'" in response.headers["content-security-policy"]
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
     assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["cross-origin-resource-policy"] == "same-origin"  # ZAP baseline 90004
+    assert response.headers["cross-origin-opener-policy"] == "same-origin"
+    assert response.headers["referrer-policy"] == "same-origin" and response.headers["x-frame-options"] == "DENY"
     assert response.headers["cache-control"] == "no-store"
     assert "strict-transport-security" not in response.headers  # plain-HTTP test server
 
@@ -90,7 +93,10 @@ def test_spa_fallback_and_api_404(tmp_path: Path, settings: Settings) -> None:
     with TestClient(application, base_url=BASE) as client:
         assert client.get("/").text.startswith("<!doctype html>")
         assert client.get("/masters/abc").text.startswith("<!doctype html>")  # client-side route
-        assert client.get("/assets/app.js").text == "console.log('hi')"
+        asset = client.get("/assets/app.js")
+        assert asset.text == "console.log('hi')"
+        assert asset.headers["cache-control"] == "public, max-age=31536000, immutable"  # content-hashed names
+        assert client.get("/masters/abc").headers["cache-control"] == "no-cache"  # the page: new releases at once
         assert client.get("/assets/missing.js").status_code == 404
         missing_api = client.get("/api/does-not-exist")
         assert missing_api.status_code == 404 and missing_api.headers["content-type"] == "application/json"
@@ -99,7 +105,8 @@ def test_spa_fallback_and_api_404(tmp_path: Path, settings: Settings) -> None:
 def test_cli_keys_rotate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     from sqlalchemy import select
 
-    from app.db.models import UserApiKey
+    from app.auth import mfa, totp
+    from app.db.models import User, UserApiKey
     from app.keys.service import decrypt
     from tests.conftest import TEST_KEY, USER_PASSWORD
 
@@ -114,20 +121,65 @@ def test_cli_keys_rotate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
                                             "password": USER_PASSWORD, "displayName": "Ad Min"})
         saved = admin.put("/api/account/api-key", json={"apiKey": TEST_KEY, "password": USER_PASSWORD})
         assert saved.status_code == 200
+        secret = admin.post("/api/auth/mfa/setup", json={"password": USER_PASSWORD}).json()["secret"]
+        code = totp.code_at(secret, totp.current_step())
+        assert admin.post("/api/auth/mfa/enable", json={"code": code}).status_code == 200
 
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setenv("APP_SECRET_KEY", new_secret)
     assert run_cli(monkeypatch, ["keys", "rotate"]) == 2  # needs the previous secret
     monkeypatch.setenv("APP_SECRET_KEY_PREVIOUS", old_secret)
     assert run_cli(monkeypatch, ["keys", "rotate"]) == 0
-    assert "Re-encrypted 1 API key(s)" in capsys.readouterr().out
+    assert "Re-encrypted 1 API key(s) and 1 two-step verification secret(s)" in capsys.readouterr().out
 
     rotated = Settings(app_secret_key=new_secret, data_dir=tmp_path)  # type: ignore[arg-type]
     application = create_app(rotated.model_copy(update={"allow_insecure_http": True, "app_base_url": BASE}))
     with TestClient(application, base_url=BASE) as main:
-        async def load() -> str:
+        async def load() -> tuple[str, str | None]:
             async with application.state.sessionmaker() as db:
                 row = (await db.execute(select(UserApiKey))).scalar_one()
-                return decrypt(row, rotated)
+                user = (await db.execute(select(User))).scalar_one()
+                return decrypt(row, rotated), mfa.read_secret(user, rotated)
 
-        assert main.portal.call(load) == TEST_KEY
+        assert main.portal.call(load) == (TEST_KEY, secret)
+
+
+def test_cli_backup_and_restore(cli_env: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    import stat
+    import tarfile
+
+    pw = "a sturdy admin passphrase\n"
+    assert run_cli(monkeypatch, ["admin", "create", "--email", "root@example.com", "--name", "Root",
+                                 "--password-stdin"], pw) == 0
+    upload = cli_env / "uploads" / "usr_1" / "cv.pdf"
+    upload.parent.mkdir(parents=True)
+    upload.write_bytes(b"%PDF-original")
+    capsys.readouterr()
+    assert run_cli(monkeypatch, ["backup"]) == 0
+    archive = Path(capsys.readouterr().out.splitlines()[0].removeprefix("wrote "))
+    assert archive.parent == cli_env / "backups" and stat.S_IMODE(archive.stat().st_mode) == 0o600
+    with tarfile.open(archive) as tar:
+        assert {"manifest.json", "app.db", "uploads/usr_1/cv.pdf"} <= set(tar.getnames())
+
+    # after the backup: another account, and a changed file
+    assert run_cli(monkeypatch, ["admin", "create", "--email", "second@example.com", "--name", "Second",
+                                 "--password-stdin"], pw) == 0
+    upload.write_bytes(b"%PDF-changed")
+    assert run_cli(monkeypatch, ["restore", str(archive)]) == 2  # needs --yes
+    assert run_cli(monkeypatch, ["restore", str(archive), "--yes"]) == 0
+    assert "restored the database" in capsys.readouterr().out
+    assert upload.read_bytes() == b"%PDF-original"
+    assert any(p.name.startswith("app.db.before-restore-") for p in cli_env.iterdir())
+    assert any(p.name.startswith("uploads.before-restore-") for p in cli_env.iterdir())
+    assert run_cli(monkeypatch, ["admin", "list"]) == 0
+    listed = capsys.readouterr().out
+    assert "root@example.com" in listed and "second@example.com" not in listed
+
+    # an archive that tries to write outside the data directory is refused
+    evil = cli_env / "evil.tar.gz"
+    with tarfile.open(evil, "w:gz") as tar:
+        info = tarfile.TarInfo("../escape.txt")
+        info.size = 2
+        tar.addfile(info, io.BytesIO(b"hi"))
+    assert run_cli(monkeypatch, ["restore", str(evil), "--yes"]) == 1
+    assert "unexpected entry" in capsys.readouterr().err and not (cli_env.parent / "escape.txt").exists()

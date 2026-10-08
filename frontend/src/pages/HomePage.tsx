@@ -21,7 +21,7 @@ function Step({ done, title, description, action, soon }: { done: boolean; title
         <Circle className="mt-0.5 size-5 shrink-0 text-slate-300 dark:text-slate-600" aria-label="Not done yet" />
       )}
       <div className="min-w-0 flex-1">
-        <p className={cn("font-medium", done ? "text-slate-500 line-through decoration-slate-300" : "text-slate-900 dark:text-slate-100")}>
+        <p className={cn("font-medium", done ? "text-slate-500 dark:text-slate-400 line-through decoration-slate-300" : "text-slate-900 dark:text-slate-100")}>
           {title} {soon && <Badge>Coming soon</Badge>}
         </p>
         <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>
@@ -85,7 +85,7 @@ export function HomePage() {
           <Step
             done={hasApplication}
             title="Tailor your first application"
-            description="Paste a job posting to get a résumé tailored to it. Cover letters arrive in a later release."
+            description="Paste a job posting to get a résumé and cover letter tailored to it."
             action={
               !hasApplication && (
                 <Link to="/applications/new" className={linkButtonClass(hasMaster && hasKey ? "primary" : "secondary", "sm")}>
@@ -104,7 +104,7 @@ export function HomePage() {
             {masters.data?.slice(0, 5).map((m) => (
               <Link key={m.id} to={`/masters/${m.id}`} className="flex items-center justify-between gap-4 py-3 text-sm hover:text-brand-700 dark:hover:text-brand-200">
                 <span className="font-medium">{m.label}</span>
-                <span className="text-slate-500">updated {timeAgo(m.updatedAt)}</span>
+                <span className="text-slate-500 dark:text-slate-400">updated {timeAgo(m.updatedAt)}</span>
               </Link>
             ))}
           </CardBody>

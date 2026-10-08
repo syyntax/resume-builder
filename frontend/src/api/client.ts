@@ -22,6 +22,12 @@ export class ApiError extends Error {
   fieldError(field: string): string | undefined {
     return this.errors.find((e) => e.field === field)?.message;
   }
+
+  /** A machine-readable reason some errors carry, e.g. "mfa_required" or "email_unverified". */
+  get code(): string | undefined {
+    const code = (this.body as { code?: unknown } | null)?.code;
+    return typeof code === "string" ? code : undefined;
+  }
 }
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -34,7 +40,7 @@ interface RequestOptions {
 }
 
 let csrfToken: string | null = null;
-let onUnauthorized: (() => void) | null = null;
+let onUnauthorized: ((reason: "signed-out" | "incomplete") => void) | null = null;
 
 export function setCsrfToken(token: string | null): void {
   csrfToken = token;
@@ -45,8 +51,9 @@ export function csrfHeaders(): Record<string, string> {
   return csrfToken ? { "X-CSRF-Token": csrfToken } : {};
 }
 
-/** Called when a request comes back 401 (the session expired or was revoked elsewhere). */
-export function setUnauthorizedHandler(handler: (() => void) | null): void {
+/** Called when a request finds the sign-in gone (401: expired or revoked elsewhere), or no longer complete: two-step
+ * verification became required and has to be set up first (403 "mfa_enrollment_required"). */
+export function setUnauthorizedHandler(handler: ((reason: "signed-out" | "incomplete") => void) | null): void {
   onUnauthorized = handler;
 }
 
@@ -67,11 +74,15 @@ export async function api<T>(method: Method, path: string, options: RequestOptio
     throw new ApiError(0, "Can't reach the server. Check your connection and try again.");
   }
 
-  if (response.status === 401 && !path.startsWith("/api/auth/")) onUnauthorized?.();
   if (response.status === 204) return undefined as T;
 
   const isJson = response.headers.get("content-type")?.includes("json") ?? false;
   const data: unknown = isJson ? await response.json().catch(() => null) : null;
+  const code = (data as { code?: unknown } | null)?.code;
+  if (!path.startsWith("/api/auth/")) {
+    if (response.status === 401) onUnauthorized?.(code === "mfa_required" ? "incomplete" : "signed-out");
+    else if (response.status === 403 && code === "mfa_enrollment_required") onUnauthorized?.("incomplete");
+  }
   if (!response.ok) {
     const payload = data as { detail?: unknown; errors?: unknown } | null;
     const message =

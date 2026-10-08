@@ -81,6 +81,8 @@ interface EditorContextValue {
   setOpen: (key: string, open: boolean) => void;
   focusKey: string | null;
   setFocusKey: (key: string | null) => void;
+  /** Section headings: h2 when the editor is the page, h3 under a page's own h2 (import review). */
+  heading: "h2" | "h3";
 }
 
 const EditorContext = createContext<EditorContextValue | null>(null);
@@ -143,7 +145,7 @@ function SortableItem({ id, children }: { id: string; children: (handle: HandleP
 function DragHandle({ handle, label }: { handle: HandleProps; label: string }) {
   return (
     <button type="button" ref={handle.setActivatorNodeRef} {...handle.attributes} {...handle.listeners} aria-label={`Drag to reorder ${label}`}
-      className="cursor-grab touch-none rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800">
+      className="cursor-grab touch-none rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing dark:hover:bg-slate-800">
       <GripVertical className="size-4" aria-hidden />
     </button>
   );
@@ -179,7 +181,7 @@ function SortableList({ path, children }: { path: Path; children: (item: Json, i
 function IconToggle({ on, onIcon, offIcon, label, onChange }: { on: boolean; onIcon: ReactNode; offIcon: ReactNode; label: string; onChange: (on: boolean) => void }) {
   return (
     <button type="button" aria-pressed={on} title={label} aria-label={label} onClick={() => onChange(!on)}
-      className={cn("rounded p-1 transition-colors", on ? "text-brand-600 dark:text-brand-300" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
+      className={cn("rounded p-1 transition-colors", on ? "text-brand-600 dark:text-brand-300" : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}>
       {on ? onIcon : offIcon}
     </button>
   );
@@ -188,7 +190,7 @@ function IconToggle({ on, onIcon, offIcon, label, onChange }: { on: boolean; onI
 function IconButton({ label, onClick, children, disabled, tone }: { label: string; onClick: () => void; children: ReactNode; disabled?: boolean; tone?: "danger" }) {
   return (
     <button type="button" title={label} aria-label={label} onClick={onClick} disabled={disabled}
-      className={cn("rounded p-1 text-slate-400 transition-colors disabled:opacity-30",
+      className={cn("rounded p-1 text-slate-500 dark:text-slate-400 transition-colors disabled:opacity-30",
         tone === "danger" ? "hover:text-red-600" : "hover:text-slate-700 dark:hover:text-slate-200")}>
       {children}
     </button>
@@ -281,7 +283,7 @@ function BulletRow({ path, index, count, item, handle }: { path: Path; index: nu
           {COMMON_FIELDS.map((spec) => <Field key={spec.key} {...fieldProps(spec)} />)}
           <Field {...fieldProps({ key: "skills", label: "Skills shown", kind: "skills", wide: true })} />
           <Variants path={[...own, "variants"]} />
-          {id && <p className="text-xs text-slate-400 sm:col-span-2">ID: <code>{id}</code></p>}
+          {id && <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">ID: <code>{id}</code></p>}
         </div>
       )}
     </div>
@@ -335,7 +337,7 @@ function ItemCard({ spec, listPath, index, count, item, handle }: { spec: Sectio
           <ChevronRight className={cn("size-4 shrink-0 text-slate-400 transition-transform", open && "rotate-90")} aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-slate-900 dark:text-slate-100">{spec.title(obj)}</span>
-            {detail && <span className="block truncate text-xs text-slate-500">{detail}</span>}
+            {detail && <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{detail}</span>}
           </span>
           {flagCount > 0 && <Badge tone="amber"><Flag className="mr-1 size-3" aria-hidden />{flagCount}</Badge>}
           {hasIssue && <Badge tone="red">Fix</Badge>}
@@ -372,7 +374,7 @@ function ItemCard({ spec, listPath, index, count, item, handle }: { spec: Sectio
               <ItemList spec={CUSTOM_ITEM} path={[...path, "items"]} />
             </div>
           )}
-          {id && <p className="text-xs text-slate-400 sm:col-span-2">ID: <code>{id}</code></p>}
+          {id && <p className="text-xs text-slate-500 dark:text-slate-400 sm:col-span-2">ID: <code>{id}</code></p>}
         </div>
       )}
     </div>
@@ -400,12 +402,13 @@ function ItemList({ spec, path }: { spec: SectionSpec; path: Path }) {
 }
 
 function SectionFrame({ id, title, count, actions, children }: { id: string; title: string; count?: number; actions?: ReactNode; children: ReactNode }) {
+  const Heading = useEditor().heading;
   return (
     <section id={`ed-${id}`} className="scroll-mt-24 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {title} {count !== undefined && <span className="font-normal text-slate-500">({count})</span>}
-        </h3>
+        <Heading className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {title} {count !== undefined && <span className="font-normal text-slate-500 dark:text-slate-400">({count})</span>}
+        </Heading>
         {actions && <div className="flex items-center gap-1">{actions}</div>}
       </div>
       {children}
@@ -556,7 +559,7 @@ export function MasterEditor({ value, onChange, issues = new Map(), flags = [], 
     }
   }, [issues]); // when new errors arrive
 
-  const context: EditorContextValue = { doc: value, change, issues, flags, skills, expanded, setOpen, focusKey, setFocusKey };
+  const context: EditorContextValue = { doc: value, change, issues, flags, skills, expanded, setOpen, focusKey, setFocusKey, heading: withNav ? "h2" : "h3" };
   const visible = SECTION_ORDER.filter((s) => listAt(value, [s.key]).length > 0 || shown.has(s.key));
   const hidden = SECTION_ORDER.filter((s) => !visible.includes(s));
 
@@ -594,7 +597,7 @@ export function MasterEditor({ value, onChange, issues = new Map(), flags = [], 
             {[{ key: "basics", label: "Contact details" }, ...visible, { key: "preferences", label: "Preferences" }].map((s) => (
               <a key={s.key} href={`#ed-${s.key}`} className="flex justify-between rounded-md px-2 py-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100">
                 {s.label}
-                {s.key !== "basics" && s.key !== "preferences" && <span className="tabular-nums text-slate-400">{listAt(value, [s.key]).length}</span>}
+                {s.key !== "basics" && s.key !== "preferences" && <span className="tabular-nums text-slate-500 dark:text-slate-400">{listAt(value, [s.key]).length}</span>}
               </a>
             ))}
           </nav>

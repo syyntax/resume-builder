@@ -150,14 +150,26 @@ def test_delete_application_keeps_usage(app: FastAPI, admin: Api, keyed_user: Ap
     master_id = new_master(keyed_user, example)
     app_id = create(keyed_user, master_id).json()["id"]
     drain(app)
-    spent = keyed_user.get("/api/account/usage").json()["own"]["spentUsd"]
+    usage_now = keyed_user.get("/api/account/usage").json()
+    spent = usage_now["own"]["spentUsd"]
+    # KEY-5: by stage, by application, and month by month
+    [item] = usage_now["byItem"]
+    assert item["kind"] == "application" and item["id"] == app_id and item["calls"] >= 4
+    assert usage_now["months"][0]["month"] == usage_now["month"] and usage_now["months"][0]["costUsd"] == spent
+    assert {s["stage"] for s in usage_now["byStage"]} >= {"analyze", "tailor"}
+    earlier = keyed_user.get("/api/account/usage", params={"month": "2020-01"}).json()
+    assert earlier["byStage"] == [] and earlier["byItem"] == [] and earlier["own"]["spentUsd"] == spent
+    assert keyed_user.get("/api/account/usage", params={"month": "2020-13"}).status_code == 422
 
     in_use = keyed_user.delete(f"/api/master-resumes/{master_id}")
     assert in_use.status_code == 409 and in_use.json()["code"] == "in_use"
 
     assert keyed_user.delete(f"/api/applications/{app_id}").status_code == 204
     assert keyed_user.get(f"/api/applications/{app_id}").status_code == 404
-    assert keyed_user.get("/api/account/usage").json()["own"]["spentUsd"] == spent
+    after = keyed_user.get("/api/account/usage").json()
+    assert after["own"]["spentUsd"] == spent
+    deleted = [(i["kind"], i["id"], i["label"]) for i in after["byItem"]]
+    assert deleted == [("application", None, "Deleted applications")]
     assert keyed_user.delete(f"/api/master-resumes/{master_id}").status_code == 204
 
 
@@ -192,6 +204,11 @@ def test_admin_usage_dashboard(app: FastAPI, admin: Api, keyed_user: Api, exampl
     kim = rows["keyed@example.com"]
     # analyze, tailor, cover letter, claim audit
     assert kim["hasApiKey"] and kim["ownSpendUsd"] > 0 and kim["calls"] == 4 and kim["applications"] == 1
+    assert kim["imports"] == 0
     assert json.dumps(rows).count("Jordan") == 0  # totals only, never content
+    # another month (ADM-4): nothing then
+    earlier = {r["email"]: r for r in admin.get("/api/admin/usage", params={"month": "2020-01"}).json()}
+    assert earlier["keyed@example.com"]["calls"] == 0 and earlier["keyed@example.com"]["applications"] == 0
+    assert admin.get("/api/admin/usage", params={"month": "2020-13"}).status_code == 422
     patched = admin.patch(f"/api/admin/users/{kim['userId']}", json={"sharedCapUsd": 3.5}).json()
     assert patched["sharedCapUsd"] == 3.5

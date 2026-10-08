@@ -1,0 +1,22 @@
+Senior Data Analyst
+Pinecrest Grocers — Chicago, IL
+
+Pinecrest operates 140 grocery stores across the Midwest. Our analytics team helps merchandising, pricing, and store operations make better decisions every week.
+
+Responsibilities
+- Design and analyze pricing and promotion experiments
+- Build and maintain dashboards in Tableau for leadership and store teams
+- Write production-quality SQL against our BigQuery warehouse
+- Answer complex business questions with clear, actionable recommendations
+- Mentor junior analysts and raise the bar on analysis quality
+
+Qualifications
+- 5+ years of experience in analytics, ideally in retail or CPG
+- Expert SQL; Python for analysis
+- Experience with A/B testing and statistical inference
+- Strong data visualization skills (Tableau preferred)
+- Ability to explain findings to non-technical audiences
+
+Nice to have
+- Experience with price elasticity modeling
+- Looker

@@ -1,0 +1,21 @@
+Design Systems Lead
+Kestrel Bank — Seattle, WA (hybrid)
+
+Kestrel is rebuilding its digital banking experience, and our design system is at the center of it. We're looking for a lead to own the system and the community around it.
+
+You'll
+- Set the vision and roadmap for our design system across web and mobile
+- Lead a small team of designers and work closely with the front-end platform team
+- Define tokens, components, and documentation, and make contribution easy
+- Measure adoption and quality, and champion accessibility (WCAG 2.1 AA) in every component
+- Teach and support 40 product designers and 150 engineers
+
+You bring
+- 7+ years in product design, with at least 3 years focused on design systems
+- Expert Figma skills, including variables and component architecture
+- Experience working with engineers on coded components (React preferred)
+- Proven accessibility expertise
+- Experience mentoring or leading designers
+
+Bonus
+- Financial services experience

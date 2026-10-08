@@ -132,7 +132,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register */
+        /**
+         * Register
+         * @description Create an account. With SMTP configured, an open sign-up confirms its address first (AUTH-10): the
+         *     answer is then 202 "check your email", whether or not the address already has an account (§8.4).
+         */
         post: operations["register_api_auth_register_post"];
         delete?: never;
         options?: never;
@@ -181,7 +185,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Me */
+        /**
+         * Me
+         * @description Who's signed in, and what's left of signing in (a code, or setting up two-step verification).
+         */
         get: operations["me_api_auth_me_get"];
         put?: never;
         post?: never;
@@ -242,6 +249,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot Password
+         * @description Email a reset link (AUTH-7, when SMTP is configured). Always 202, whether or not the account exists.
+         */
+        post: operations["forgot_password_api_auth_password_forgot_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Confirm an address from the emailed link (AUTH-10). Then sign in as usual.
+         */
+        post: operations["verify_email_api_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/sessions": {
         parameters: {
             query?: never;
@@ -277,6 +324,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mfa Status */
+        get: operations["mfa_status_api_auth_mfa_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Setup
+         * @description Start setting it up: a new secret to add to an authenticator app. Nothing changes until it's confirmed.
+         */
+        post: operations["setup_api_auth_mfa_setup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mfa/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enable
+         * @description Confirm with a code from the app. Turns it on, signs out other sessions, and returns recovery codes.
+         */
+        post: operations["enable_api_auth_mfa_enable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify
+         * @description Finish signing in with a code from the authenticator app, or a recovery code.
+         */
+        post: operations["verify_api_auth_mfa_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mfa/recovery-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate Recovery Codes
+         * @description Ten new recovery codes; the old ones stop working.
+         */
+        post: operations["regenerate_recovery_codes_api_auth_mfa_recovery_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disable
+         * @description Turn it off, with the password and a current code (or a recovery code).
+         */
+        post: operations["disable_api_auth_mfa_disable_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preferences */
+        get: operations["get_preferences_api_account_preferences_get"];
+        /**
+         * Save Preferences
+         * @description Defaults for new applications (template and theme, cover letter or not) and export file names.
+         */
+        put: operations["save_preferences_api_account_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/account/profile": {
         parameters: {
             query?: never;
@@ -303,7 +488,8 @@ export interface paths {
         };
         /**
          * Export Account
-         * @description A ZIP of everything the account owns. API keys and password hashes are never included.
+         * @description A ZIP of everything the account owns. API keys, password hashes and two-step verification secrets are
+         *     never included.
          */
         get: operations["export_account_api_account_export_get"];
         put?: never;
@@ -392,7 +578,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Usage */
+        /**
+         * Get Usage
+         * @description Spending against this month's caps, and tokens and cost for a month by stage and by application or
+         *     import, plus the last 12 months (KEY-5).
+         */
         get: operations["get_usage_api_account_usage_get"];
         put?: never;
         post?: never;
@@ -448,6 +638,27 @@ export interface paths {
         put?: never;
         /** Reset Link */
         post: operations["reset_link_api_admin_users__user_id__reset_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{user_id}/mfa-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Mfa
+         * @description For a user who lost their authenticator and recovery codes: turn two-step verification off and sign
+         *     them out everywhere. If it's required, they set it up again at their next sign-in.
+         */
+        post: operations["reset_mfa_api_admin_users__user_id__mfa_reset_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -566,7 +777,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Usage By User */
+        /**
+         * Usage By User
+         * @description Per person for a month (this one by default): spending by key source, AI calls, applications and imports.
+         *     Totals only (ADM-4).
+         */
         get: operations["usage_by_user_api_admin_usage_get"];
         put?: never;
         post?: never;
@@ -845,6 +1060,46 @@ export interface paths {
          * @description Save the reviewed document as a new master résumé. The original file stays attached to its version.
          */
         post: operations["accept_import_api_imports__import_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/merge-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Plan
+         * @description What merging into an existing master would add (IMP-6): new items, and new bullets for ones it has.
+         */
+        post: operations["merge_plan_api_imports__import_id__merge_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/imports/{import_id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge Import
+         * @description Add what was picked from the plan to the master, as a new version. Nothing already there changes.
+         */
+        post: operations["merge_import_api_imports__import_id__merge_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1308,6 +1563,9 @@ export interface components {
         AdminAiSettingsIn: {
             /** Allowsharedkey */
             allowSharedKey?: boolean | null;
+            effort?: components["schemas"]["StageEfforts"] | null;
+            /** Claimaudit */
+            claimAudit?: boolean | null;
             /** Defaultmodel */
             defaultModel?: string | null;
             /** Allowedmodels */
@@ -1327,6 +1585,9 @@ export interface components {
             knownModels: string[];
             /** Defaultcapusd */
             defaultCapUsd: number;
+            effort: components["schemas"]["StageEfforts"];
+            /** Claimaudit */
+            claimAudit: boolean;
         };
         /** AdminUserOut */
         AdminUserOut: {
@@ -1353,6 +1614,11 @@ export interface components {
             createdAt: string;
             /** Lastloginat */
             lastLoginAt?: string | null;
+            /**
+             * Mfaenabled
+             * @default false
+             */
+            mfaEnabled: boolean;
             /** Hasapikey */
             hasApiKey: boolean;
             /** Sharedcapusd */
@@ -1640,6 +1906,12 @@ export interface components {
              */
             referral: string;
         };
+        /** DefaultDesign */
+        DefaultDesign: {
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
+        };
         /** DeleteAccountIn */
         DeleteAccountIn: {
             /** Password */
@@ -1727,6 +1999,11 @@ export interface components {
              * @default 0
              */
             costUsd: number;
+        };
+        /** ForgotPasswordIn */
+        ForgotPasswordIn: {
+            /** Email */
+            email: string;
         };
         /** GenerationOptions */
         GenerationOptions: {
@@ -1963,6 +2240,12 @@ export interface components {
              * @description Only returned when the invite is created.
              */
             url?: string | null;
+            /**
+             * Emailed
+             * @description Sent to the invited address (SMTP configured).
+             * @default false
+             */
+            emailed: boolean;
         };
         /** IssueOut */
         IssueOut: {
@@ -1970,6 +2253,25 @@ export interface components {
             path: string;
             /** Message */
             message: string;
+        };
+        /** ItemUsageOut */
+        ItemUsageOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "application" | "import";
+            /**
+             * Id
+             * @description None once the application or import was deleted.
+             */
+            id: string | null;
+            /** Label */
+            label: string;
+            /** Calls */
+            calls: number;
+            /** Costusd */
+            costUsd: number;
         };
         /** JobIn */
         JobIn: {
@@ -2153,6 +2455,145 @@ export interface components {
              * @default []
              */
             notices: string[];
+            /**
+             * Stage
+             * @description What's left of signing in: nothing (active), a code from the authenticator (mfa), or setting up two-step verification, which is required (enroll)
+             * @default active
+             * @enum {string}
+             */
+            stage: "active" | "mfa" | "enroll";
+        };
+        /** MergeIn */
+        MergeIn: {
+            /** Masterid */
+            masterId: string;
+            /**
+             * Document
+             * @description The reviewed import, as it would be saved.
+             */
+            document: {
+                [key: string]: unknown;
+            };
+            /**
+             * Baseversionid
+             * @description The version the plan was made against: if the master changed since, the merge is refused so nothing is merged blind.
+             */
+            baseVersionId: string;
+            /**
+             * Selections
+             * @description Plan keys to add: null for a whole new item, or indexes into a matched item's bullets.
+             */
+            selections: {
+                [key: string]: number[] | null;
+            };
+        };
+        /** MergeItemOut */
+        MergeItemOut: {
+            /** Key */
+            key: string;
+            /** Section */
+            section: string;
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /**
+             * Status
+             * @description new: not in the master · match: in it, with bullets it lacks · same: nothing to add
+             * @enum {string}
+             */
+            status: "new" | "match" | "same";
+            /**
+             * Bullets
+             * @description new: all the item's bullets · match: only the ones the master lacks
+             */
+            bullets: string[];
+            /**
+             * Similarto
+             * @description For a match, per bullet: a bullet in the master that says much the same, if any
+             * @default []
+             */
+            similarTo: (string | null)[];
+        };
+        /** MergePlanIn */
+        MergePlanIn: {
+            /** Masterid */
+            masterId: string;
+            /**
+             * Document
+             * @description The reviewed import, as it would be saved.
+             */
+            document: {
+                [key: string]: unknown;
+            };
+        };
+        /** MergePlanOut */
+        MergePlanOut: {
+            /** Masterid */
+            masterId: string;
+            /** Baseversionid */
+            baseVersionId: string;
+            /** Items */
+            items: components["schemas"]["MergeItemOut"][];
+        };
+        /** MfaCodeIn */
+        MfaCodeIn: {
+            /** Code */
+            code: string;
+        };
+        /** MfaDisableIn */
+        MfaDisableIn: {
+            /** Password */
+            password: string;
+            /** Code */
+            code: string;
+        };
+        /** MfaEnableOut */
+        MfaEnableOut: {
+            /**
+             * Recoverycodes
+             * @description Shown once. Each works once if the authenticator is lost.
+             */
+            recoveryCodes: string[];
+            me: components["schemas"]["MeOut"];
+        };
+        /** MfaSetupIn */
+        MfaSetupIn: {
+            /**
+             * Password
+             * @description Not needed while finishing a sign-in that requires setting it up.
+             */
+            password?: string | null;
+        };
+        /** MfaSetupOut */
+        MfaSetupOut: {
+            /** Secret */
+            secret: string;
+            /** Otpauthuri */
+            otpauthUri: string;
+            /** Qrsvg */
+            qrSvg: string;
+        };
+        /** MfaStatusOut */
+        MfaStatusOut: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Required
+             * @description The admins require it for this account.
+             */
+            required: boolean;
+            /** Recoverycodesleft */
+            recoveryCodesLeft: number;
+        };
+        /** MonthUsageOut */
+        MonthUsageOut: {
+            /** Month */
+            month: string;
+            /** Calls */
+            calls: number;
+            /** Costusd */
+            costUsd: number;
         };
         /** OptionOut */
         OptionOut: {
@@ -2179,6 +2620,26 @@ export interface components {
             token: string;
             /** Newpassword */
             newPassword: string;
+        };
+        /**
+         * Preferences
+         * @description A user's own defaults (EXP-6 and new applications).
+         */
+        Preferences: {
+            /** @description Template and theme for new applications; the instance's default if not set. */
+            design?: components["schemas"]["DefaultDesign"] | null;
+            /**
+             * Coverletter
+             * @description Write a cover letter with each new application.
+             * @default true
+             */
+            coverLetter: boolean;
+            /**
+             * Filename
+             * @description Export file names, from {name} {first} {last} {company} {role} {doc} {date}.
+             * @default {name}_{company}_{role}_{doc}
+             */
+            fileName: string;
         };
         /** ProfileIn */
         ProfileIn: {
@@ -2214,6 +2675,11 @@ export interface components {
              * @default []
              */
             address: string[];
+        };
+        /** RecoveryCodesOut */
+        RecoveryCodesOut: {
+            /** Recoverycodes */
+            recoveryCodes: string[];
         };
         /** RefineIn */
         RefineIn: {
@@ -2274,6 +2740,12 @@ export interface components {
             mode: "open" | "invite" | "closed";
             /** Domainrestricted */
             domainRestricted: boolean;
+            /**
+             * Emailenabled
+             * @description SMTP is configured: "Forgot password" works, and open sign-ups confirm their address by email.
+             * @default false
+             */
+            emailEnabled: boolean;
         };
         /** RestoreOut */
         RestoreOut: {
@@ -2355,6 +2827,44 @@ export interface components {
             /** Percent */
             percent: number | null;
         };
+        /** StageEfforts */
+        StageEfforts: {
+            /**
+             * Analyze
+             * @enum {string}
+             */
+            analyze: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Tailor
+             * @enum {string}
+             */
+            tailor: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Letter
+             * @enum {string}
+             */
+            letter: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Import
+             * @enum {string}
+             */
+            import: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Refine
+             * @enum {string}
+             */
+            refine: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Audit
+             * @enum {string}
+             */
+            audit: "low" | "medium" | "high" | "xhigh" | "max";
+            /**
+             * Condense
+             * @enum {string}
+             */
+            condense: "low" | "medium" | "high" | "xhigh" | "max";
+        };
         /** StageUsageOut */
         StageUsageOut: {
             /** Stage */
@@ -2406,6 +2916,9 @@ export interface components {
             registrationMode?: ("open" | "invite" | "closed") | null;
             /** Registrationemaildomains */
             registrationEmailDomains?: string[] | null;
+            /** Requiremfa */
+            requireMfa?: ("none" | "admins" | "all") | null;
+            defaultDesign?: components["schemas"]["DefaultDesign"] | null;
         };
         /** SystemSettingsOut */
         SystemSettingsOut: {
@@ -2418,6 +2931,18 @@ export interface components {
             registrationEmailDomains: string[];
             /** Openregistrationexposed */
             openRegistrationExposed: boolean;
+            /**
+             * Requiremfa
+             * @enum {string}
+             */
+            requireMfa: "none" | "admins" | "all";
+            /**
+             * Emailenabled
+             * @description SMTP is configured: password resets, invites and verification go by email.
+             */
+            emailEnabled: boolean;
+            /** @description Template and theme for new applications, unless a user chose their own. */
+            defaultDesign: components["schemas"]["DefaultDesign"];
         };
         /** TemplateDefaultsOut */
         TemplateDefaultsOut: {
@@ -2529,12 +3054,27 @@ export interface components {
         };
         /** UsageOut */
         UsageOut: {
-            /** Month */
+            /**
+             * Month
+             * @description The month the breakdowns are for (YYYY-MM). Spending against caps is always this month's.
+             */
             month: string;
             own: components["schemas"]["SpendOut"];
             shared: components["schemas"]["SpendOut"] | null;
             /** Bystage */
             byStage: components["schemas"]["StageUsageOut"][];
+            /**
+             * Byitem
+             * @description Per application and per import (KEY-5).
+             * @default []
+             */
+            byItem: components["schemas"]["ItemUsageOut"][];
+            /**
+             * Months
+             * @description The last 12 months, newest first.
+             * @default []
+             */
+            months: components["schemas"]["MonthUsageOut"][];
         };
         /** UserOut */
         UserOut: {
@@ -2561,6 +3101,11 @@ export interface components {
             createdAt: string;
             /** Lastloginat */
             lastLoginAt?: string | null;
+            /**
+             * Mfaenabled
+             * @default false
+             */
+            mfaEnabled: boolean;
         };
         /** UserUsageOut */
         UserUsageOut: {
@@ -2580,6 +3125,11 @@ export interface components {
             calls: number;
             /** Applications */
             applications: number;
+            /**
+             * Imports
+             * @default 0
+             */
+            imports: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2607,6 +3157,25 @@ export interface components {
             normalized?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * VerificationSentOut
+         * @description Sign-up is done but the address must be confirmed: a link was emailed (or, if the address already has an
+         *     account, a note saying so: the answer is the same either way).
+         */
+        VerificationSentOut: {
+            /**
+             * Verificationsent
+             * @default true
+             */
+            verificationSent: boolean;
+            /** Email */
+            email: string;
+        };
+        /** VerifyEmailIn */
+        VerifyEmailIn: {
+            /** Token */
+            token: string;
         };
         /** VersionMeta */
         VersionMeta: {
@@ -2842,7 +3411,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["MeOut"];
+                    "application/json": components["schemas"]["MeOut"] | components["schemas"]["VerificationSentOut"];
                 };
             };
             /** @description Validation Error */
@@ -3022,6 +3591,70 @@ export interface operations {
             };
         };
     };
+    forgot_password_api_auth_password_forgot_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ForgotPasswordIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_email_api_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_sessions_api_auth_sessions_get: {
         parameters: {
             query?: never;
@@ -3077,6 +3710,244 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mfa_status_api_auth_mfa_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaStatusOut"];
+                };
+            };
+        };
+    };
+    setup_api_auth_mfa_setup_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaSetupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaSetupOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enable_api_auth_mfa_enable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaEnableOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_api_auth_mfa_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_recovery_codes_api_auth_mfa_recovery_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirmIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecoveryCodesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    disable_api_auth_mfa_disable_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaDisableIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_preferences_api_account_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    save_preferences_api_account_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preferences"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -3332,7 +4203,9 @@ export interface operations {
     };
     get_usage_api_account_usage_get: {
         parameters: {
-            query?: never;
+            query?: {
+                month?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3346,6 +4219,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UsageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -3452,6 +4334,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinkOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reset_mfa_api_admin_users__user_id__mfa_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserOut"];
                 };
             };
             /** @description Validation Error */
@@ -3606,6 +4519,11 @@ export interface operations {
                 /** @description Event name or prefix, e.g. 'auth.' */
                 event?: string | null;
                 userId?: string | null;
+                /** @description From this day (UTC) */
+                since?: string | null;
+                /** @description Up to and including this day (UTC) */
+                until?: string | null;
+                /** @description For paging: entries older than this */
                 before?: string | null;
                 limit?: number;
             };
@@ -3708,7 +4626,9 @@ export interface operations {
     };
     usage_by_user_api_admin_usage_get: {
         parameters: {
-            query?: never;
+            query?: {
+                month?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3722,6 +4642,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserUsageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -4337,6 +5266,76 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ImportAcceptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MasterSaveOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_plan_api_imports__import_id__merge_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergePlanIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MergePlanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    merge_import_api_imports__import_id__merge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeIn"];
             };
         };
         responses: {

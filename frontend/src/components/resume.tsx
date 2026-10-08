@@ -69,7 +69,7 @@ function Section({ section }: { section: ResumeSection }) {
                   {title}
                   {org && <span className="font-medium text-[#1F3A5F]"> · {org}</span>}
                 </p>
-                <span className="text-xs text-slate-500 tabular-nums">{dates(item)}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">{dates(item)}</span>
               </div>
               {item.bullets && item.bullets.length > 0 && (
                 <ul className="mt-1 space-y-0.5">{item.bullets.map((b) => <Bullet key={b.id} bullet={b} />)}</ul>
@@ -127,10 +127,10 @@ export function AnalysisPanel({ analysis, coverage }: { analysis: JobAnalysis; c
           {analysis.location && <Badge>{analysis.location}</Badge>}
         </div>
         <p className="mt-2 text-slate-700 dark:text-slate-300">{analysis.roleSummary}</p>
-        <p className="mt-2 text-slate-500">{analysis.fit.rationale}</p>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">{analysis.fit.rationale}</p>
       </div>
       <div>
-        <h3 className="mb-2 text-xs font-semibold tracking-wider text-slate-500 uppercase">Requirements</h3>
+        <h3 className="mb-2 text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">Requirements</h3>
         <ul className="space-y-1.5">
           {analysis.requirements.map((r) => {
             const m = matches.get(r.id);
@@ -139,8 +139,8 @@ export function AnalysisPanel({ analysis, coverage }: { analysis: JobAnalysis; c
                 <span className="mt-0.5 shrink-0">{m ? statusIcon[m.status] : null}</span>
                 <span className="min-w-0">
                   <span className="text-slate-800 dark:text-slate-200">{r.text}</span>
-                  {r.kind === "preferred" && <span className="ml-1.5 text-xs text-slate-500">(preferred)</span>}
-                  {m?.note && <span className="block text-xs text-slate-500">{m.note}</span>}
+                  {r.kind === "preferred" && <span className="ml-1.5 text-xs text-slate-500 dark:text-slate-400">(preferred)</span>}
+                  {m?.note && <span className="block text-xs text-slate-500 dark:text-slate-400">{m.note}</span>}
                 </span>
               </li>
             );
@@ -148,7 +148,7 @@ export function AnalysisPanel({ analysis, coverage }: { analysis: JobAnalysis; c
         </ul>
       </div>
       <div>
-        <h3 className="mb-2 text-xs font-semibold tracking-wider text-slate-500 uppercase">Keywords</h3>
+        <h3 className="mb-2 text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">Keywords</h3>
         <div className="flex flex-wrap gap-1.5">
           {[...analysis.keywords].sort((a, b) => b.importance - a.importance).map((k) => (
             <span key={k.term} title={k.aliases.length ? `Also: ${k.aliases.join(", ")}` : undefined}
@@ -166,7 +166,7 @@ export function AnalysisPanel({ analysis, coverage }: { analysis: JobAnalysis; c
           ))}
         </div>
         {coverage && (
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="text-emerald-700 dark:text-emerald-400">Green</span>: on the résumé.{" "}
             <span className="text-amber-700 dark:text-amber-400">Amber</span>: in your master résumé but not used.{" "}
             <span className="text-red-700 dark:text-red-400">Red</span>: not in your master résumé (a gap, so it isn't claimed).

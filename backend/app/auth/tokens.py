@@ -15,6 +15,7 @@ from app.db.types import utcnow
 SETUP_TTL = timedelta(hours=24)
 INVITE_TTL = timedelta(days=7)
 RESET_TTL = timedelta(minutes=30)
+VERIFY_TTL = timedelta(hours=24)
 
 
 async def create_token(

@@ -4,6 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router";
 import { ApiError, api, setCsrfToken } from "../api/client";
 import type { Me, RegistrationInfo } from "../api/types";
 import { FullPageSpinner } from "../components/ui";
+import { MfaChallengePage, MfaEnrollPage } from "../pages/MfaPages";
 import { NotFoundPage } from "../pages/NotFoundPage";
 
 export const meKey = ["me"] as const;
@@ -64,6 +65,9 @@ export function RequireAuth() {
     const next = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?next=${next}`} replace />;
   }
+  // Signing in isn't finished: a code from the authenticator app, or setting it up because it's required
+  if (me.stage === "mfa") return <MfaChallengePage />;
+  if (me.stage === "enroll") return <MfaEnrollPage />;
   return <Outlet />;
 }
 

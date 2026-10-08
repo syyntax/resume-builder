@@ -46,7 +46,7 @@ export function PasswordFields({ password, confirm, onPassword, onConfirm, error
               <span key={step} className={cn("flex-1 rounded-full", strength >= step ? colors[strength] : "bg-slate-200 dark:bg-slate-800")} />
             ))}
           </div>
-          <span className="w-20 text-right text-xs text-slate-500">{labels[strength]}</span>
+          <span className="w-20 text-right text-xs text-slate-500 dark:text-slate-400">{labels[strength]}</span>
         </div>
       </div>
       <TextField

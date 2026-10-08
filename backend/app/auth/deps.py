@@ -12,6 +12,7 @@ from app.auth.sessions import AuthContext, cookie_name, resolve_session
 from app.config import Settings, origin_of
 from app.db.engine import get_db
 from app.errors import ApiError
+from app.services.settings_store import mfa_required
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 CSRF_HEADER = "x-csrf-token"
@@ -50,18 +51,50 @@ async def optional_auth(
     return await resolve_session(db, raw, settings)
 
 
-async def current_user(
-    request: Request,
-    ctx: AuthContext | None = Depends(optional_auth),
-    settings: Settings = Depends(get_settings),
-) -> AuthContext:
-    if ctx is None:
-        raise ApiError(401, "You're not signed in.")
+def session_stage(request: Request, ctx: AuthContext) -> str:
+    """"active", or what's left to do: "mfa" (enter a code) or "enroll" (set up MFA, which policy requires)."""
+    if ctx.session.stage != "active":
+        return ctx.session.stage
+    policy = getattr(request.app.state, "mfa_policy", "none")
+    return "enroll" if not ctx.user.mfa_enabled and mfa_required(ctx.user.role, policy) else "active"
+
+
+def _check_csrf(request: Request, ctx: AuthContext, settings: Settings) -> None:
     if request.method not in SAFE_METHODS:
         check_origin(request, settings)
         sent = request.headers.get(CSRF_HEADER, "")
         if not hmac.compare_digest(sent.encode(), ctx.session.csrf_token.encode()):
             raise ApiError(403, "Missing or invalid CSRF token. Reload the page and try again.")
+
+
+async def signing_in(
+    request: Request,
+    ctx: AuthContext | None = Depends(optional_auth),
+    settings: Settings = Depends(get_settings),
+) -> AuthContext:
+    """Any session, finished or not: for /auth/me, sign-out, and the MFA steps of signing in."""
+    if ctx is None:
+        raise ApiError(401, "You're not signed in.")
+    _check_csrf(request, ctx, settings)
+    return ctx
+
+
+async def current_user(
+    request: Request,
+    ctx: AuthContext | None = Depends(optional_auth),
+    settings: Settings = Depends(get_settings),
+) -> AuthContext:
+    """A signed-in user whose sign-in is complete (password, then MFA when it's on or required)."""
+    if ctx is None:
+        raise ApiError(401, "You're not signed in.")
+    stage = session_stage(request, ctx)
+    if stage == "mfa":
+        raise ApiError(401, "Enter the code from your authenticator app to finish signing in.",
+                       extra={"code": "mfa_required"})
+    if stage == "enroll":
+        raise ApiError(403, "Set up two-step verification to continue: it's required for your account.",
+                       extra={"code": "mfa_enrollment_required"})
+    _check_csrf(request, ctx, settings)
     return ctx
 
 

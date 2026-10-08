@@ -45,7 +45,7 @@ export function DesignDisclosure({ application }: { application: ApplicationDeta
     <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100">
-        Design <span className="flex items-center gap-2 font-normal text-slate-500">{design.template[0]!.toUpperCase() + design.template.slice(1)}
+        Design <span className="flex items-center gap-2 font-normal text-slate-500 dark:text-slate-400">{design.template[0]!.toUpperCase() + design.template.slice(1)}
           <span className="inline-block size-3 rounded-full" style={{ backgroundColor: design.theme.accent }} />
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden /></span>
       </button>
@@ -81,7 +81,7 @@ export function PdfPreview({ application, doc, revision, pageLimit, onFit, fitti
   return (
     <div className="rounded-xl bg-slate-200/60 p-3 dark:bg-slate-800/60">
       <div className="mb-2 flex min-h-5 items-start justify-between gap-2">
-        <p className={cn("text-xs", note && !note.ok ? "text-amber-700 dark:text-amber-400" : "text-slate-500")} aria-live="polite">
+        <p className={cn("text-xs", note && !note.ok ? "text-amber-700 dark:text-amber-400" : "text-slate-600 dark:text-slate-400")} aria-live="polite">
           {note ? note.text : "Rendering…"}
         </p>
         {onFit && note && !note.ok && target !== null && (
@@ -94,7 +94,7 @@ export function PdfPreview({ application, doc, revision, pageLimit, onFit, fitti
       <Suspense fallback={<Spinner />}>
         <PdfViewer url={url} onLoad={setPages} />
       </Suspense>
-      <p className="mt-2 text-xs text-slate-500">This is the PDF exactly as it downloads.</p>
+      <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">This is the PDF exactly as it downloads.</p>
     </div>
   );
 }

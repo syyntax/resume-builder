@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v0.3, open questions resolved |
-| **Last updated** | 2026-10-07 |
+| **Last updated** | 2026-10-08 |
 | **Stack** | FastAPI (Python 3.13) · React + TypeScript (Vite) · SQLite (or PostgreSQL) · Claude API · Playwright/Chromium · Docker Compose |
 | **Mockups** | [`mockups/index.html`](mockups/index.html): four templates, each with a résumé page and a matching cover letter. All four are approved, and **Meridian** is the default. |
 
@@ -11,6 +11,7 @@
 
 | Version | Date | Changes |
 |---|---|---|
+| 0.4 | 2026-10-08 | Built M7. `SMTP_SECURITY` (`starttls`, `ssl` or `none`) replaces `SMTP_STARTTLS`. Email confirmation links stay valid until they expire, not just the latest one. The evals' coverage baseline is the last accepted live run. Admin usage is by month and counts imports, and the audit log filters by date. CI also audits accessibility. |
 | 0.3 | 2026-10-06 | Resolved the open questions. Registration is **open by default**, with invite-only and closed as options. **SSO is out of v1** (moved to future). **SMTP stays optional** and is off by default. Each user **brings their own Anthropic API key**, stored encrypted, with a **$20/month default spending cap**; an optional, admin-enabled shared key remains as a fallback. All four templates are approved, with **Meridian** as the default. Hosting is local first and deployable anywhere. |
 | 0.2 | 2026-10-06 | Added **multi-user accounts and authentication**, an admin console, and usage budgets. Added **cover letters** (v1). Added **PDF/DOCX résumé import** and a structured master editor (v1). Set US Letter as the default. Kept the claim audit on by default. Renamed "tailoring" to **Application** (a résumé and a cover letter for one job). Added template mockups. |
 | 0.1 | 2026-10-06 | Initial draft. |
@@ -603,6 +604,9 @@ Admins **can't** demote or delete the **last** active admin. Changing a user's r
   - Codes are accepted within ±1 time step, and a code can't be reused within its window.
   - Users get 10 recovery codes, stored hashed.
   - Login is two steps: a correct password creates a *pending* session that is valid only for the MFA challenge and expires after 5 minutes.
+  - When policy requires MFA and the user hasn't set it up, the password instead creates an *enrollment* session (20 minutes) that can only set it up. Every other route refuses both kinds (`401 mfa_required`, `403 mfa_enrollment_required`).
+  - Turning MFA on rotates the session and signs out the others. An admin can reset a user's MFA; the user sets it up again at the next sign-in if policy requires it.
+- **Email verification** (S, with SMTP in open mode): an account can't sign in until its address is confirmed. Signing in with the right password sends a new link (rate-limited); links last 24 hours.
 - **First-run bootstrap:**
   - On the first start with no users, the server generates a random setup token, prints it once to stdout (`docker compose logs app`), and stores only its hash.
   - `/setup` accepts the token once to create the admin account.
@@ -1154,22 +1158,25 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | GET | `/auth/setup-status` **public** · POST `/auth/setup` **public** | Create the first admin with the setup token |
 | GET | `/auth/registration` **public** | Registration mode, whether setup is pending, whether domains are restricted |
 | GET | `/auth/invites/{token}` **public** | Check an invite link (and the email it's bound to) |
-| POST | `/auth/register` **public** | Register through an invite or open registration |
-| POST | `/auth/login` **public** | Returns `{mfaRequired}` when a second step is needed |
-| POST | `/auth/mfa/verify` | Complete a pending MFA session |
+| POST | `/auth/register` **public** | Register through an invite or open registration. With SMTP in open mode it returns `202 {verificationSent, email}`, the same for an address that already has an account (which gets a note instead). |
+| POST | `/auth/verify-email` **public** | `{token}` from the emailed link confirms the address |
+| POST | `/auth/login` **public** | Returns the session with its `stage`: `active`, `mfa` (a code is needed next) or `enroll` (two-step verification must be set up first). `403 email_unverified` resends the confirmation link. |
+| POST | `/auth/mfa/verify` | `{code}`: an authenticator code or a recovery code completes an `mfa` session |
 | POST | `/auth/logout` | |
-| GET | `/auth/me` | Current user, role, CSRF token, key status, and spending status |
+| GET | `/auth/me` | Current user, role, CSRF token, sign-in stage, and notices |
 | GET · POST | `/auth/password-reset/{token}` **public** · `/auth/password-reset` **public** | Check, then use, a single-use reset link |
 | POST | `/auth/password/change` | Change your password (signs out other sessions) |
-| POST | `/auth/password/forgot` **public** | Email a reset link (when SMTP is configured; M7) |
-| POST | `/auth/mfa/setup` · `/auth/mfa/enable` · `/auth/mfa/disable` · `/auth/mfa/recovery-codes` | |
+| POST | `/auth/password/forgot` **public** | Email a reset link. Always `202` when SMTP is configured; `404` without it. |
+| GET | `/auth/mfa` | Whether two-step verification is on, recovery codes left, and whether policy requires it |
+| POST | `/auth/mfa/setup` · `/auth/mfa/enable` · `/auth/mfa/disable` · `/auth/mfa/recovery-codes` | Start (a secret and QR code; needs the password unless enrolling at sign-in), confirm with a code (returns recovery codes), turn off (password and a code; refused when policy requires it), new recovery codes (password) |
 | GET · DELETE | `/auth/sessions` · `/auth/sessions/{id}` | List sessions, revoke one or all others |
 | GET · PUT · DELETE | `/account/api-key` | Key status (hint, verified date, validity); save or replace the key (verified first, requires the password); remove it (requires the password) |
 | POST | `/account/api-key/test` | Re-test the stored key |
 | GET · PUT | `/account/ai-settings` | Model choice and monthly cap |
-| GET | `/account/usage` | Your own usage and spending against each cap |
-| PATCH | `/account/profile` | Change name, or email (requires the password) |
-| GET | `/account/export` | Download a ZIP of your data |
+| GET | `/account/usage?month=` | Spending against each cap, and a month's tokens and cost by step and by application or import, plus the last 12 months |
+| GET · PUT | `/account/preferences` | Defaults for new applications (design, cover letter) and the export file name pattern |
+| PATCH | `/account/profile` | Change name, or email (requires the password; the old address is notified) |
+| GET | `/account/export` | Download a ZIP of your data: profile, preferences, master résumés with every version and source file, imports, and applications with their résumés and letters |
 | DELETE | `/account` | Delete your account (requires re-entering the password) |
 
 **Content**
@@ -1186,7 +1193,8 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | GET | `/imports` · `/imports/{id}` · `/imports/{id}/events` (SSE) | List; the draft, flags, review state, fidelity and cost; progress |
 | GET | `/imports/{id}/preview` · `/imports/{id}/source` | Sanitized HTML (DOCX) or text for the review screen; the original file |
 | PUT | `/imports/{id}/review` | Autosave `{document, resolved}` while reviewing |
-| POST | `/imports/{id}/accept` · `/imports/{id}/retry` | Save as a new master `{label, document}` (merging into an existing master comes in M7); re-run a failed import |
+| POST | `/imports/{id}/accept` · `/imports/{id}/retry` | Save as a new master `{label, document}`; re-run a failed import |
+| POST | `/imports/{id}/merge-plan` · `/imports/{id}/merge` | Compare `{masterId, document}` with a master: what's new, what adds bullets to items it has, and what's there already. Then merge `{…, baseVersionId, selections}` as a new version (refused if the master changed since the plan). |
 | DELETE | `/imports/{id}` | Discard an import, and its file unless a saved version uses it |
 | POST | `/applications` | `{masterId, job:{text,company?,title?,url?}, options:{pageLimit?,tone?,instructions?,reviewAnalysis?}, coverLetter:{generate,recipient?,tone?,length?,notes?,highlights?,referral?}}` uses the master's current version and returns `202` |
 | GET | `/applications` · `/applications/{id}` · `/applications/{id}/events` (SSE) | List, get (posting, analysis, résumé, cost), and progress |
@@ -1194,7 +1202,7 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | PUT | `/applications/{id}/analysis` | Save edits to the analysis: `{keywords:[{term,importance,mustInclude}], suggestedEmphasis}` |
 | POST | `/applications/{id}/continue` · `/applications/{id}/regenerate` | Write the résumé after reviewing the analysis; write it again from the (edited) analysis, `{letter}` to rewrite the letter too |
 | PUT | `/applications/{id}/resume` | Save (autosave) `{document}`; returns it with fresh warnings and coverage. Facts come from the master whatever is sent. |
-| POST | `/applications/{id}/resume/refine` | `{scope: bullet\|item\|headline\|summary\|document, targetId, instruction}` returns suggestions (nothing is saved) and their cost. `/resume/fit` comes with auto-fit in M6. |
+| POST | `/applications/{id}/resume/refine` | `{scope: bullet\|item\|headline\|summary\|document, targetId, instruction}` returns suggestions (nothing is saved) and their cost |
 | POST | `/applications/{id}/cover-letter` | Write, or rewrite, the letter with `{options}`; returns `202` |
 | PUT | `/applications/{id}/cover-letter` | Save (autosave) `{document}` |
 | POST | `/applications/{id}/cover-letter/refine` | `{targetId?, instruction}`: one paragraph, or the whole letter; suggestions only |
@@ -1206,20 +1214,19 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | PUT | `/applications/{id}/design` | `{template, theme}`: the template and theme options (§11.4) |
 | POST · DELETE | `/applications/{id}/duplicate` · `/applications/{id}` | |
 | GET | `/templates` · `/templates/{key}/thumbnail.png` | Templates with their ATS label, own colors and fonts, and thumbnail; theme options and defaults |
-| GET · PUT | `/preferences` | Per-user defaults |
 
 **Admin** (`require_admin`)
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET · POST | `/admin/users` | List users, or create one (returns an invite link, and emails it when SMTP is configured) |
+| GET | `/admin/users` | List users, with role, status, key and two-step status |
 | PATCH · DELETE | `/admin/users/{id}` | Change role, status, or shared-key cap, or delete the user |
-| POST | `/admin/users/{id}/reset-link` · `/admin/users/{id}/mfa-reset` | |
-| GET · POST · DELETE | `/admin/invites` | |
+| POST | `/admin/users/{id}/reset-link` · `/admin/users/{id}/mfa-reset` | A password reset link to share; turn off someone's two-step verification (they set it up again if policy requires it) |
+| GET · POST · DELETE | `/admin/invites` | Invite links, optionally bound to an email address (and emailed to it when SMTP is configured) |
 | GET | `/admin/usage?month=` | Totals per user |
 | GET | `/admin/audit-log` | Filterable |
-| GET · PUT | `/admin/settings` | Registration settings |
-| GET · PUT | `/admin/ai-settings` · POST `/admin/ai-settings/test-connection` | Allowed and default models, the shared-key switch; the test checks the shared key |
+| GET · PUT | `/admin/settings` | Registration mode and domains, the two-step verification policy, and the default design for new applications; whether email is set up |
+| GET · PUT | `/admin/ai-settings` · POST `/admin/ai-settings/test-connection` | Allowed and default models, the shared-key switch, effort per step, and the claim audit; the test checks the shared key |
 
 ---
 
@@ -1243,8 +1250,8 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | **API key or secret exposure** | Users' API keys and TOTP secrets are encrypted with AES-256-GCM under a key derived from `APP_SECRET_KEY`, and bound to the user ID. A stolen database or backup is useless without that secret, which is kept out of the database (as an env var or a Docker secret file). Keys are never returned, exported, or logged, and log redaction removes `sk-ant-` keys, session tokens, and passwords. |
 | **Data at rest** | Data lives in Docker volumes. Encrypting the host disk is recommended. Users can export and delete their data, and deleting an account cascades to every owned row and file. |
 | **Data in transit** | The `https` profile adds Caddy with automatic TLS. The default bind address is `127.0.0.1`, and the app refuses to start on a non-localhost bind without `APP_BASE_URL=https://…`, unless `ALLOW_INSECURE_HTTP=true` is set (for LAN testing only). |
-| **Security headers** | CSP, HSTS (over HTTPS), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, and a restrictive `Permissions-Policy` |
-| **Supply chain** | Lockfiles (uv and pnpm), pinned base images, Dependabot or Renovate, and `pip-audit` and `pnpm audit` in CI |
+| **Security headers** | CSP, HSTS (over HTTPS), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: same-origin`, a restrictive `Permissions-Policy`, `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy: same-origin`, and `Cache-Control: no-store` on API responses (built assets, whose names carry content hashes, are cached for good) |
+| **Supply chain** | Lockfiles (uv and pnpm, with integrity hashes), pinned base and tool images, and weekly Dependabot updates for uv, npm, Docker and GitHub Actions. CI runs `pip-audit`, `pnpm audit`, `bandit`, ruff's security rules, a Trivy scan of the image (no fixable HIGH or CRITICAL findings), and an OWASP ZAP baseline scan of the running app (the few accepted findings, with reasons, are in `.zap/rules.tsv`). The image carries no `pip`. |
 | **Container** | Runs as a non-root user with a read-only root filesystem (only the `/data` and `/tmp` volumes are writable), all capabilities dropped, and `no-new-privileges` |
 
 ---
@@ -1318,7 +1325,8 @@ volumes:
 
 - **Named volumes:**
   - This project lives in a OneDrive-synced folder. Syncing a live SQLite database and its WAL files risks lock conflicts and corruption, so data lives on Docker named volumes instead.
-  - Back up the instance with `docker compose exec app resume-tailor backup` (an online SQLite backup or `pg_dump`, plus uploads, written as a ZIP to `/data/backups`).
+  - Back up the instance with `docker compose exec app resume-tailor backup`: a `.tar.gz` in `/data/backups` (readable only by the app's user) holding an online copy of the SQLite database, the uploaded files, and a manifest. With PostgreSQL, use `pg_dump` for the database; the archive holds the uploads. Copy it off the volume with `docker compose cp app:/data/backups/<file> .`, and keep it apart from `APP_SECRET_KEY`.
+  - Restore with the app stopped: `docker compose stop app`, then `docker compose run --rm app resume-tailor restore /data/backups/<file> --yes`, then `docker compose start app`. What it replaces is kept beside the originals, and the database is migrated to the current schema.
 - **Postgres startup:** the app retries the database connection at startup, so it doesn't need a conditional `depends_on` on the Postgres profile.
 - **Secrets and OneDrive:** `.env` holds `APP_SECRET_KEY` and, if used, the shared key. This project folder syncs to OneDrive, so keep the real `.env` outside it (for example `RT_ENV_FILE=~/.config/resume-tailor/.env docker compose up -d`), or mount the secret as a Docker secret file and point `APP_SECRET_KEY_FILE` at it. Either way, `.env` is git-ignored.
 
@@ -1357,7 +1365,7 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `DATABASE_URL` | `sqlite:////data/app.db` | Or `postgresql+psycopg://resume_tailor:…@postgres/resume_tailor` |
 | `REGISTRATION_MODE` | `open` | `open` \| `invite` \| `closed` (initial value; an admin can change it) |
 | `REGISTRATION_EMAIL_DOMAINS` | (empty) | Comma-separated domain allowlist for open registration |
-| `REQUIRE_MFA` | `none` | `none` \| `admins` \| `all` |
+| `REQUIRE_MFA` | `none` | `none` \| `admins` \| `all` (initial value; an admin can change it) |
 | `SESSION_IDLE_DAYS` / `SESSION_MAX_DAYS` | `7` / `30` | |
 | `DEFAULT_MONTHLY_CAP_USD` | `20` | Default cap for each user's own-key and shared-key spending. `0` means unlimited. |
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
@@ -1370,7 +1378,9 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `PRICING_FILE` | (built in) | Path to a replacement `pricing.toml` |
 | `AI_CLAIM_AUDIT` | `true` | Run the claim audit (stage D) after each generation. It can always be run on demand. |
 | `AI_DEBUG_LOG` | `false` | Store prompt and response bodies (development only) |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_STARTTLS` | (empty: disabled) | Optional. When set, enables emailed password resets, invites, and email verification. |
+| `SMTP_HOST` / `SMTP_FROM` | (empty: disabled) | Optional. With both set, people can reset their own password, invites are emailed, open sign-ups confirm their address, and an email change is reported to the old address. |
+| `SMTP_PORT` / `SMTP_SECURITY` | `587` / `starttls` | `starttls` (submission, 587), `ssl` (implicit TLS, 465), or `none` (only for a relay on the same host or network) |
+| `SMTP_USER` / `SMTP_PASSWORD` | (empty) | Sign in to the mail server, when it needs it |
 | `TRUSTED_PROXIES` | `127.0.0.1` | Set to the Caddy container's network when the `https` profile is used |
 | `ALLOW_INSECURE_HTTP` | `false` | Allows a non-localhost bind without HTTPS (testing only) |
 | `APP_PORT` | `8080` | |
@@ -1387,6 +1397,8 @@ resume-builder/
 ├── README.md
 ├── docker-compose.yml / docker-compose.dev.yml / Dockerfile / .env.example / Makefile
 ├── deploy/Caddyfile
+├── .github/                          # CI workflow (tests, scans, accessibility) and Dependabot
+├── .zap/rules.tsv                    # ZAP baseline: accepted findings, with reasons
 ├── mockups/                          # template mockups (résumé + cover letter), static HTML
 ├── schema/
 │   ├── master-resume.schema.json     # generated (CI-checked)
@@ -1413,7 +1425,7 @@ resume-builder/
 │   │   ├── templates/               # meridian/ atlas/ ledger/ vanguard/
 │   │   ├── email/                   # templates + sender
 │   │   └── assets/fonts/
-│   └── tests/  (unit/ security/ render/ ai/ importers/ evals/)
+│   └── tests/                       # test_*.py by area, corpus.py (generated import files), a11y.py (axe audit), evals/
 └── frontend/
     └── src/
         ├── api/                     # generated types + query hooks, CSRF-aware fetch
@@ -1438,7 +1450,8 @@ resume-builder/
 | **Import** | A fixture corpus: text PDF, scanned PDF, two-column PDF, LinkedIn export, DOCX with tables, text boxes, and header contact details, an encrypted PDF, a ZIP bomb, and a `.docm`. Covers the AI stage with recorded fixtures, fidelity checks, and merge. |
 | **Validators** | Table-driven tests for numeric normalization, term and alias matching, referential integrity, and company-fact sourcing |
 | **AI stages** | A mocked client with recorded fixtures covering normal output, refusal, `max_tokens`, malformed output needing repair, unknown IDs, and prompt-injection samples in postings |
-| **Evals** (opt-in, live, costs money) | About 10 (master, posting) pairs plus 5 import documents. Graded on: no G2/G5 errors, G3/G4 warnings on fewer than 5% of items, coverage at or above the baseline, page targets met, import fidelity of 95% or more, and an LLM-judge rubric for relevance and letter quality |
+| **Evals** (opt-in, live, costs money) | `backend/tests/evals`: 10 (master, posting) pairs over three masters (strong fits, stretch roles, postings asking for skills the master lacks, and one with a prompt injection), plus the 5 readable corpus documents. Each runs through the whole app in-process. Graded on: no G2/G5 errors, G3/G4 warnings on fewer than 5% of items, coverage at or above the baseline (the last accepted live run, within 2 points), page targets met, nothing planted by an injection, import fidelity of 95% or more against each document's known facts, and an LLM-judge rubric for relevance and letter quality (mean 3.5 or more, none below 3). Writes a JSON and a Markdown report. Without `--live` it runs against the offline model, which checks the harness only. |
+| **Accessibility** | `backend/tests/a11y.py`: axe-core (WCAG 2.1 A and AA, plus best practices) on every page, light and dark, desktop and phone width, against the running app in CI. Checked by hand: keyboard-only use of every page, visible focus. |
 | **Rendering** | Golden HTML per template (résumé and letter). PDF tests: page count, embedded fonts, text order, metadata, and the packet outline. DOCX tests: styles and order. |
 | **Visual regression** | Playwright screenshots for each template × 2 themes × 2 documents |
 | **Frontend** | Vitest and RTL for the editor stores, auth guards, and CSRF fetch wrapper |
@@ -1458,7 +1471,7 @@ resume-builder/
 | **M4: Beautiful output** ✅ | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** ✅ | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
 | **M6: Formats and templates** ✅ | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
-| **M7: Hardening and polish** | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
+| **M7: Hardening and polish** ✅ (first live eval run pending) | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
 
 ---
 
@@ -1515,6 +1528,23 @@ resume-builder/
 - **Gallery:** the thumbnails are the sample résumé in each template, generated with `make thumbnails` and served with a content hash.
 - **Testing:** 218 backend tests and 27 frontend tests. The checklist tests (both extractors, fonts, tagging, metadata, links) run on every template. DOCX tests check styles, numbering, links, footer, page setup and schema order. API smoke test: all 40 exports (4 templates × 2 documents × 5 formats), plus fit and undo. Browser walkthrough with the offline model covered the gallery, switching templates, fit and undo, highlights, and the export menu.
 - **Not yet:** checking the Word files in Word and Google Docs (only LibreOffice so far); a per-letter design (the letter shares the résumé's); a two-column Word layout that keeps the main column first.
+
+### M7 notes (2026-10-08)
+
+- **Done:** AUTH-7 (emailed resets), AUTH-9, AUTH-10, ADM-3 to ADM-6, IMP-6, KEY-5, HIS-2 and EXP-6 in full, which with M1 to M6 covers every Must and Should requirement.
+  - **Two-step verification:** TOTP (RFC 6238, ±1 step, replay blocked) with 10 single-use recovery codes, stored hashed; the secret is encrypted like API keys and re-encrypted by `keys rotate`. Signing in is staged: after the password, a short-lived session can only finish the second step, or set it up when policy requires it, and every other route refuses it. Turning it on signs out other sessions. Admins can reset it for someone. A sign-in with a recovery code says how many are left.
+  - **Email (optional SMTP):** password resets, emailed invites, confirming the address for open sign-ups, and a notice to the old address when it changes. Messages are sent in the background, so a slow or failing server never shows in a response or its timing. Sign-up and forgot-password answer the same whether or not the account exists. Signing in unconfirmed sends a new link; earlier links keep working until they expire.
+  - **Admin console:** settings for the two-step policy, the default design for new applications, effort per step and the claim audit (applied at once, no restart). Usage by month, per person, with imports. Audit log filters by event, user and date.
+  - **Account:** preferences (default design, whether to write a cover letter, and the export file name pattern with `{name}`, `{first}`, `{last}`, `{company}`, `{role}`, `{doc}` and `{date}`); usage by month, step and application; the data export now includes every application with its résumé and letter.
+  - **History:** search, sort (newest, oldest, company, role, coverage) and row actions (PDF, duplicate, delete). The new-application form offers review-the-analysis-first and the cover letter options.
+  - **Merge (IMP-6):** compare a reviewed import with a master. It shows what's new, what adds bullets to roles it already has, and bullets much like existing ones (unticked, with the existing bullet shown). The picks are saved as a new version, refused if the master changed since the comparison.
+  - **Backup and restore:** `resume-tailor backup` and `restore` (§15.2).
+- **Security CI:** pip-audit, bandit, pnpm audit, Trivy and a ZAP baseline are clean. The scans found and fixed: `pip` and its vendored libraries in the image (removed), a missing `Cross-Origin-Resource-Policy`, cache headers for the page and its built assets, and a DOMPurify advisory (fixed through a pnpm override). The ZAP findings accepted with reasons are in `.zap/rules.tsv`: two warnings (inline styles in the CSP, no COEP) and informational rules.
+- **Accessibility:** axe found 83 elements with too little contrast (mostly gray text in dark mode), skipped heading levels, two landmarks without distinct names, and wide tables the keyboard couldn't scroll. All fixed. Every page now passes in both themes at desktop and phone widths, and the audit runs in CI. A keyboard pass found no traps or invisible focus.
+- **Evals:** the harness, cases and graders are in `backend/tests/evals` and tested against the offline model. **The first live run hasn't happened yet:** it needs an API key and costs about $10. Run `make evals ARGS="--live --update-baseline"` to get the first report and baseline (see README).
+- **Fixed during verification:** saving admin settings never showed "Saved." (the form remounted). A wide invite link was squeezed. Clicking the first confirmation email failed after a second had been sent. The home page still said cover letters were coming.
+- **Testing:** 245 backend tests (including the eval harness) and 36 frontend tests, the accessibility audit, and a browser walkthrough with the offline model and a local mail server. The walkthrough covered setting up two-step verification and signing in with a code and with a recovery code, required enrollment, sign-up with confirmation, forgot password, emailed invites, merge, the filename pattern, and the admin usage and audit filters.
+- **Not yet:** the first live eval run; mypy and eslint in CI; visual regression and end-to-end tests (§17); passkeys (AUTH-11) and the other Could items.
 
 ---
 

@@ -71,7 +71,7 @@ export const linkButtonClass = (variant: ButtonVariant = "secondary", size: "sm"
 // ---- form fields -----------------------------------------------------------------------------------
 
 export const inputClass =
-  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800";
+  "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 disabled:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:disabled:bg-slate-800";
 
 interface FieldProps {
   label: string;
@@ -94,7 +94,7 @@ export function TextField({ label, hint, error, className, ...props }: FieldProp
         {...props}
       />
       {(error || hint) && (
-        <p id={`${id}-desc`} className={cn("mt-1.5 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500")}>
+        <p id={`${id}-desc`} className={cn("mt-1.5 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400")}>
           {error ?? hint}
         </p>
       )}
@@ -111,7 +111,7 @@ export function TextArea({ label, hint, error, className, ...props }: FieldProps
       </label>
       <textarea id={id} aria-invalid={error ? true : undefined} className={cn(inputClass, "min-h-24")} {...props} />
       {(error || hint) && (
-        <p className={cn("mt-1.5 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500")}>{error ?? hint}</p>
+        <p className={cn("mt-1.5 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400")}>{error ?? hint}</p>
       )}
     </div>
   );
@@ -161,6 +161,11 @@ export function CardBody({ className, children }: { className?: string; children
   return <div className={cn("px-5 py-4", className)}>{children}</div>;
 }
 
+/** A wide table that scrolls sideways on small screens. It can take focus so the keyboard can scroll it too. */
+export function TableScroll({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="overflow-x-auto" role="region" aria-label={label} tabIndex={0}>{children}</div>;
+}
+
 type Tone = "info" | "success" | "warning" | "error";
 
 const alertTones: Record<Tone, { box: string; icon: ReactNode }> = {
@@ -186,7 +191,7 @@ export function Alert({ tone = "info", title, children, className }: { tone?: To
   return (
     <div role={tone === "error" ? "alert" : "status"} className={cn("flex gap-3 rounded-lg border px-4 py-3 text-sm", alertTones[tone].box, className)}>
       {alertTones[tone].icon}
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 flex-1 space-y-1">
         {title && <p className="font-medium">{title}</p>}
         {children && <div className="leading-relaxed">{children}</div>}
       </div>

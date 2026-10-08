@@ -192,7 +192,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
             <Button variant="ghost" size="sm" icon={<Redo2 className="size-4" aria-hidden />} disabled={!history.canRedo} onClick={history.redo} title="Redo (⇧⌘Z)"><span className="sr-only">Redo</span></Button>
             <SaveIndicator state={save.state} error={save.error} />
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             {letter.analysis.wordCount} words
             <Button variant="secondary" size="sm" icon={<RotateCcw className="size-4" aria-hidden />} onClick={() => setConfirmRewrite(true)}>Write a new letter</Button>
           </div>
@@ -211,7 +211,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
 
         <form className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50/40 p-3 dark:border-brand-900 dark:bg-brand-900/10"
           onSubmit={(e) => { e.preventDefault(); if (instruction.trim()) void refine(null, instruction.trim()); }}>
-          <Sparkles className="size-4 text-brand-600" aria-hidden />
+          <Sparkles className="size-4 text-brand-600 dark:text-brand-300" aria-hidden />
           <input className={cn(field, "min-w-48 flex-1")} placeholder="Ask for a change to the whole letter, e.g. “more formal”" value={instruction} maxLength={1000}
             onChange={(e) => setInstruction(e.target.value)} aria-label="Change to the whole letter" />
           <Button type="submit" size="sm" loading={busy === "letter"} disabled={!instruction.trim()}>Suggest</Button>
@@ -245,7 +245,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
                 <ParagraphSources index={index} paragraph={p} onRevert={p.aiText && p.aiText !== p.text ? () => setParagraph(p.id, { text: p.aiText! }) : undefined} />
                 <RefineMenu quick={PARAGRAPH_ACTIONS} busy={busy === p.id} onRefine={(text) => void refine(p.id, text)} />
                 <button type="button" aria-label="Delete paragraph" title="Delete paragraph" onClick={() => update((l) => ({ ...l, paragraphs: l.paragraphs.filter((x) => x.id !== p.id) }))}
-                  className="rounded p-1 text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
+                  className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
               </div>
               <AutoTextArea label={`Paragraph ${p.role}`} value={p.text} maxLength={3000} className="min-h-24"
                 onChange={(text) => setParagraph(p.id, { text }, `p:${p.id}`)} />
@@ -267,7 +267,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
           onChange={(highlights, group) => update((l) => ({ ...l, highlights }), group)} />
       </div>
 
-      <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
+      <aside aria-label="Preview" className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
         <PdfPreview application={application} doc="cover-letter" revision={revision} pageLimit={1}
           onFit={() => void fit.fit()} fitting={fit.busy === "fit"} fitDisabled={save.state !== "saved"} />
         <a href={`/api/applications/${application.id}/export?doc=packet&format=pdf`} className={linkButtonClass("secondary", "sm")}>
@@ -288,16 +288,16 @@ function ParagraphSources({ index, paragraph, onRevert }: { index: ReturnType<ty
   return (
     <Popover label="Where this came from" trigger={(open, toggle) => (
       <button type="button" onClick={toggle} aria-expanded={open} title="Where this came from" aria-label="Where this came from"
-        className="rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><Info className="size-4" aria-hidden /></button>
+        className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><Info className="size-4" aria-hidden /></button>
     )}>
       {(close) => (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase">Draws on</p>
-          {sources.length ? sources.map((s, i) => <p key={i} className="text-slate-700 dark:text-slate-300">{s}</p>) : <p className="text-slate-500">No résumé items.</p>}
-          {paragraph.companySources.length > 0 && <p className="text-xs text-slate-500">Company details from: {paragraph.companySources.map((c) => (c === "notes" ? "your notes" : "the posting")).join(" and ")}</p>}
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Draws on</p>
+          {sources.length ? sources.map((s, i) => <p key={i} className="text-slate-700 dark:text-slate-300">{s}</p>) : <p className="text-slate-500 dark:text-slate-400">No résumé items.</p>}
+          {paragraph.companySources.length > 0 && <p className="text-xs text-slate-500 dark:text-slate-400">Company details from: {paragraph.companySources.map((c) => (c === "notes" ? "your notes" : "the posting")).join(" and ")}</p>}
           {paragraph.aiText && paragraph.aiText !== paragraph.text && (
             <>
-              <p className="text-xs font-semibold text-slate-500 uppercase">Your changes to the AI draft</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Your changes to the AI draft</p>
               <p><Diff before={paragraph.aiText} after={paragraph.text} /></p>
               {onRevert && <Button size="sm" variant="secondary" icon={<RotateCcw className="size-3.5" aria-hidden />} onClick={() => { onRevert(); close(); }}>Revert to AI draft</Button>}
             </>
@@ -318,7 +318,7 @@ function Highlights({ highlights, sidebar, onChange }: { highlights: LetterHighl
       <CardHeader title="Sidebar highlights" description={sidebar ? "Key numbers beside the letter, in the Atlas template."
         : "Key numbers for templates with a sidebar. Atlas shows them beside the letter; this template doesn't."} />
       <CardBody className="space-y-2">
-        {highlights.length === 0 && <p className="text-sm text-slate-500">None yet.</p>}
+        {highlights.length === 0 && <p className="text-sm text-slate-500 dark:text-slate-400">None yet.</p>}
         {highlights.map((h, i) => (
           // keyed by position: highlights have no ids, and are edited in place
           <div key={i}>
@@ -332,7 +332,7 @@ function Highlights({ highlights, sidebar, onChange }: { highlights: LetterHighl
                   onChange={(e) => set(i, { label: e.target.value })} />
               </div>
               <button type="button" aria-label={`Remove highlight ${i + 1}`} onClick={() => onChange(highlights.filter((_, j) => j !== i))}
-                className="rounded p-1 text-slate-400 hover:text-red-600"><X className="size-4" aria-hidden /></button>
+                className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"><X className="size-4" aria-hidden /></button>
             </div>
             <Warnings warnings={h.warnings ?? []} className="mt-1" />
           </div>

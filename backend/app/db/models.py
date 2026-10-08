@@ -45,6 +45,28 @@ class User(Base):
     monthly_cap_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # own key, set by the user
     shared_cap_usd: Mapped[float | None] = mapped_column(Float, nullable=True)  # shared key, set by an admin
     preferred_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Set once the address is confirmed by an emailed link (only asked for when SMTP is configured)
+    email_verified_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    # TOTP (DESIGN.md §8.2): the secret encrypted like API keys; it exists before mfa_enabled while being set up
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    totp_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    totp_nonce: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    totp_key_fingerprint: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    totp_last_step: Mapped[int | None] = mapped_column(Integer, nullable=True)  # the last code used: no replay
+    # Defaults for new applications and the export file name pattern (models.api.Preferences)
+    preferences: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+
+
+class RecoveryCode(Base):
+    """Single-use MFA recovery codes, stored hashed."""
+
+    __tablename__ = "recovery_code"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("rec"))
+    user_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    used_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
 class UserApiKey(Base):
@@ -68,6 +90,7 @@ class UserApiKey(Base):
 
 class UserSession(Base):
     __tablename__ = "session"
+    __table_args__ = (CheckConstraint("stage IN ('active', 'mfa', 'enroll')", name="stage"),)
 
     id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("ses"))
     user_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
@@ -80,6 +103,9 @@ class UserSession(Base):
     absolute_expires_at: Mapped[datetime] = mapped_column(UTCDateTime())
     ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    # active · mfa: the password was right, the code is next (expires in minutes) · enroll: MFA is required and
+    # must be set up before anything else
+    stage: Mapped[str] = mapped_column(String(8), default="active", server_default="active")
 
 
 class AuthToken(Base):

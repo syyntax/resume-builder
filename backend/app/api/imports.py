@@ -25,7 +25,8 @@ from app.errors import ApiError
 from app.importers.extract import Extraction, extract
 from app.importers.sniff import MAX_FILE_BYTES, ImportRejected, sniff
 from app.keys import service as keys
-from app.masters.normalize import MAX_DOCUMENT_BYTES, content_sha256, normalize
+from app.masters import merge
+from app.masters.normalize import MAX_DOCUMENT_BYTES, content_sha256, diff_documents, normalize
 from app.masters.repository import MasterRepository
 from app.models.api import (
     ImportAcceptIn,
@@ -36,6 +37,10 @@ from app.models.api import (
     ImportReviewOut,
     ImportTextIn,
     MasterSaveOut,
+    MergeIn,
+    MergeItemOut,
+    MergePlanIn,
+    MergePlanOut,
 )
 from app.pipeline import usage
 from app.pipeline.importer import ACTIVE, run_import
@@ -233,6 +238,57 @@ async def accept_import(import_id: str, body: ImportAcceptIn,
     file = await repo.file(job.file_id)
     return MasterSaveOut(master=master_out(master, 1, version), version=version_meta(version, file),
                          created_new_version=True)
+
+
+async def _merge_inputs(repo: ImportRepository, import_id: str, body: MergePlanIn) -> tuple[Any, Any, Any, Any]:
+    """The import (ready), the reviewed document normalized, the target master and its current version."""
+    job = await repo.get(import_id)
+    if job.status != "ready":
+        raise ApiError(409, "This import isn't ready to save." if job.status != "accepted"
+                       else "This import was already saved.")
+    _document_size_ok(body.document)
+    result = normalize(body.document)
+    if not result.ok or result.document is None:
+        raise _invalid(result)
+    masters = MasterRepository(repo.db, repo.owner_id)
+    master = await masters.get(body.master_id)
+    version = await masters.current_version(master) if master else None
+    if master is None or version is None:
+        raise ApiError(404, "Master résumé not found.")
+    return job, result.document, master, version
+
+
+@router.post("/{import_id}/merge-plan", response_model=MergePlanOut)
+async def merge_plan(import_id: str, body: MergePlanIn, repo: ImportRepository = Depends(get_repo)) -> MergePlanOut:
+    """What merging into an existing master would add (IMP-6): new items, and new bullets for ones it has."""
+    _, document, master, version = await _merge_inputs(repo, import_id, body)
+    items = [MergeItemOut(key=p.key, section=p.section, title=p.title, detail=p.detail, status=p.status,  # type: ignore[arg-type]
+                          bullets=p.bullets, similar_to=p.similar_to) for p in merge.plan(document, version.content)]
+    return MergePlanOut(master_id=master.id, base_version_id=version.id, items=items)
+
+
+@router.post("/{import_id}/merge", response_model=MasterSaveOut, status_code=201)
+async def merge_import(import_id: str, body: MergeIn, repo: ImportRepository = Depends(get_repo)) -> MasterSaveOut:
+    """Add what was picked from the plan to the master, as a new version. Nothing already there changes."""
+    job, document, master, version = await _merge_inputs(repo, import_id, body)
+    if version.id != body.base_version_id:
+        raise ApiError(409, "That master résumé changed since this comparison. Compare again.")
+    merged = normalize(merge.apply(document, version.content, body.selections))
+    if not merged.ok or merged.document is None:
+        raise _invalid(merged)
+    _, warnings = merged.issues_as_dicts()
+    masters = MasterRepository(repo.db, repo.owner_id)
+    sha = content_sha256(merged.document)
+    if sha == version.sha256:
+        raise ApiError(422, "Nothing was picked to add.")
+    new_version = await masters.add_version(master, merged.document, sha, warnings)
+    new_version.source_file_id = job.file_id
+    job.status, job.result_master_id, job.updated_at = "accepted", master.id, utcnow()
+    await repo.db.commit()
+    file = await repo.file(job.file_id)
+    return MasterSaveOut(master=master_out(master, await masters.version_count(master.id), new_version),
+                         version=version_meta(new_version, file), created_new_version=True,
+                         changes=diff_documents(version.content, merged.document))
 
 
 @router.post("/{import_id}/retry", response_model=ImportOut, status_code=202)

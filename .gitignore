@@ -18,6 +18,9 @@ htmlcov/
 node_modules/
 frontend/dist/
 
+# Eval reports (python -m tests.evals)
+eval-results/
+
 # Local data (the app's data normally lives on a Docker volume)
 data/
 *.db

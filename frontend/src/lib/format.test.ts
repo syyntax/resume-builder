@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { passwordStrength } from "../components/PasswordFields";
-import { describeUserAgent, formatPartialDate, timeAgo } from "./format";
+import { describeUserAgent, formatPartialDate, recentMonths, timeAgo } from "./format";
 
 describe("formatting helpers", () => {
+  it("lists recent months back across the year boundary, in UTC", () => {
+    expect(recentMonths(3, new Date(Date.UTC(2026, 0, 31, 23, 30)))).toEqual(["2026-01", "2025-12", "2025-11"]);
+  });
+
   it("describes user agents", () => {
     const mac = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36";
     expect(describeUserAgent(mac)).toBe("Chrome on macOS");

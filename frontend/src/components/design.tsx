@@ -56,16 +56,16 @@ export function DesignPanel({ template, theme, onChange, error }: {
                 <span className="block px-2.5 py-2">
                   <span className="flex items-center justify-between gap-2 font-medium text-slate-900 dark:text-slate-100">
                     {t.label}
-                    {selected ? <Check className="size-4 text-brand-600" aria-hidden /> : !t.available && <Badge>Soon</Badge>}
+                    {selected ? <Check className="size-4 text-brand-600 dark:text-brand-300" aria-hidden /> : !t.available && <Badge>Soon</Badge>}
                   </span>
-                  <span className="block text-xs text-slate-500">{t.layout}</span>
-                  <span className="block text-xs text-slate-500">ATS: {t.ats.toLowerCase()}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">{t.layout}</span>
+                  <span className="block text-xs text-slate-500 dark:text-slate-400">ATS: {t.ats.toLowerCase()}</span>
                 </span>
               </button>
             );
           })}
         </div>
-        <p className="mt-1.5 text-xs text-slate-500">Each template brings its own colors and fonts. Change them below.</p>
+        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Each template brings its own colors and fonts. Change them below.</p>
       </div>
 
       <div>

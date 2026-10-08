@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, KeyRound, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router";
 
 import { ApiError, api, errorMessage } from "../api/client";
 import type { AiSettings, ApiKeyStatus, Usage } from "../api/types";
-import { formatUsd, modelLabel, timeAgo } from "../lib/format";
+import { formatUsd, modelLabel, monthLabel, timeAgo } from "../lib/format";
 import { Dialog } from "./Dialog";
 import { Alert, Badge, Button, Card, CardBody, CardHeader, Spinner, TextField, cn } from "./ui";
 
@@ -16,8 +17,8 @@ export function useApiKeyStatus() {
   return useQuery({ queryKey: apiKeyKey, queryFn: () => api<ApiKeyStatus>("GET", "/api/account/api-key") });
 }
 
-export function useUsage() {
-  return useQuery({ queryKey: usageKey, queryFn: () => api<Usage>("GET", "/api/account/usage") });
+export function useUsage(month: string | null = null) {
+  return useQuery({ queryKey: [...usageKey, month], queryFn: () => api<Usage>("GET", `/api/account/usage${month ? `?month=${month}` : ""}`) });
 }
 
 export function SpendBar({ spent, cap }: { spent: number; cap: number | null }) {
@@ -26,7 +27,7 @@ export function SpendBar({ spent, cap }: { spent: number; cap: number | null }) 
     <div>
       <div className="flex items-baseline justify-between text-sm">
         <span className="font-medium text-slate-900 dark:text-slate-100">{formatUsd(spent)}</span>
-        <span className="text-slate-500">{cap ? `of ${formatUsd(cap)} this month` : "no cap"}</span>
+        <span className="text-slate-500 dark:text-slate-400">{cap ? `of ${formatUsd(cap)} this month` : "no cap"}</span>
       </div>
       {cap ? (
         <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800" role="meter"
@@ -81,7 +82,7 @@ function KeySection() {
             <KeyRound className="size-5 text-slate-400" aria-hidden />
             <div>
               <p className="font-mono text-sm text-slate-900 dark:text-slate-100">sk-ant-…{key.hint}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {key.status === "valid" ? "Working" : "Rejected by Anthropic"}
                 {key.verifiedAt && ` · checked ${timeAgo(key.verifiedAt)}`}
                 {key.lastUsedAt && ` · last used ${timeAgo(key.lastUsedAt)}`}
@@ -143,7 +144,8 @@ function KeySection() {
 function ModelAndCapSection() {
   const queryClient = useQueryClient();
   const settings = useQuery({ queryKey: aiSettingsKey, queryFn: () => api<AiSettings>("GET", "/api/account/ai-settings") });
-  const usage = useUsage();
+  const [month, setMonth] = useState<string | null>(null);
+  const usage = useUsage(month);
   const [cap, setCap] = useState<string | null>(null);
   const update = useMutation({
     mutationFn: (body: Record<string, unknown>) => api<AiSettings>("PUT", "/api/account/ai-settings", { json: body }),
@@ -167,7 +169,7 @@ function ModelAndCapSection() {
           className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900">
           {s.allowedModels.map((m) => <option key={m} value={m}>{modelLabel(m)}{m === s.defaultModel ? " (default)" : ""}</option>)}
         </select>
-        <p className="text-xs text-slate-500">Your admin chooses which models are available.</p>
+        <p className="text-xs text-slate-500 dark:text-slate-400">Your admin chooses which models are available.</p>
       </div>
       <div className="space-y-2">
         <form className="flex items-end gap-2" onSubmit={(e) => {
@@ -179,29 +181,56 @@ function ModelAndCapSection() {
             hint={`0 means no cap. Leave empty for the default ($${s.defaultCapUsd}).`} />
           {cap !== null && <Button type="submit" loading={update.isPending} className="mb-[1.375rem]">Save</Button>}
         </form>
-        {update.isError && <p className="text-sm text-red-600">{errorMessage(update.error)}</p>}
+        {update.isError && <p className="text-sm text-red-600 dark:text-red-400">{errorMessage(update.error)}</p>}
       </div>
       {usage.data && (
         <div className="sm:col-span-2 space-y-3 border-t border-slate-200 pt-5 dark:border-slate-800">
-          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">This month ({usage.data.month})</p>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">This month</p>
           <SpendBar spent={usage.data.own.spentUsd} cap={usage.data.own.capUsd} />
           {usage.data.shared && (
             <div>
-              <p className="mb-1 text-xs text-slate-500">Shared key allowance</p>
+              <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Shared key allowance</p>
               <SpendBar spent={usage.data.shared.spentUsd} cap={usage.data.shared.capUsd} />
             </div>
           )}
-          {usage.data.byStage.length > 0 && (
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-slate-500 uppercase"><tr><th className="py-1 font-medium">Step</th><th className="py-1 font-medium">Calls</th><th className="py-1 text-right font-medium">Estimated cost</th></tr></thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                {usage.data.byStage.map((row) => (
-                  <tr key={row.stage}><td className="py-1.5">{stageLabel(row.stage)}</td><td className="py-1.5 tabular-nums">{row.calls}</td><td className="py-1.5 text-right tabular-nums">{formatUsd(row.costUsd)}</td></tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Usage by step and by application</p>
+            {usage.data.months.length > 0 && (
+              <select aria-label="Month" value={usage.data.month} onChange={(e) => setMonth(e.target.value)}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-700 dark:bg-slate-900">
+                {[...new Set([usage.data.month, ...usage.data.months.map((m) => m.month)])].sort().reverse().map((m) => {
+                  const row = usage.data.months.find((x) => x.month === m);
+                  return <option key={m} value={m}>{monthLabel(m)}{row ? ` · ${formatUsd(row.costUsd)}` : ""}</option>;
+                })}
+              </select>
+            )}
+          </div>
+          {usage.data.byStage.length === 0 ? <p className="text-sm text-slate-500 dark:text-slate-400">No AI use in {monthLabel(usage.data.month)}.</p> : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase"><tr><th className="py-1 font-medium">Step</th><th className="py-1 font-medium">Calls</th><th className="py-1 text-right font-medium">Tokens</th><th className="py-1 text-right font-medium">Cost</th></tr></thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {usage.data.byStage.map((row) => (
+                    <tr key={row.stage}><td className="py-1.5">{stageLabel(row.stage)}</td><td className="py-1.5 tabular-nums">{row.calls}</td>
+                      <td className="py-1.5 text-right tabular-nums">{(row.inputTokens + row.outputTokens).toLocaleString()}</td>
+                      <td className="py-1.5 text-right tabular-nums">{formatUsd(row.costUsd)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs text-slate-500 dark:text-slate-400 uppercase"><tr><th className="py-1 font-medium">For</th><th className="py-1 text-right font-medium">Cost</th></tr></thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                  {usage.data.byItem.map((row) => (
+                    <tr key={`${row.kind}:${row.id ?? row.label}`}>
+                      <td className="py-1.5">{row.kind === "application" && row.id ? <Link to={`/applications/${row.id}`} className="hover:underline">{row.label}</Link> : row.label}</td>
+                      <td className="py-1.5 text-right tabular-nums">{formatUsd(row.costUsd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             Estimates from token counts, for your cap. Your actual bill is in the{" "}
             <a className="underline underline-offset-2" href="https://console.anthropic.com/" target="_blank" rel="noreferrer">Anthropic Console</a>.
           </p>
@@ -212,7 +241,8 @@ function ModelAndCapSection() {
 }
 
 export function stageLabel(stage: string): string {
-  return ({ analyze: "Analyze posting", tailor: "Tailor résumé", tailor_repair: "Tailor (repair pass)" } as Record<string, string>)[stage] ?? stage;
+  return ({ analyze: "Analyze posting", tailor: "Tailor résumé", tailor_repair: "Tailor (repair pass)", letter: "Cover letter",
+    audit: "Claim audit", refine: "Refine", letter_refine: "Refine letter", condense: "Condense letter", import: "Import résumé" } as Record<string, string>)[stage] ?? stage;
 }
 
 export function AiSettingsCard() {

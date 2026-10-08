@@ -1,0 +1,22 @@
+Senior Product Designer
+Fernwood — Remote (North America)
+
+Fernwood makes workflow software for property managers. Our customers run thousands of units from our web and mobile apps, and they need them to be fast and obvious.
+
+What you'll do
+- Own end-to-end design for our resident and maintenance experiences, from research to shipped UI
+- Run discovery with customers: interviews, usability tests, and analytics
+- Prototype quickly in Figma and test ideas before we build them
+- Contribute to and evolve our design system
+- Partner closely with product managers and engineers in a small, senior team
+
+About you
+- 6+ years of product design experience, including B2B SaaS
+- A portfolio showing complex workflows made simple
+- Strong interaction design and information architecture skills
+- Comfortable running your own research
+- Cares about accessibility
+
+Nice to have
+- Experience designing for mobile
+- Familiarity with HTML and CSS

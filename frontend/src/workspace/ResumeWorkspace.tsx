@@ -147,7 +147,7 @@ export function ResumeWorkspace({ application, master }: Props) {
                   onChange={(e) => update((d) => renameSection(d, si, e.target.value), `title:${si}`)}
                   className="min-w-0 flex-1 rounded bg-transparent px-1 text-xs font-semibold tracking-wider text-slate-600 uppercase outline-none focus:bg-slate-50 dark:text-slate-300 dark:focus:bg-slate-800" />
                 <button type="button" title="Remove section" aria-label={`Remove ${section.title}`} onClick={() => update((d) => removeSection(d, si))}
-                  className="rounded p-1 text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
+                  className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
               </header>
               <div className="space-y-3 p-3">
                 <SectionBody section={section} si={si} doc={doc} index={index} update={update} busy={busy} keywords={keywords}
@@ -163,7 +163,7 @@ export function ResumeWorkspace({ application, master }: Props) {
         </SortableList>
       </div>
 
-      <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
+      <aside aria-label="Preview" className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
         <PdfPreview application={application} doc="resume" revision={revision} pageLimit={application.options.pageLimit}
           onFit={() => void fit.fit()} fitting={fit.busy === "fit"} fitDisabled={save.state !== "saved"} />
         <DesignDisclosure application={application} />
@@ -188,7 +188,7 @@ function DocumentRefine({ busy, suggestion, onRefine, onAccept, onAcceptAll, onD
   return (
     <div className="rounded-xl border border-brand-200 bg-brand-50/40 p-3 dark:border-brand-900 dark:bg-brand-900/10">
       <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) onRefine(text.trim()); }}>
-        <Sparkles className="size-4 text-brand-600" aria-hidden />
+        <Sparkles className="size-4 text-brand-600 dark:text-brand-300" aria-hidden />
         <input className={cn(inputClass, "min-w-48 flex-1 py-1.5")} placeholder="Ask for a change across the résumé, e.g. “more leadership-focused”"
           value={text} maxLength={1000} onChange={(e) => setText(e.target.value)} aria-label="Change across the résumé" />
         <Button type="submit" size="sm" loading={busy} disabled={!text.trim()}>Suggest</Button>
@@ -230,16 +230,16 @@ function Provenance({ index, sourceIds, text, aiText, onRevertAi, onRevertMaster
   return (
     <Popover label="Where this came from" trigger={(open, toggle) => (
       <button type="button" onClick={toggle} aria-expanded={open} title="Where this came from" aria-label="Where this came from"
-        className="rounded p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><Info className="size-4" aria-hidden /></button>
+        className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><Info className="size-4" aria-hidden /></button>
     )}>
       {(close) => (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase">From your master résumé</p>
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">From your master résumé</p>
           {sources.length ? sources.map((s, i) => <p key={i} className="text-slate-700 dark:text-slate-300">{s}</p>)
-            : <p className="text-slate-500">Nothing: you wrote this line.</p>}
+            : <p className="text-slate-500 dark:text-slate-400">Nothing: you wrote this line.</p>}
           {sources[0] && sources[0] !== text && (
             <>
-              <p className="text-xs font-semibold text-slate-500 uppercase">What changed</p>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">What changed</p>
               <p><Diff before={sources[0]} after={text} /></p>
             </>
           )}
@@ -309,7 +309,7 @@ function SectionBody(props: SectionBodyProps) {
               <span key={s.skillId} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs dark:bg-slate-800">
                 {s.display}
                 <button type="button" aria-label={`Remove ${s.display}`} onClick={() => update((d) => removeSkill(d, si, gi, s.skillId))}
-                  className="text-slate-400 hover:text-red-600"><X className="size-3" aria-hidden /></button>
+                  className="text-slate-500 dark:text-slate-400 hover:text-red-600"><X className="size-3" aria-hidden /></button>
               </span>
             ))}
           </div>
@@ -336,12 +336,12 @@ function ItemCard({ section, si, item, ii, handle, index, update, busy, keywords
       <div className="flex items-start gap-1">
         <DragHandle handle={handle} label={title} />
         <div className="min-w-0 flex-1 py-1">
-          <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{title}{detail && <span className="font-normal text-slate-500"> · {detail}</span>}</p>
-          {dates(item) && <p className="text-xs text-slate-500">{dates(item)}</p>}
+          <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{title}{detail && <span className="font-normal text-slate-500 dark:text-slate-400"> · {detail}</span>}</p>
+          {dates(item) && <p className="text-xs text-slate-500 dark:text-slate-400">{dates(item)}</p>}
         </div>
         {withBullets && <RefineMenu quick={ITEM_ACTIONS} busy={busy === `item:${item.sourceId}`} label="Rewrite this role's bullets" onRefine={(i) => onRefine("item", item.sourceId, i)} />}
         <button type="button" title="Remove from this résumé" aria-label={`Remove ${title}`} onClick={() => update((d) => removeItem(d, si, ii))}
-          className="rounded p-1 text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
+          className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"><Trash2 className="size-4" aria-hidden /></button>
       </div>
       {pendingItem && (
         <div className="mt-2 rounded-lg border border-brand-200 bg-brand-50/60 p-3 text-sm dark:border-brand-800 dark:bg-brand-900/20">
@@ -368,7 +368,7 @@ function ItemCard({ section, si, item, ii, handle, index, update, busy, keywords
                     onRevertMaster={bullet.sourceIds[0] ? () => update((d) => setBullet(d, bullet.id, { text: sourceTexts(index, [bullet.sourceIds[0]!])[0] ?? bullet.text })) : undefined} />
                   <RefineMenu quick={BULLET_ACTIONS} keywords={keywords} busy={busy === `bullet:${bullet.id}`} onRefine={(i) => onRefine("bullet", bullet.id, i)} />
                   <button type="button" title="Remove bullet" aria-label="Remove bullet" onClick={() => update((d) => removeBullet(d, bullet.id))}
-                    className="mt-1 rounded p-1 text-slate-400 hover:text-red-600"><X className="size-4" aria-hidden /></button>
+                    className="mt-1 rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"><X className="size-4" aria-hidden /></button>
                 </div>
                 <Warnings warnings={bullet.warnings} className="ml-6 mt-1" />
                 {suggestions[bullet.id] && (
@@ -434,19 +434,19 @@ function AddFromMaster({ doc, index, analysis, keyword, onAdd, onClose }: {
     <div role="dialog" aria-label="Add from master" className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <p className="font-semibold text-slate-900 dark:text-slate-100">Add from your master résumé</p>
-        <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="size-5" aria-hidden /></button>
+        <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="size-5" aria-hidden /></button>
       </div>
       <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <input className={cn(inputClass, "py-1.5")} placeholder="Filter, e.g. a keyword" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter" />
-        <p className="mt-1 text-xs text-slate-500">Most relevant to this job first.</p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Most relevant to this job first.</p>
       </div>
       <ul className="flex-1 divide-y divide-slate-100 overflow-auto dark:divide-slate-800">
-        {shown.length === 0 && <li className="px-4 py-6 text-sm text-slate-500">Nothing left to add{filter ? " for that filter" : ""}.</li>}
+        {shown.length === 0 && <li className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">Nothing left to add{filter ? " for that filter" : ""}.</li>}
         {shown.map((c) => (
           <li key={c.key} className="flex items-start gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="text-sm text-slate-800 dark:text-slate-200">{c.label}</p>
-              <p className="text-xs text-slate-500">{c.kind === "bullet" ? `Bullet · ${c.detail}` : c.kind === "skill" ? `Skill · ${c.detail}` : c.detail}
+              <p className="text-xs text-slate-500 dark:text-slate-400">{c.kind === "bullet" ? `Bullet · ${c.detail}` : c.kind === "skill" ? `Skill · ${c.detail}` : c.detail}
                 {c.score > 0 && <span className="ml-1 text-emerald-700 dark:text-emerald-400">· matches the posting</span>}</p>
             </div>
             <Button size="sm" variant="secondary" icon={<Plus className="size-3.5" aria-hidden />} onClick={() => onAdd(c)}>Add</Button>

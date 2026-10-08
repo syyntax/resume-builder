@@ -3,7 +3,7 @@ NODE = docker run --rm -v "$(CURDIR)":/repo -v rt-fe-node-modules:/repo/frontend
        -v rt-pnpm-store:/pnpm-store -w /repo/frontend node:24-slim sh -c
 PNPM = corepack enable >/dev/null 2>&1; pnpm config set store-dir /pnpm-store >/dev/null;
 
-.PHONY: up down logs setup-token dev test test-backend test-frontend build api-types thumbnails
+.PHONY: up down logs setup-token dev test test-backend test-frontend build api-types thumbnails evals
 
 up:            ## build and start the app at http://localhost:8080
 	docker compose up -d --build
@@ -37,3 +37,10 @@ thumbnails:    ## after changing a template: regenerate the gallery thumbnails (
 	docker build --target test -t resume-tailor:test .
 	docker run --rm -v "$(CURDIR)/backend/app/render/templates":/app/app/render/templates resume-tailor:test \
 		python -m app.render.thumbnails
+
+evals:         ## the evals, offline; live (costs money): EVAL_ANTHROPIC_API_KEY=... make evals ARGS=--live
+	docker build --target test -t resume-tailor:test .
+	mkdir -p eval-results
+	docker run --rm --user "$$(id -u):$$(id -g)" -e EVAL_ANTHROPIC_API_KEY \
+		-v "$(CURDIR)/eval-results":/app/eval-results -v "$(CURDIR)/backend/tests/evals":/app/tests/evals \
+		resume-tailor:test python -m tests.evals $(ARGS)

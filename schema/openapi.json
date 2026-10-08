@@ -193,6 +193,7 @@
           "auth"
         ],
         "summary": "Register",
+        "description": "Create an account. With SMTP configured, an open sign-up confirms its address first (AUTH-10): the\nanswer is then 202 \"check your email\", whether or not the address already has an account (§8.4).",
         "operationId": "register_api_auth_register_post",
         "requestBody": {
           "content": {
@@ -210,7 +211,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeOut"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MeOut"
+                    },
+                    {
+                      "$ref": "#/components/schemas/VerificationSentOut"
+                    }
+                  ],
+                  "title": "Response Register Api Auth Register Post"
                 }
               }
             }
@@ -289,6 +298,7 @@
           "auth"
         ],
         "summary": "Me",
+        "description": "Who's signed in, and what's left of signing in (a code, or setting up two-step verification).",
         "operationId": "me_api_auth_me_get",
         "responses": {
           "200": {
@@ -421,6 +431,81 @@
         }
       }
     },
+    "/api/auth/password/forgot": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Forgot Password",
+        "description": "Email a reset link (AUTH-7, when SMTP is configured). Always 202, whether or not the account exists.",
+        "operationId": "forgot_password_api_auth_password_forgot_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify Email",
+        "description": "Confirm an address from the emailed link (AUTH-10). Then sign in as usual.",
+        "operationId": "verify_email_api_auth_verify_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/sessions": {
       "get": {
         "tags": [
@@ -493,6 +578,298 @@
         }
       }
     },
+    "/api/auth/mfa": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Mfa Status",
+        "operationId": "mfa_status_api_auth_mfa_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/setup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Setup",
+        "description": "Start setting it up: a new secret to add to an authenticator app. Nothing changes until it's confirmed.",
+        "operationId": "setup_api_auth_mfa_setup_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaSetupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaSetupOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/enable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Enable",
+        "description": "Confirm with a code from the app. Turns it on, signs out other sessions, and returns recovery codes.",
+        "operationId": "enable_api_auth_mfa_enable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnableOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Verify",
+        "description": "Finish signing in with a code from the authenticator app, or a recovery code.",
+        "operationId": "verify_api_auth_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/recovery-codes": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Regenerate Recovery Codes",
+        "description": "Ten new recovery codes; the old ones stop working.",
+        "operationId": "regenerate_recovery_codes_api_auth_mfa_recovery_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/disable": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Disable",
+        "description": "Turn it off, with the password and a current code (or a recovery code).",
+        "operationId": "disable_api_auth_mfa_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaDisableIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/preferences": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get Preferences",
+        "operationId": "get_preferences_api_account_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Save Preferences",
+        "description": "Defaults for new applications (template and theme, cover letter or not) and export file names.",
+        "operationId": "save_preferences_api_account_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/account/profile": {
       "patch": {
         "tags": [
@@ -540,7 +917,7 @@
           "account"
         ],
         "summary": "Export Account",
-        "description": "A ZIP of everything the account owns. API keys and password hashes are never included.",
+        "description": "A ZIP of everything the account owns. API keys, password hashes and two-step verification secrets are\nnever included.",
         "operationId": "export_account_api_account_export_get",
         "responses": {
           "200": {
@@ -767,7 +1144,27 @@
           "account-ai"
         ],
         "summary": "Get Usage",
+        "description": "Spending against this month's caps, and tokens and cost for a month by stage and by application or\nimport, plus the last 12 months (KEY-5).",
         "operationId": "get_usage_api_account_usage_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -775,6 +1172,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UsageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -917,6 +1324,49 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LinkOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{user_id}/mfa-reset": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Reset Mfa",
+        "description": "For a user who lost their authenticator and recovery codes: turn two-step verification off and sign\nthem out everywhere. If it's required, they set it up again at their next sign-in.",
+        "operationId": "reset_mfa_api_admin_users__user_id__mfa_reset_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserOut"
                 }
               }
             }
@@ -1138,6 +1588,44 @@
             }
           },
           {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From this day (UTC)",
+              "title": "Since"
+            },
+            "description": "From this day (UTC)"
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Up to and including this day (UTC)",
+              "title": "Until"
+            },
+            "description": "Up to and including this day (UTC)"
+          },
+          {
             "name": "before",
             "in": "query",
             "required": false,
@@ -1151,8 +1639,10 @@
                   "type": "null"
                 }
               ],
+              "description": "For paging: entries older than this",
               "title": "Before"
-            }
+            },
+            "description": "For paging: entries older than this"
           },
           {
             "name": "limit",
@@ -1275,18 +1765,48 @@
           "admin"
         ],
         "summary": "Usage By User",
+        "description": "Per person for a month (this one by default): spending by key source, AI calls, applications and imports.\nTotals only (ADM-4).",
         "operationId": "usage_by_user_api_admin_usage_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/UserUsageOut"
                   },
-                  "type": "array",
                   "title": "Response Usage By User Api Admin Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -2162,6 +2682,112 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ImportAcceptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MasterSaveOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/merge-plan": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Merge Plan",
+        "description": "What merging into an existing master would add (IMP-6): new items, and new bullets for ones it has.",
+        "operationId": "merge_plan_api_imports__import_id__merge_plan_post",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergePlanIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MergePlanOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/{import_id}/merge": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Merge Import",
+        "description": "Add what was picked from the plan to the master, as a new version. Nothing already there changes.",
+        "operationId": "merge_import_api_imports__import_id__merge_post",
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeIn"
               }
             }
           }
@@ -3390,6 +4016,27 @@
             ],
             "title": "Allowsharedkey"
           },
+          "effort": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StageEfforts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "claimAudit": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimaudit"
+          },
           "defaultModel": {
             "anyOf": [
               {
@@ -3455,6 +4102,13 @@
           "defaultCapUsd": {
             "type": "number",
             "title": "Defaultcapusd"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/StageEfforts"
+          },
+          "claimAudit": {
+            "type": "boolean",
+            "title": "Claimaudit"
           }
         },
         "additionalProperties": false,
@@ -3465,7 +4119,9 @@
           "defaultModel",
           "allowedModels",
           "knownModels",
-          "defaultCapUsd"
+          "defaultCapUsd",
+          "effort",
+          "claimAudit"
         ],
         "title": "AdminAiSettingsOut"
       },
@@ -3515,6 +4171,11 @@
               }
             ],
             "title": "Lastloginat"
+          },
+          "mfaEnabled": {
+            "type": "boolean",
+            "title": "Mfaenabled",
+            "default": false
           },
           "hasApiKey": {
             "type": "boolean",
@@ -4268,6 +4929,25 @@
         "type": "object",
         "title": "CoverLetterOptions"
       },
+      "DefaultDesign": {
+        "properties": {
+          "template": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "template",
+          "theme"
+        ],
+        "title": "DefaultDesign"
+      },
       "DeleteAccountIn": {
         "properties": {
           "password": {
@@ -4473,6 +5153,22 @@
           "theme"
         ],
         "title": "FitOut"
+      },
+      "ForgotPasswordIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "minLength": 3,
+            "title": "Email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordIn"
       },
       "GenerationOptions": {
         "properties": {
@@ -5111,6 +5807,12 @@
             ],
             "title": "Url",
             "description": "Only returned when the invite is created."
+          },
+          "emailed": {
+            "type": "boolean",
+            "title": "Emailed",
+            "description": "Sent to the invited address (SMTP configured).",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -5142,6 +5844,52 @@
           "message"
         ],
         "title": "IssueOut"
+      },
+      "ItemUsageOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "application",
+              "import"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "None once the application or import was deleted."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "label",
+          "calls",
+          "costUsd"
+        ],
+        "title": "ItemUsageOut"
       },
       "JobIn": {
         "properties": {
@@ -5654,6 +6402,17 @@
             "type": "array",
             "title": "Notices",
             "default": []
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "active",
+              "mfa",
+              "enroll"
+            ],
+            "title": "Stage",
+            "description": "What's left of signing in: nothing (active), a code from the authenticator (mfa), or setting up two-step verification, which is required (enroll)",
+            "default": "active"
           }
         },
         "additionalProperties": false,
@@ -5663,6 +6422,320 @@
           "csrfToken"
         ],
         "title": "MeOut"
+      },
+      "MergeIn": {
+        "properties": {
+          "masterId": {
+            "type": "string",
+            "title": "Masterid"
+          },
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document",
+            "description": "The reviewed import, as it would be saved."
+          },
+          "baseVersionId": {
+            "type": "string",
+            "title": "Baseversionid",
+            "description": "The version the plan was made against: if the master changed since, the merge is refused so nothing is merged blind."
+          },
+          "selections": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Selections",
+            "description": "Plan keys to add: null for a whole new item, or indexes into a matched item's bullets."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "masterId",
+          "document",
+          "baseVersionId",
+          "selections"
+        ],
+        "title": "MergeIn"
+      },
+      "MergeItemOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "section": {
+            "type": "string",
+            "title": "Section"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "match",
+              "same"
+            ],
+            "title": "Status",
+            "description": "new: not in the master · match: in it, with bullets it lacks · same: nothing to add"
+          },
+          "bullets": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Bullets",
+            "description": "new: all the item's bullets · match: only the ones the master lacks"
+          },
+          "similarTo": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Similarto",
+            "description": "For a match, per bullet: a bullet in the master that says much the same, if any",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "section",
+          "title",
+          "detail",
+          "status",
+          "bullets"
+        ],
+        "title": "MergeItemOut"
+      },
+      "MergePlanIn": {
+        "properties": {
+          "masterId": {
+            "type": "string",
+            "title": "Masterid"
+          },
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document",
+            "description": "The reviewed import, as it would be saved."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "masterId",
+          "document"
+        ],
+        "title": "MergePlanIn"
+      },
+      "MergePlanOut": {
+        "properties": {
+          "masterId": {
+            "type": "string",
+            "title": "Masterid"
+          },
+          "baseVersionId": {
+            "type": "string",
+            "title": "Baseversionid"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MergeItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "masterId",
+          "baseVersionId",
+          "items"
+        ],
+        "title": "MergePlanOut"
+      },
+      "MfaCodeIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "MfaCodeIn"
+      },
+      "MfaDisableIn": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "password",
+          "code"
+        ],
+        "title": "MfaDisableIn"
+      },
+      "MfaEnableOut": {
+        "properties": {
+          "recoveryCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recoverycodes",
+            "description": "Shown once. Each works once if the authenticator is lost."
+          },
+          "me": {
+            "$ref": "#/components/schemas/MeOut"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recoveryCodes",
+          "me"
+        ],
+        "title": "MfaEnableOut"
+      },
+      "MfaSetupIn": {
+        "properties": {
+          "password": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Password",
+            "description": "Not needed while finishing a sign-in that requires setting it up."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MfaSetupIn"
+      },
+      "MfaSetupOut": {
+        "properties": {
+          "secret": {
+            "type": "string",
+            "title": "Secret"
+          },
+          "otpauthUri": {
+            "type": "string",
+            "title": "Otpauthuri"
+          },
+          "qrSvg": {
+            "type": "string",
+            "title": "Qrsvg"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "secret",
+          "otpauthUri",
+          "qrSvg"
+        ],
+        "title": "MfaSetupOut"
+      },
+      "MfaStatusOut": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "The admins require it for this account."
+          },
+          "recoveryCodesLeft": {
+            "type": "integer",
+            "title": "Recoverycodesleft"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "enabled",
+          "required",
+          "recoveryCodesLeft"
+        ],
+        "title": "MfaStatusOut"
+      },
+      "MonthUsageOut": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "month",
+          "calls",
+          "costUsd"
+        ],
+        "title": "MonthUsageOut"
       },
       "OptionOut": {
         "properties": {
@@ -5745,6 +6818,40 @@
         ],
         "title": "PasswordResetIn"
       },
+      "Preferences": {
+        "properties": {
+          "design": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefaultDesign"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Template and theme for new applications; the instance's default if not set."
+          },
+          "coverLetter": {
+            "type": "boolean",
+            "title": "Coverletter",
+            "description": "Write a cover letter with each new application.",
+            "default": true
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[^/\\\\:*?\\\"<>|]*$",
+            "title": "Filename",
+            "description": "Export file names, from {name} {first} {last} {company} {role} {doc} {date}.",
+            "default": "{name}_{company}_{role}_{doc}"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Preferences",
+        "description": "A user's own defaults (EXP-6 and new applications)."
+      },
       "ProfileIn": {
         "properties": {
           "displayName": {
@@ -5826,6 +6933,23 @@
         "additionalProperties": false,
         "type": "object",
         "title": "RecipientIn"
+      },
+      "RecoveryCodesOut": {
+        "properties": {
+          "recoveryCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recoverycodes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recoveryCodes"
+        ],
+        "title": "RecoveryCodesOut"
       },
       "RefineIn": {
         "properties": {
@@ -5983,6 +7107,12 @@
           "domainRestricted": {
             "type": "boolean",
             "title": "Domainrestricted"
+          },
+          "emailEnabled": {
+            "type": "boolean",
+            "title": "Emailenabled",
+            "description": "SMTP is configured: \"Forgot password\" works, and open sign-ups confirm their address by email.",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6210,6 +7340,99 @@
         ],
         "title": "SpendOut"
       },
+      "StageEfforts": {
+        "properties": {
+          "analyze": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Analyze"
+          },
+          "tailor": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Tailor"
+          },
+          "letter": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Letter"
+          },
+          "import": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Import"
+          },
+          "refine": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Refine"
+          },
+          "audit": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Audit"
+          },
+          "condense": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Condense"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "analyze",
+          "tailor",
+          "letter",
+          "import",
+          "refine",
+          "audit",
+          "condense"
+        ],
+        "title": "StageEfforts"
+      },
       "StageUsageOut": {
         "properties": {
           "stage": {
@@ -6355,6 +7578,32 @@
               }
             ],
             "title": "Registrationemaildomains"
+          },
+          "requireMfa": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "admins",
+                  "all"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requiremfa"
+          },
+          "defaultDesign": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DefaultDesign"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -6382,6 +7631,24 @@
           "openRegistrationExposed": {
             "type": "boolean",
             "title": "Openregistrationexposed"
+          },
+          "requireMfa": {
+            "type": "string",
+            "enum": [
+              "none",
+              "admins",
+              "all"
+            ],
+            "title": "Requiremfa"
+          },
+          "emailEnabled": {
+            "type": "boolean",
+            "title": "Emailenabled",
+            "description": "SMTP is configured: password resets, invites and verification go by email."
+          },
+          "defaultDesign": {
+            "$ref": "#/components/schemas/DefaultDesign",
+            "description": "Template and theme for new applications, unless a user chose their own."
           }
         },
         "additionalProperties": false,
@@ -6389,7 +7656,10 @@
         "required": [
           "registrationMode",
           "registrationEmailDomains",
-          "openRegistrationExposed"
+          "openRegistrationExposed",
+          "requireMfa",
+          "emailEnabled",
+          "defaultDesign"
         ],
         "title": "SystemSettingsOut"
       },
@@ -6652,7 +7922,8 @@
         "properties": {
           "month": {
             "type": "string",
-            "title": "Month"
+            "title": "Month",
+            "description": "The month the breakdowns are for (YYYY-MM). Spending against caps is always this month's."
           },
           "own": {
             "$ref": "#/components/schemas/SpendOut"
@@ -6673,6 +7944,24 @@
             },
             "type": "array",
             "title": "Bystage"
+          },
+          "byItem": {
+            "items": {
+              "$ref": "#/components/schemas/ItemUsageOut"
+            },
+            "type": "array",
+            "title": "Byitem",
+            "description": "Per application and per import (KEY-5).",
+            "default": []
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthUsageOut"
+            },
+            "type": "array",
+            "title": "Months",
+            "description": "The last 12 months, newest first.",
+            "default": []
           }
         },
         "additionalProperties": false,
@@ -6731,6 +8020,11 @@
               }
             ],
             "title": "Lastloginat"
+          },
+          "mfaEnabled": {
+            "type": "boolean",
+            "title": "Mfaenabled",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6778,6 +8072,11 @@
           "applications": {
             "type": "integer",
             "title": "Applications"
+          },
+          "imports": {
+            "type": "integer",
+            "title": "Imports",
+            "default": 0
           }
         },
         "additionalProperties": false,
@@ -6885,6 +8184,42 @@
           "warnings"
         ],
         "title": "ValidationOut"
+      },
+      "VerificationSentOut": {
+        "properties": {
+          "verificationSent": {
+            "type": "boolean",
+            "title": "Verificationsent",
+            "default": true
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "VerificationSentOut",
+        "description": "Sign-up is done but the address must be confirmed: a link was emailed (or, if the address already has an\naccount, a note saying so: the answer is the same either way)."
+      },
+      "VerifyEmailIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 10,
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "VerifyEmailIn"
       },
       "VersionMeta": {
         "properties": {

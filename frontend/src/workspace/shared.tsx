@@ -84,7 +84,7 @@ export function useAutosave<T, R>({ value, edits, url, body, onSaved, delay = 80
 export function SaveIndicator({ state, error }: { state: SaveState; error: string | null }) {
   const text = state === "saving" ? "Saving…" : state === "pending" ? "Unsaved changes" : state === "error" ? `Not saved: ${error}` : "All changes saved";
   return (
-    <span className={cn("inline-flex items-center gap-1.5 text-sm", state === "error" ? "text-red-600 dark:text-red-400" : "text-slate-500")} aria-live="polite">
+    <span className={cn("inline-flex items-center gap-1.5 text-sm", state === "error" ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400")} aria-live="polite">
       {state === "saving" && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
       {state === "saved" && <Check className="size-3.5" aria-hidden />}
       {text}
@@ -180,7 +180,7 @@ export function RefineMenu({ quick, keywords = [], onRefine, busy, label = "Refi
           </div>
           {keywords.length > 0 && (
             <div>
-              <p className="mb-1 text-xs text-slate-500">Emphasize a keyword</p>
+              <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">Emphasize a keyword</p>
               <div className="flex flex-wrap gap-1">
                 {keywords.map((k) => (
                   <button key={k} type="button" onClick={() => { close(); onRefine(`Emphasize "${k}", but only if this text's sources support it. If they don't, leave it unchanged and say so.`); }}
@@ -194,7 +194,7 @@ export function RefineMenu({ quick, keywords = [], onRefine, busy, label = "Refi
               onChange={(e) => setCustom(e.target.value)} aria-label="Instruction" />
             <Button type="submit" size="sm" disabled={!custom.trim()}>Go</Button>
           </form>
-          <p className="text-xs text-slate-500">You'll see the suggestion before anything changes.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">You'll see the suggestion before anything changes.</p>
         </div>
       )}
     </Popover>
@@ -252,7 +252,7 @@ export function SortableList<T>({ items, idOf, onMove, children }: { items: T[];
 export function DragHandle({ handle, label }: { handle: Handle; label: string }) {
   return (
     <button type="button" ref={handle.setActivatorNodeRef} {...handle.attributes} {...handle.listeners} aria-label={`Drag to reorder ${label}`}
-      className="mt-1.5 cursor-grab touch-none rounded p-0.5 text-slate-400 hover:text-slate-600 active:cursor-grabbing">
+      className="mt-1.5 cursor-grab touch-none rounded p-0.5 text-slate-500 dark:text-slate-400 hover:text-slate-600 active:cursor-grabbing">
       <GripVertical className="size-4" aria-hidden />
     </button>
   );

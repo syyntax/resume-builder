@@ -18,7 +18,7 @@ from app.api.common import (
 )
 from app.auth import tokens
 from app.auth.audit import audit
-from app.auth.deps import current_user, get_limits, get_settings, origin_guard
+from app.auth.deps import current_user, get_limits, get_settings, origin_guard, session_stage, signing_in
 from app.auth.ratelimit import Limits
 from app.auth.sessions import (
     AuthContext,
@@ -35,6 +35,7 @@ from app.db.models import User, UserSession
 from app.db.types import utcnow
 from app.errors import ApiError
 from app.models.api import (
+    ForgotPasswordIn,
     LoginIn,
     MeOut,
     PasswordChangeIn,
@@ -45,8 +46,10 @@ from app.models.api import (
     SetupIn,
     SetupStatusOut,
     TokenCheckOut,
+    VerificationSentOut,
+    VerifyEmailIn,
 )
-from app.services import settings_store
+from app.services import mail, settings_store
 from app.services.users import count_users, find_by_email, is_valid_email, normalize_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -62,12 +65,22 @@ def _check_email(email: str) -> str:
 
 
 async def _start_session(
-    db: AsyncSession, user: User, request: Request, response: Response, settings: Settings, *, remember: bool
+    db: AsyncSession, user: User, request: Request, response: Response, settings: Settings, *, remember: bool,
+    stage: str = "active",
 ) -> UserSession:
     await revoke_presented_session(db, request, settings)
-    raw, session = await create_session(db, user, request, settings, remember=remember)
-    set_session_cookie(response, raw, remember=remember, settings=settings)
+    raw, session = await create_session(db, user, request, settings, remember=remember, stage=stage)
+    # a pending session's cookie ends with the browser session; "remember me" applies once sign-in completes
+    set_session_cookie(response, raw, remember=remember and stage == "active", settings=settings)
     return session
+
+
+async def _send_verification(db: AsyncSession, user: User, request: Request, settings: Settings) -> None:
+    # Earlier links keep working: they went to the same inbox, and people often click the first email after a
+    # sign-in attempt has sent another. Confirming the address clears the rest.
+    raw, _ = await tokens.create_token(db, "email_verify", tokens.VERIFY_TTL, user_id=user.id, email=user.email)
+    mail.send_later(request.app.state.mailer, mail.verify_address(user.email,
+                                                                  f"{settings.app_base_url}/verify-email/{raw}"))
 
 
 # ---- first-run setup ---------------------------------------------------------------------------------
@@ -98,7 +111,8 @@ async def setup(
     if not await tokens.consume_token(db, token):
         raise ApiError(409, "That setup token was just used.")
     user = User(email=email, display_name=body.display_name, password_hash=await hash_password(body.password),
-                role="admin", status="active", created_at=utcnow(), last_login_at=utcnow())
+                role="admin", status="active", created_at=utcnow(), last_login_at=utcnow(),
+                email_verified_at=utcnow())
     db.add(user)
     await db.flush()
     session = await _start_session(db, user, request, response, settings, remember=False)
@@ -111,10 +125,12 @@ async def setup(
 
 
 @router.get("/registration", response_model=RegistrationInfoOut)
-async def registration_info(db: AsyncSession = Depends(get_db)) -> RegistrationInfoOut:
+async def registration_info(db: AsyncSession = Depends(get_db),
+                            settings: Settings = Depends(get_settings)) -> RegistrationInfoOut:
     policy = await settings_store.registration_policy(db)
     return RegistrationInfoOut(
-        needs_setup=await count_users(db) == 0, mode=policy.mode, domain_restricted=bool(policy.domains)  # type: ignore[arg-type]
+        needs_setup=await count_users(db) == 0, mode=policy.mode, domain_restricted=bool(policy.domains),  # type: ignore[arg-type]
+        email_enabled=settings.smtp_enabled,
     )
 
 
@@ -127,7 +143,8 @@ async def check_invite(
     return TokenCheckOut(valid=invite is not None, email=invite.email if invite else None)
 
 
-@router.post("/register", response_model=MeOut, status_code=201, dependencies=[Depends(origin_guard)])
+@router.post("/register", response_model=MeOut | VerificationSentOut, status_code=201,
+             dependencies=[Depends(origin_guard)])
 async def register(
     body: RegisterIn,
     request: Request,
@@ -135,7 +152,9 @@ async def register(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
     limits: Limits = Depends(get_limits),
-) -> MeOut:
+) -> MeOut | VerificationSentOut:
+    """Create an account. With SMTP configured, an open sign-up confirms its address first (AUTH-10): the
+    answer is then 202 "check your email", whether or not the address already has an account (§8.4)."""
     enforce_window(limits.register_ip, request, "Too many sign-up attempts from this network. Try again later.")
     if await count_users(db) == 0:
         raise ApiError(409, "Finish first-run setup before registering accounts.")
@@ -154,20 +173,37 @@ async def register(
         raise ApiError(403, "Registration requires an invite. Ask an admin for an invite link.")
     elif not policy.allows_domain(email):
         raise ApiError(403, "Registration is limited to approved email domains.")
-    if await find_by_email(db, email) is not None:
-        raise ApiError(409, "An account with this email already exists. Sign in instead.")
+    verify = settings.smtp_enabled and invite is None  # an invite link already went to (or for) the address
     require_password_policy(body.password, email=email, display_name=body.display_name)
+    if await find_by_email(db, email) is not None:
+        if not verify:
+            raise ApiError(409, "An account with this email already exists. Sign in instead.")
+        await hash_password(body.password)  # the same work as a real sign-up, so timing tells nothing
+        mail.send_later(request.app.state.mailer, mail.already_registered(
+            email, f"{settings.app_base_url}/login", f"{settings.app_base_url}/forgot-password"))
+        await audit(db, "user.register.duplicate", request, email=email)
+        await db.commit()
+        response.status_code = 202
+        return VerificationSentOut(email=email)
     if invite is not None and not await tokens.consume_token(db, invite):
         raise ApiError(400, "This invite link has already been used.")
 
+    now = utcnow()
     user = User(email=email, display_name=body.display_name, password_hash=await hash_password(body.password),
-                role="user", status="active", created_at=utcnow(), last_login_at=utcnow())
+                role="user", status="active", created_at=now, last_login_at=None if verify else now,
+                email_verified_at=None if verify else now)
     db.add(user)
     try:
         await db.flush()
     except IntegrityError:
         await db.rollback()
         raise ApiError(409, "An account with this email already exists. Sign in instead.") from None
+    if verify:
+        await _send_verification(db, user, request, settings)
+        await audit(db, "user.register", request, actor_id=user.id, target_id=user.id, via="open", verify=True)
+        await db.commit()
+        response.status_code = 202
+        return VerificationSentOut(email=email)
     session = await _start_session(db, user, request, response, settings, remember=False)
     await audit(db, "user.register", request, actor_id=user.id, target_id=user.id, via="invite" if invite else "open")
     if invite is not None:
@@ -213,17 +249,29 @@ async def login(
     limits.login_account.reset(email)
     if upgraded:
         user.password_hash = upgraded
-    user.last_login_at = utcnow()
-    session = await _start_session(db, user, request, response, settings, remember=body.remember)
-    await audit(db, "auth.login.success", request, actor_id=user.id, target_id=user.id)
+    if user.email_verified_at is None:
+        if limits.email_ip.allow(ip):
+            await _send_verification(db, user, request, settings)
+        await db.commit()
+        raise ApiError(403, f"Confirm your email first: we've sent a link to {user.email}.",
+                       extra={"code": "email_unverified"})
+    # With two-step verification on, the password only opens a short pending session for the code (§8.2).
+    policy = getattr(request.app.state, "mfa_policy", "none")
+    stage = "mfa" if user.mfa_enabled else "enroll" if settings_store.mfa_required(user.role, policy) else "active"
+    session = await _start_session(db, user, request, response, settings, remember=body.remember, stage=stage)
+    if stage == "active":
+        user.last_login_at = utcnow()
+        await audit(db, "auth.login.success", request, actor_id=user.id, target_id=user.id)
+    else:
+        await audit(db, "auth.login.password_ok", request, actor_id=user.id, target_id=user.id, next=stage)
     await db.commit()
-    return await me_out(db, user, session, settings)
+    return await me_out(db, user, session, settings, stage)
 
 
 @router.post("/logout", status_code=204)
 async def logout(
     request: Request,
-    ctx: AuthContext = Depends(current_user),
+    ctx: AuthContext = Depends(signing_in),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> Response:
@@ -237,11 +285,13 @@ async def logout(
 
 @router.get("/me", response_model=MeOut)
 async def me(
-    ctx: AuthContext = Depends(current_user),
+    request: Request,
+    ctx: AuthContext = Depends(signing_in),
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> MeOut:
-    return await me_out(db, ctx.user, ctx.session, settings)
+    """Who's signed in, and what's left of signing in (a code, or setting up two-step verification)."""
+    return await me_out(db, ctx.user, ctx.session, settings, session_stage(request, ctx))
 
 
 # ---- passwords -------------------------------------------------------------------------------------
@@ -295,7 +345,7 @@ async def reset_password(
     token = await tokens.peek_token(db, "password_reset", body.token)
     user = await db.get(User, token.user_id) if token and token.user_id else None
     if token is None or user is None:
-        raise ApiError(400, "This reset link is invalid or has expired. Ask an admin for a new one.")
+        raise ApiError(400, "This reset link is invalid or has expired. Ask for a new one.")
     require_password_policy(body.new_password, email=user.email, display_name=user.display_name,
                             field="newPassword")
     if not await tokens.consume_token(db, token):
@@ -308,6 +358,51 @@ async def reset_password(
     response = Response(status_code=204)
     clear_session_cookie(response, settings)
     return response
+
+
+@router.post("/password/forgot", status_code=202, dependencies=[Depends(origin_guard)])
+async def forgot_password(
+    body: ForgotPasswordIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+    limits: Limits = Depends(get_limits),
+) -> Response:
+    """Email a reset link (AUTH-7, when SMTP is configured). Always 202, whether or not the account exists."""
+    if not settings.smtp_enabled:
+        raise ApiError(404, "Password resets by email aren't set up here. Ask an admin for a reset link.")
+    enforce_window(limits.email_ip, request, "Too many requests from this network. Try again later.")
+    user = await find_by_email(db, normalize_email(body.email))
+    if user is not None and user.status == "active":
+        await tokens.delete_unused(db, "password_reset", user_id=user.id)
+        raw, _ = await tokens.create_token(db, "password_reset", tokens.RESET_TTL, user_id=user.id)
+        mail.send_later(request.app.state.mailer, mail.password_reset(user.email,
+                                                                      f"{settings.app_base_url}/reset-password/{raw}"))
+        await audit(db, "auth.password.forgot", request, target_id=user.id)
+        await db.commit()
+    return Response(status_code=202)
+
+
+@router.post("/verify-email", status_code=204, dependencies=[Depends(origin_guard)])
+async def verify_email(
+    body: VerifyEmailIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    limits: Limits = Depends(get_limits),
+) -> Response:
+    """Confirm an address from the emailed link (AUTH-10). Then sign in as usual."""
+    enforce_window(limits.token_ip, request, "Too many requests. Try again later.")
+    token = await tokens.peek_token(db, "email_verify", body.token)
+    user = await db.get(User, token.user_id) if token and token.user_id else None
+    if token is None or user is None or token.email != user.email:
+        raise ApiError(400, "This link is invalid or has expired. Sign in to get a new one.")
+    if not await tokens.consume_token(db, token):
+        raise ApiError(400, "This link has already been used, so your email is confirmed. You can sign in.")
+    user.email_verified_at = utcnow()
+    await tokens.delete_unused(db, "email_verify", user_id=user.id)
+    await audit(db, "user.email.verified", request, target_id=user.id)
+    await db.commit()
+    return Response(status_code=204)
 
 
 # ---- sessions --------------------------------------------------------------------------------------

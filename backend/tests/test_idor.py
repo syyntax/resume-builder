@@ -31,6 +31,9 @@ BODIES: dict[tuple[str, str], Any] = {
     ("PUT", "/api/applications/{application_id}/analysis"): {"keywords": []},
     ("POST", "/api/applications/{application_id}/regenerate"): {},
     ("POST", "/api/applications/{application_id}/resume/fit"): {},
+    ("POST", "/api/imports/{import_id}/merge-plan"): {"masterId": "mst_x", "document": {}},
+    ("POST", "/api/imports/{import_id}/merge"): {"masterId": "mst_x", "document": {}, "baseVersionId": "mv_x",
+                                                 "selections": {}},
 }
 
 

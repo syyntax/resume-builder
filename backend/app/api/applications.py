@@ -44,7 +44,7 @@ from app.render.service import (
 )
 from app.render.theme import TEMPLATES
 from app.render.word import build_letter_docx, build_resume_docx
-from app.services import settings_store
+from app.services import defaults, settings_store
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 KEEPALIVE_SECONDS = 15.0
@@ -137,8 +137,10 @@ async def create_application(body: ApplicationCreateIn, request: Request, ctx: A
     now = utcnow()
     options = {**body.options.model_dump(by_alias=True, exclude_none=True),
                "coverLetter": body.cover_letter.model_dump(by_alias=True)}
+    design = await defaults.design_for(db, ctx.user)
     application = Application(owner_id=ctx.user.id, master_version_id=version.id, job_id=job.id, status="queued",
-                              options=options, model=model, template="meridian", theme={}, created_at=now,
+                              options=options, model=model, template=design.template,
+                              theme=design.theme.model_dump(mode="json", by_alias=True), created_at=now,
                               updated_at=now)
     db.add(application)
     await db.commit()
@@ -306,13 +308,14 @@ async def save_design(application_id: str, body: DesignIn,
 @router.get("/{application_id}/export")
 async def export_application(request: Request, application_id: str, doc: Doc = "resume",
                              format: str = Query("md", pattern="^(md|json|pdf|docx|txt)$"),
+                             ctx: AuthContext = Depends(current_user),
                              repo: ApplicationRepository = Depends(get_repo)) -> Response:
     """Download the résumé or the cover letter as PDF, Word, Markdown, plain text or JSON, or the packet (the
     cover letter then the résumé, PDF only)."""
     row, resume = await _resume_or_409(repo, application_id)
     job = {"company": row[1].company, "title": row[1].title}
     kind = {"resume": "Resume", "cover-letter": "Cover-Letter", "packet": "Application"}[doc]
-    name = filename(resume, job, kind, format)
+    name = filename(resume, job, kind, format, defaults.preferences(ctx.user).file_name)
     if format == "pdf":
         pdf = await _render_doc(request, repo, application_id, doc)
         return Response(pdf.data, media_type="application/pdf",

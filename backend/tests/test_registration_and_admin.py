@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from fastapi import FastAPI
 
 from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD, USER_PASSWORD, Api
@@ -21,12 +23,12 @@ def invite_token(admin: Api, email: str | None = None) -> str:
 
 def test_open_registration_is_the_default(app: FastAPI, admin: Api) -> None:
     info = Api(app).get("/api/auth/registration").json()
-    assert info == {"needsSetup": False, "mode": "open", "domainRestricted": False}
+    assert info == {"needsSetup": False, "mode": "open", "domainRestricted": False, "emailEnabled": False}
     api, response = register(app, "Open.User@Example.com")
     assert response.status_code == 201
     assert response.json()["user"] | {"id": None, "createdAt": None, "lastLoginAt": None} == {
         "id": None, "email": "open.user@example.com", "displayName": "New Person", "role": "user",
-        "status": "active", "createdAt": None, "lastLoginAt": None}
+        "status": "active", "createdAt": None, "lastLoginAt": None, "mfaEnabled": False}
     assert register(app, "open.user@example.com")[1].status_code == 409
     assert register(app, "weak@example.com", password="password1234")[1].status_code == 422
 
@@ -117,6 +119,15 @@ def test_audit_log_records_security_events(app: FastAPI, admin: Api, make_user) 
         assert expected in events
     auth_only = admin.get("/api/admin/audit-log", params={"event": "auth."}).json()
     assert auth_only and all(e["event"].startswith("auth.") for e in auth_only)
+    # by user (as actor or target) and by day (ADM-5)
+    user_id = next(u["id"] for u in admin.get("/api/admin/users").json() if u["email"] == "audited@example.com")
+    theirs = admin.get("/api/admin/audit-log", params={"userId": user_id}).json()
+    assert [e["event"] for e in theirs] == ["user.register"]
+    today = datetime.now(UTC).date()
+    today_only = admin.get("/api/admin/audit-log", params={"since": str(today), "until": str(today)}).json()
+    assert len(today_only) == len(events)
+    assert admin.get("/api/admin/audit-log", params={"until": str(today - timedelta(days=1))}).json() == []
+    assert admin.get("/api/admin/audit-log", params={"since": str(today + timedelta(days=1))}).json() == []
 
 
 def test_profile_update_and_account_deletion(app: FastAPI, admin: Api, make_user) -> None:

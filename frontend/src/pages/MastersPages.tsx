@@ -79,7 +79,7 @@ function UploadPanel({ onSave, saving, saveLabel, error }: { onSave: (picked: Pi
       <IssueList issues={result.errors} tone="error" />
       <IssueList issues={result.warnings} tone="warning" />
       {!result.valid && (
-        <p className="text-sm text-slate-500">Fix the problems in your file and choose it again. Paths like <code>work[1].startDate</code> point to the exact field.</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Fix the problems in your file and choose it again. Paths like <code>work[1].startDate</code> point to the exact field.</p>
       )}
       {result.valid && (
         <form
@@ -152,7 +152,7 @@ export function MastersPage() {
           <CardBody>
             <UploadPanel saveLabel="Save master résumé" saving={create.isPending} error={create.error}
               onSave={(picked, label) => create.mutate({ text: picked.text, label })} />
-            <p className="mt-4 text-sm text-slate-500">
+            <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
               Don't have one in JSON? <Link to="/masters/import" className="font-medium text-brand-700 underline underline-offset-2 dark:text-brand-300">Import your PDF or Word résumé</Link> instead,
               or start from the example file.
             </p>
@@ -174,7 +174,7 @@ export function MastersPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-slate-900 group-hover:text-brand-700 dark:text-white dark:group-hover:text-brand-200">{m.label}</p>
-                  <p className="truncate text-sm text-slate-500">{m.currentVersion?.summary.name}</p>
+                  <p className="truncate text-sm text-slate-500 dark:text-slate-400">{m.currentVersion?.summary.name}</p>
                 </div>
                 <Badge>v{m.currentVersion?.versionNumber ?? 0}</Badge>
               </div>
@@ -184,7 +184,7 @@ export function MastersPage() {
                   {m.currentVersion.summary.counts.skills ?? 0} skills
                 </p>
               )}
-              <p className="mt-1 text-xs text-slate-500">Updated {timeAgo(m.updatedAt)}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Updated {timeAgo(m.updatedAt)}</p>
             </Link>
           ))}
         </div>
@@ -211,7 +211,7 @@ function PendingImports() {
           <li key={i.id}>
             <Link to={`/imports/${i.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/50">
               <span className="font-medium text-slate-900 dark:text-slate-100">{i.sourceName}</span>
-              <span className="flex items-center gap-3 text-slate-500">
+              <span className="flex items-center gap-3 text-slate-500 dark:text-slate-400">
                 {timeAgo(i.createdAt)} <ImportStatusBadge status={i.status} />
               </span>
             </Link>
@@ -296,7 +296,7 @@ export function MasterDetailPage() {
   const current = master.currentVersion;
   return (
     <>
-      <Link to="/masters" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <Link to="/masters" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
         <ArrowLeft className="size-4" aria-hidden /> Master résumés
       </Link>
       <PageHeader
@@ -360,7 +360,7 @@ export function MasterDetailPage() {
                     <span className="font-medium text-slate-900 dark:text-slate-100">Version {v.versionNumber}</span>
                     {v.id === current.id && <Badge tone="brand">Current</Badge>}
                   </span>
-                  <span className="text-slate-500">
+                  <span className="text-slate-500 dark:text-slate-400">
                     {formatDateTime(v.createdAt)} · {v.summary.counts.bullets ?? 0} bullets
                   </span>
                   <span className="flex flex-wrap items-center gap-1">

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { ApiError, api, errorMessage, setCsrfToken } from "../api/client";
 import type { Me, Session, User } from "../api/types";
 import { meKey, useMe, useSetMe } from "../auth/auth";
+import { PreferencesCard, TwoStepCard } from "../components/AccountSecurity";
 import { AiSettingsCard } from "../components/AiSettingsCard";
 import { Dialog } from "../components/Dialog";
 import { PasswordFields } from "../components/PasswordFields";
@@ -52,7 +53,7 @@ function ProfileCard({ user }: { user: User }) {
           <div className="flex items-center gap-3 sm:col-span-2">
             <Button type="submit" loading={save.isPending}>Save profile</Button>
             {save.isSuccess && <span className="text-sm text-emerald-700 dark:text-emerald-400">Saved.</span>}
-            {save.isError && !error?.errors.length && <span className="text-sm text-red-600">{errorMessage(save.error)}</span>}
+            {save.isError && !error?.errors.length && <span className="text-sm text-red-600 dark:text-red-400">{errorMessage(save.error)}</span>}
           </div>
         </form>
       </CardBody>
@@ -92,7 +93,7 @@ function PasswordCard() {
           <div className="flex items-center gap-3">
             <Button type="submit" loading={change.isPending}>Change password</Button>
             {change.isSuccess && <span className="text-sm text-emerald-700 dark:text-emerald-400">Password changed.</span>}
-            {change.isError && !error?.errors.length && <span className="text-sm text-red-600">{errorMessage(change.error)}</span>}
+            {change.isError && !error?.errors.length && <span className="text-sm text-red-600 dark:text-red-400">{errorMessage(change.error)}</span>}
           </div>
         </form>
       </CardBody>
@@ -130,7 +131,7 @@ function SessionsCard() {
                 <p className="font-medium text-slate-900 dark:text-slate-100">
                   {describeUserAgent(s.userAgent)} {s.current && <Badge tone="green">This device</Badge>}
                 </p>
-                <p className="text-slate-500">
+                <p className="text-slate-500 dark:text-slate-400">
                   {s.ip ?? "Unknown IP"} · active {timeAgo(s.lastSeenAt)} · signed in {timeAgo(s.createdAt)}
                 </p>
               </div>
@@ -168,7 +169,7 @@ function DataCard() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-medium text-slate-900 dark:text-slate-100">Export everything</p>
-            <p className="text-sm text-slate-500">A ZIP of your profile and every master résumé version. Your API key is never included.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">A ZIP of your profile and every master résumé version. Your API key is never included.</p>
           </div>
           <a href="/api/account/export" className={linkButtonClass("secondary", "sm")}>
             <Download className="size-4" aria-hidden /> Download export
@@ -177,7 +178,7 @@ function DataCard() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5 dark:border-slate-800">
           <div>
             <p className="font-medium text-red-700 dark:text-red-400">Delete account</p>
-            <p className="text-sm text-slate-500">Permanently deletes your account and everything in it.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Permanently deletes your account and everything in it.</p>
           </div>
           <Button variant="danger" size="sm" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => setOpen(true)}>
             Delete account
@@ -200,12 +201,14 @@ export function AccountPage() {
   if (!me) return null;
   return (
     <>
-      <PageHeader title="Account" description="Your AI key, profile, security and data." />
+      <PageHeader title="Account" description="Your AI key, profile, security, preferences and data." />
       <div className="space-y-6">
         <AiSettingsCard />
         <ProfileCard user={me.user} />
         <PasswordCard />
+        <TwoStepCard />
         <SessionsCard />
+        <PreferencesCard />
         <DataCard />
       </div>
     </>

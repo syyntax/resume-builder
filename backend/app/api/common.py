@@ -3,32 +3,47 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
 
 from fastapi import Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import passwords
-from app.auth.ratelimit import FailureBackoff, SlidingWindow
-from app.auth.sessions import client_ip
+from app.auth.ratelimit import FailureBackoff, Limits, SlidingWindow
+from app.auth.sessions import AuthContext, client_ip
 from app.config import Settings
 from app.db.models import UploadedFile, User, UserSession
 from app.errors import ApiError
 from app.models.api import MeOut, UserOut
+from app.pipeline import usage
 from app.services import settings_store
+
+
+def month_range(month: str | None) -> tuple[datetime, datetime]:
+    """The start of a month (YYYY-MM, this one if not given) and of the next, in UTC."""
+    if month is None:
+        start = usage.month_start()
+    else:
+        try:
+            start = datetime.strptime(month, "%Y-%m").replace(tzinfo=UTC)
+        except ValueError:
+            raise ApiError(422, "Use a month like 2026-10.") from None
+    return start, (start + timedelta(days=32)).replace(day=1)
 
 
 def user_out(user: User) -> UserOut:
     return UserOut.model_validate(user, from_attributes=True)
 
 
-async def me_out(db: AsyncSession, user: User, session: UserSession, settings: Settings) -> MeOut:
+async def me_out(db: AsyncSession, user: User, session: UserSession, settings: Settings,
+                 stage: str = "active") -> MeOut:
     notices: list[str] = []
     if user.role == "admin" and not settings.base_is_local:
         policy = await settings_store.registration_policy(db)
         if policy.mode == "open" and not policy.domains:
             notices.append("open-registration-exposed")
-    return MeOut(user=user_out(user), csrf_token=session.csrf_token, notices=notices)
+    return MeOut(user=user_out(user), csrf_token=session.csrf_token, notices=notices, stage=stage)
 
 
 async def read_body(request: Request, limit: int, too_large: str) -> bytes:
@@ -70,6 +85,16 @@ def enforce_backoff(limiter: FailureBackoff, key: str) -> None:
     if wait:
         raise ApiError(429, f"Too many failed attempts. Try again in {wait} seconds.",
                        headers={"Retry-After": str(wait)})
+
+
+async def confirm_password(ctx: AuthContext, password: str, limits: Limits) -> None:
+    """Re-entering the password for a sensitive change (keys, two-step verification), with backoff."""
+    enforce_backoff(limits.password_check, ctx.user.id)
+    ok, _ = await verify_password(ctx.user.password_hash, password)
+    if not ok:
+        limits.password_check.failure(ctx.user.id)
+        raise ApiError(400, "Your password is incorrect.", errors=[{"field": "password", "message": "incorrect"}])
+    limits.password_check.reset(ctx.user.id)
 
 
 def require_password_policy(password: str, *, email: str, display_name: str, field: str = "password") -> None:

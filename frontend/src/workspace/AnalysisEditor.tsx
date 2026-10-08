@@ -60,7 +60,7 @@ export function AnalysisEditor({ application, mode }: { application: Application
           description="Promote what matters most, mark must-include keywords, and choose the themes to lead with. Only keywords your master résumé supports can appear." />
         <CardBody className="space-y-4">
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-slate-500"><th className="pb-2 font-medium">Keyword</th><th className="pb-2 font-medium">Importance</th><th className="pb-2 font-medium">Must include</th><th /></tr></thead>
+            <thead><tr className="text-left text-xs text-slate-500 dark:text-slate-400"><th className="pb-2 font-medium">Keyword</th><th className="pb-2 font-medium">Importance</th><th className="pb-2 font-medium">Must include</th><th /></tr></thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {rows.map((row, i) => (
                 <tr key={row.term}>
@@ -73,7 +73,7 @@ export function AnalysisEditor({ application, mode }: { application: Application
                   </td>
                   <td className="py-1.5 pr-2"><input type="checkbox" aria-label={`Must include ${row.term}`} className="size-4" checked={row.mustInclude} onChange={(e) => setRow(i, { mustInclude: e.target.checked })} /></td>
                   <td className="py-1.5 text-right">
-                    <button type="button" aria-label={`Remove ${row.term}`} className="rounded p-1 text-slate-400 hover:text-red-600"
+                    <button type="button" aria-label={`Remove ${row.term}`} className="rounded p-1 text-slate-500 dark:text-slate-400 hover:text-red-600"
                       onClick={() => { setSaved(false); setRows((r) => r.filter((_, j) => j !== i)); }}><X className="size-4" aria-hidden /></button>
                   </td>
                 </tr>
@@ -111,7 +111,7 @@ export function AnalysisEditor({ application, mode }: { application: Application
                   onClick={() => void run(async () => { await saveAnalysis(); setSaved(true); })}>Save</Button>
                 <Button icon={<RotateCcw className="size-4" aria-hidden />} disabled={busy} onClick={() => setConfirm(true)}>Regenerate résumé</Button>
                 {saved && <Badge tone="green">Saved</Badge>}
-                {application.analysisEdited && <span className="text-xs text-slate-500">You've edited this analysis.</span>}
+                {application.analysisEdited && <span className="text-xs text-slate-500 dark:text-slate-400">You've edited this analysis.</span>}
               </>
             )}
           </div>

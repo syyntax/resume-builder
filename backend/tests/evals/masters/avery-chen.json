@@ -1,0 +1,184 @@
+{
+  "meta": {"schemaVersion": "1.0", "label": "Design master"},
+  "basics": {
+    "name": "Avery Chen",
+    "email": "avery.chen@example.com",
+    "phone": "(555) 010-0144",
+    "url": "https://averychen.example.design",
+    "location": {"city": "Seattle", "region": "WA", "countryCode": "US", "remote": true},
+    "profiles": [
+      {"network": "LinkedIn", "username": "averychen", "url": "https://linkedin.com/in/averychen"},
+      {"network": "Dribbble", "username": "averychen", "url": "https://dribbble.com/averychen"}
+    ]
+  },
+  "headlines": [
+    {"id": "h-product", "text": "Senior Product Designer", "tags": ["product-design"]},
+    {"id": "h-systems", "text": "Product Designer, Design Systems", "tags": ["design-systems"]},
+    {"id": "h-research", "text": "Product Designer and Researcher", "tags": ["research"]}
+  ],
+  "summaries": [
+    {
+      "id": "s-product",
+      "tags": ["product-design"],
+      "text": "Product designer with 9 years of experience in healthcare and B2B software. Turns messy workflows into simple, accessible products, and backs decisions with research and data. Built and led a design system used by 9 product teams."
+    },
+    {
+      "id": "s-systems",
+      "tags": ["design-systems"],
+      "text": "Designer who builds the systems other designers and engineers rely on: tokens, components, documentation, and the contribution process that keeps them alive."
+    }
+  ],
+  "work": [
+    {
+      "id": "lumen",
+      "company": "Lumen Health",
+      "position": "Senior Product Designer",
+      "location": "Seattle, WA",
+      "startDate": "2021-04",
+      "endDate": null,
+      "employmentType": "full-time",
+      "summary": "Patient-facing apps for a network of 120 clinics.",
+      "tags": ["healthcare", "design-systems", "research"],
+      "skills": ["figma", "design-systems", "user-research", "accessibility", "prototyping"],
+      "highlights": [
+        {
+          "id": "lumen-b1",
+          "text": "Created Prism, Lumen's design system of 140 Figma components and React tokens, adopted by 9 product teams; cut design-to-build handoff questions by half.",
+          "tags": ["design-systems", "leadership"],
+          "skills": ["figma", "design-systems"],
+          "priority": 5,
+          "pin": true
+        },
+        {
+          "id": "lumen-b2",
+          "text": "Redesigned patient intake from a 9-step form into a guided flow, raising completion from 61% to 84% and cutting front-desk calls by 30%.",
+          "tags": ["research", "conversion"],
+          "skills": ["user-research", "prototyping", "usability-testing"],
+          "priority": 5
+        },
+        {
+          "id": "lumen-b3",
+          "text": "Ran 30 or more usability sessions each quarter with patients and clinic staff, and set up a research repository the whole product org uses.",
+          "tags": ["research"],
+          "skills": ["user-research", "usability-testing"],
+          "priority": 4
+        },
+        {
+          "id": "lumen-b4",
+          "text": "Led an accessibility program that brought the patient app to WCAG 2.1 AA, including screen reader testing with blind and low-vision patients.",
+          "tags": ["accessibility"],
+          "skills": ["accessibility"],
+          "priority": 4
+        },
+        {
+          "id": "lumen-b5",
+          "text": "Mentored 3 designers and ran the weekly design critique for a team of 11.",
+          "tags": ["leadership", "mentoring"],
+          "priority": 3
+        }
+      ]
+    },
+    {
+      "id": "brightline",
+      "company": "Brightline Software",
+      "position": "Product Designer",
+      "location": "Portland, OR",
+      "startDate": "2018-06",
+      "endDate": "2021-03",
+      "employmentType": "full-time",
+      "summary": "B2B scheduling software for field-service companies.",
+      "tags": ["b2b", "saas"],
+      "skills": ["figma", "prototyping", "information-architecture"],
+      "highlights": [
+        {
+          "id": "brightline-b1",
+          "text": "Redesigned onboarding for new accounts, cutting median time to first scheduled job from 5 days to 2 and lifting trial conversion 18%.",
+          "tags": ["onboarding", "conversion"],
+          "skills": ["prototyping", "user-research"],
+          "priority": 5
+        },
+        {
+          "id": "brightline-b2",
+          "text": "Reworked the navigation and information architecture of a 60-screen admin app after card sorting with 24 customers.",
+          "tags": ["information-architecture", "research"],
+          "skills": ["information-architecture", "user-research"],
+          "priority": 4
+        },
+        {
+          "id": "brightline-b3",
+          "text": "Partnered with 2 engineering teams to ship a drag-and-drop dispatch board used by 4,000 dispatchers daily.",
+          "tags": ["collaboration", "interaction-design"],
+          "skills": ["interaction-design", "prototyping"],
+          "priority": 4
+        }
+      ]
+    },
+    {
+      "id": "northwind",
+      "company": "Northwind Agency",
+      "position": "UX Designer",
+      "location": "Seattle, WA",
+      "startDate": "2016-01",
+      "endDate": "2018-05",
+      "employmentType": "full-time",
+      "tags": ["agency"],
+      "skills": ["html-css", "usability-testing"],
+      "highlights": [
+        {
+          "id": "northwind-b1",
+          "text": "Designed 14 websites and apps for clients in retail, education, and nonprofits, from discovery workshops through launch.",
+          "tags": ["client-work"],
+          "priority": 3
+        },
+        {
+          "id": "northwind-b2",
+          "text": "Introduced moderated usability testing to the agency's process; testing caught issues before launch on every project it ran on.",
+          "tags": ["research"],
+          "skills": ["usability-testing"],
+          "priority": 3
+        }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "id": "contrast-kit",
+      "name": "Contrast Kit",
+      "description": "Free Figma plugin that checks color contrast against WCAG",
+      "url": "https://example.com/contrast-kit",
+      "startDate": "2022-02",
+      "skills": ["figma", "accessibility"],
+      "tags": ["accessibility", "open-source"],
+      "highlights": ["Installed by more than 25,000 designers."]
+    }
+  ],
+  "education": [
+    {
+      "id": "uw",
+      "institution": "University of Washington",
+      "studyType": "B.Des.",
+      "area": "Interaction Design",
+      "startDate": "2011-09",
+      "endDate": "2015-06"
+    }
+  ],
+  "certifications": [
+    {"id": "nng", "name": "UX Certification", "issuer": "Nielsen Norman Group", "date": "2020-08"}
+  ],
+  "skills": [
+    {"id": "figma", "name": "Figma", "category": "Tools", "level": "expert", "years": 7},
+    {"id": "design-systems", "name": "Design systems", "category": "Design", "level": "expert", "years": 5},
+    {"id": "user-research", "name": "User research", "category": "Research", "level": "advanced", "years": 8, "aliases": ["UX research"]},
+    {"id": "usability-testing", "name": "Usability testing", "category": "Research", "level": "advanced", "years": 8},
+    {"id": "prototyping", "name": "Prototyping", "category": "Design", "level": "expert", "years": 9},
+    {"id": "interaction-design", "name": "Interaction design", "category": "Design", "level": "expert", "years": 9},
+    {"id": "information-architecture", "name": "Information architecture", "category": "Design", "level": "advanced", "years": 6},
+    {"id": "accessibility", "name": "Accessibility", "category": "Design", "level": "advanced", "years": 5, "aliases": ["WCAG", "a11y"]},
+    {"id": "html-css", "name": "HTML and CSS", "category": "Tools", "level": "intermediate", "years": 6}
+  ],
+  "languages": [
+    {"language": "English", "fluency": "Native"},
+    {"language": "Mandarin", "fluency": "Conversational"}
+  ],
+  "preferences": {"pageLimit": 1, "recentYears": 10, "tone": "confident", "spelling": "en-US"}
+}

@@ -1,0 +1,22 @@
+DevOps Engineer
+Contoso Health — Remote
+
+Contoso Health builds telehealth software for hospitals. We're moving our platform to Azure and need a DevOps engineer to help us get there safely.
+
+You will
+- Build and maintain CI/CD pipelines in GitHub Actions
+- Manage infrastructure on Azure with Bicep and Terraform
+- Run workloads on Azure Kubernetes Service (AKS)
+- Keep our environments compliant with HIPAA and SOC 2 controls
+- Work with developers to improve build and test times
+
+You have
+- 4+ years in DevOps or platform engineering
+- Hands-on Azure experience (AKS, Azure DevOps or GitHub Actions, Key Vault)
+- Infrastructure as code (Bicep or Terraform)
+- Kubernetes in production
+- Experience in healthcare or another regulated environment
+
+Preferred
+- Azure certifications (AZ-104, AZ-400)
+- PowerShell scripting

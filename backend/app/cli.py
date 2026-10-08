@@ -11,6 +11,7 @@ import asyncio
 import getpass
 import json
 import sys
+import tarfile
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
@@ -18,7 +19,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth import passwords
+from app.auth import mfa, passwords
 from app.auth.audit import audit
 from app.auth.bootstrap import ensure_setup_token
 from app.auth.sessions import revoke_all
@@ -70,7 +71,7 @@ async def _admin_create(db: AsyncSession, args: argparse.Namespace) -> int:
         return 1
     password = _read_password(args.password_stdin, email=email, name=args.name)
     user = User(email=email, display_name=args.name, password_hash=passwords.hash_password(password),
-                role="admin", status="active", created_at=utcnow())
+                role="admin", status="active", created_at=utcnow(), email_verified_at=utcnow())
     db.add(user)
     await db.flush()
     await audit(db, "cli.admin.create", target_id=user.id)
@@ -142,10 +143,29 @@ async def _keys_rotate(db: AsyncSession, settings: Settings) -> int:
         sealed = box.seal(plaintext, bound_to=row.user_id)
         row.ciphertext, row.nonce, row.key_fingerprint = sealed.ciphertext, sealed.nonce, sealed.key_fingerprint
         rotated += 1
-    await audit(db, "cli.keys.rotate", rotated=rotated, unreadable=unreadable)
+    # two-step verification secrets, under their own derived key
+    totp_box = mfa.secret_box(settings)
+    users = (await db.execute(select(User).where(User.totp_ciphertext.is_not(None),
+                                                 User.totp_key_fingerprint != totp_box.current_fingerprint))).scalars()
+    totp_rotated = totp_lost = 0
+    for user in users:
+        try:
+            secret = mfa.read_secret(user, settings)
+        except DecryptionError:
+            totp_lost += 1
+            continue
+        if secret is not None:
+            last_step = user.totp_last_step
+            mfa.store_secret(user, secret, settings)
+            user.totp_last_step = last_step
+            totp_rotated += 1
+    await audit(db, "cli.keys.rotate", rotated=rotated, unreadable=unreadable, totp_rotated=totp_rotated,
+                totp_unreadable=totp_lost)
     await db.commit()
-    print(f"Re-encrypted {rotated} API key(s) under the new secret."
-          + (f" {unreadable} couldn't be read; those users must enter their key again." if unreadable else ""))
+    print(f"Re-encrypted {rotated} API key(s) and {totp_rotated} two-step verification secret(s) under the new secret."
+          + (f" {unreadable} key(s) couldn't be read; those users must enter their key again." if unreadable else "")
+          + (f" {totp_lost} two-step secret(s) couldn't be read; reset those users' two-step verification."
+             if totp_lost else ""))
     print("You can now remove APP_SECRET_KEY_PREVIOUS.")
     return 0
 
@@ -174,6 +194,30 @@ def _openapi(args: argparse.Namespace) -> int:
     return 0
 
 
+def _backup_or_restore(args: argparse.Namespace, settings: Settings) -> int:
+    from app.backup import BackupError, backup, restore
+
+    try:
+        if args.command == "backup":
+            path = backup(settings, Path(args.out_dir) if args.out_dir else settings.data_dir / "backups")
+            print(f"wrote {path}")
+            if not settings.is_sqlite:
+                print("The database is PostgreSQL: back it up with pg_dump. This archive holds the uploaded files.")
+            print("API keys in it stay encrypted: keep APP_SECRET_KEY safe, and separate from the backup.")
+            return 0
+        if not args.yes:
+            print("This replaces the current database and uploaded files. Stop the app first, then rerun with --yes.",
+                  file=sys.stderr)
+            return 2
+        for line in restore(settings, Path(args.archive)):
+            print(line)
+        print("Done. Start the app again.")
+        return 0
+    except (BackupError, OSError, tarfile.TarError) as exc:
+        print(f"Failed: {exc}", file=sys.stderr)
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="resume-tailor", description="Resume Tailor administration")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -197,6 +241,12 @@ def build_parser() -> argparse.ArgumentParser:
     schema = sub.add_parser("schema", help="export the master résumé JSON Schema and example")
     schema.add_argument("--out-dir", default=str(REPO_SCHEMA_DIR))
 
+    backup = sub.add_parser("backup", help="back up the database and uploaded files to a .tar.gz")
+    backup.add_argument("--out-dir", help="where to write it (default: DATA_DIR/backups)")
+    restore = sub.add_parser("restore", help="restore a backup (stop the app first)")
+    restore.add_argument("archive")
+    restore.add_argument("--yes", action="store_true", help="confirm: this replaces the current data")
+
     openapi = sub.add_parser("openapi", help="write the OpenAPI document (used to generate frontend types)")
     openapi.add_argument("--out", required=True)
     return parser
@@ -210,6 +260,8 @@ def main(argv: list[str] | None = None) -> int:
         return _openapi(args)
 
     settings = Settings()
+    if args.command in ("backup", "restore"):
+        return _backup_or_restore(args, settings)
     handlers: dict[str, Callable[[AsyncSession], Awaitable[int]]] = {
         "setup-token": lambda db: _setup_token(db, args),
         "keys": lambda db: _keys_rotate(db, settings),

@@ -55,5 +55,21 @@ describe("api client", () => {
     await api("GET", "/api/master-resumes").catch(() => undefined);
     await api("GET", "/api/auth/me").catch(() => undefined);
     expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenLastCalledWith("signed-out");
+  });
+
+  it("tells an unfinished sign-in from an ended one, and exposes error codes", async () => {
+    const handler = vi.fn();
+    setUnauthorizedHandler(handler);
+    mockFetch(403, { detail: "Set up two-step verification to continue.", code: "mfa_enrollment_required" });
+    const error = await api("GET", "/api/master-resumes").catch((e: unknown) => e);
+    expect((error as ApiError).code).toBe("mfa_enrollment_required");
+    expect(handler).toHaveBeenLastCalledWith("incomplete");
+    mockFetch(401, { detail: "Enter the code.", code: "mfa_required" });
+    await api("GET", "/api/master-resumes").catch(() => undefined);
+    expect(handler).toHaveBeenLastCalledWith("incomplete");
+    mockFetch(403, { detail: "This action is limited to admins." });
+    await api("GET", "/api/admin/users").catch(() => undefined);
+    expect(handler).toHaveBeenCalledTimes(2);  // an ordinary 403 isn't about signing in
   });
 });

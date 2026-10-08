@@ -48,6 +48,7 @@ class SecurityHeaders(BaseHTTPMiddleware):
         headers.setdefault("Referrer-Policy", "same-origin")
         headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
         headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")  # nothing here is for other sites to embed
         if self.settings.is_https:
             headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         if path.startswith("/api/"):
@@ -98,7 +99,17 @@ class SinglePageApp(StaticFiles):
         except HTTPException as exc:
             if exc.status_code != 404 or "." in path.rsplit("/", 1)[-1]:
                 raise
-            return await super().get_response("index.html", scope)
+            return self._cached(await super().get_response("index.html", scope), "index.html")
         if response.status_code == 404 and "." not in path.rsplit("/", 1)[-1]:
-            return await super().get_response("index.html", scope)
+            return self._cached(await super().get_response("index.html", scope), "index.html")
+        return self._cached(response, path)
+
+    @staticmethod
+    def _cached(response: Response, path: str) -> Response:
+        """Built assets have content hashes in their names, so they never change: cache them for good. The page
+        itself is checked every time, so a new release is picked up at once."""
+        if path.startswith("assets/"):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "no-cache"
         return response

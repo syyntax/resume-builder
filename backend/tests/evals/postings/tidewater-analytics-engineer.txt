@@ -1,0 +1,23 @@
+Analytics Engineer
+Tidewater Media — Remote (US)
+
+Tidewater publishes 12 digital magazines. Our data team is building a modern analytics stack, and we need an analytics engineer to own the transformation layer.
+
+What you'll do
+- Build and maintain data models in dbt on Snowflake
+- Orchestrate pipelines with Airflow
+- Define metrics and a semantic layer that analysts and editors can trust
+- Write tests and documentation for every model
+- Work with analysts to turn one-off queries into reliable datasets
+
+Requirements
+- 3+ years in analytics engineering, data engineering, or analytics
+- Expert SQL
+- dbt in production
+- Snowflake, BigQuery, or another cloud warehouse
+- Version control with Git and code review habits
+
+Nice to have
+- Python
+- Experience with Looker or another BI tool
+- Media or subscription business experience

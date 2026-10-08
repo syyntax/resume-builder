@@ -48,12 +48,16 @@ def _idle_ttl(remember: bool, settings: Settings) -> timedelta:
     return timedelta(days=settings.session_idle_days) if remember else SHORT_IDLE
 
 
+PENDING_TTL = {"mfa": timedelta(minutes=5), "enroll": timedelta(minutes=20)}
+
+
 async def create_session(
-    db: AsyncSession, user: User, request: Request, settings: Settings, *, remember: bool
+    db: AsyncSession, user: User, request: Request, settings: Settings, *, remember: bool, stage: str = "active"
 ) -> tuple[str, UserSession]:
+    """A new session. A pending one (stage "mfa" or "enroll") lasts minutes and only allows finishing sign-in."""
     raw = secrets.token_urlsafe(32)
     now = utcnow()
-    absolute = now + timedelta(days=settings.session_max_days)
+    absolute = now + (PENDING_TTL[stage] if stage in PENDING_TTL else timedelta(days=settings.session_max_days))
     session = UserSession(
         user_id=user.id,
         token_hash=hash_token(raw),
@@ -65,6 +69,7 @@ async def create_session(
         absolute_expires_at=absolute,
         ip=client_ip(request),
         user_agent=user_agent(request),
+        stage=stage,
     )
     db.add(session)
     return raw, session

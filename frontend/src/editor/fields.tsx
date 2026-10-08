@@ -35,7 +35,7 @@ export function FieldShell({ label, id, error, hint, flagged, wide, required, ta
       </label>
       <div className={cn("rounded-lg", flagged && "ring-2 ring-amber-400 ring-offset-1 dark:ring-offset-slate-900")}>{children}</div>
       {(error || hint) && (
-        <p className={cn("mt-1 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500")}>{error ?? hint}</p>
+        <p className={cn("mt-1 text-xs", error ? "text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400")}>{error ?? hint}</p>
       )}
     </div>
   );
@@ -87,7 +87,7 @@ export function ChipInput({ id, values, onChange, placeholder, suggestions, desc
       {values.map((value) => (
         <span key={value} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-200">
           {describe ? describe(value) : value}
-          <button type="button" className="rounded text-slate-400 hover:text-slate-700 dark:hover:text-white" aria-label={`Remove ${describe ? describe(value) : value}`}
+          <button type="button" className="rounded text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white" aria-label={`Remove ${describe ? describe(value) : value}`}
             onClick={() => onChange(values.filter((v) => v !== value))}>
             <X className="size-3" aria-hidden />
           </button>

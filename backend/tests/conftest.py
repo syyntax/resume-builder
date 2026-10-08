@@ -43,6 +43,8 @@ class Api:
         response = self.client.request(method, url, headers=headers, **kwargs)
         if response.headers.get("content-type", "").startswith("application/json"):
             body = response.json()
+            if isinstance(body, dict) and isinstance(body.get("me"), dict):
+                body = body["me"]  # a new session nested in a larger answer (turning on two-step verification)
             if isinstance(body, dict) and "csrfToken" in body:
                 self.csrf, self.user = body["csrfToken"], body["user"]
         return response

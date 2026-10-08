@@ -105,3 +105,6 @@ class Limits:
     register_ip: SlidingWindow = field(default_factory=lambda: SlidingWindow(10, 60 * 60))
     setup_ip: SlidingWindow = field(default_factory=lambda: SlidingWindow(10, 15 * 60))
     token_ip: SlidingWindow = field(default_factory=lambda: SlidingWindow(30, 15 * 60))
+    mfa_account: FailureBackoff = field(default_factory=FailureBackoff)
+    mfa_ip: SlidingWindow = field(default_factory=lambda: SlidingWindow(30, 15 * 60))
+    email_ip: SlidingWindow = field(default_factory=lambda: SlidingWindow(10, 60 * 60))  # forgot password, resend

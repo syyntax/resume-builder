@@ -48,7 +48,7 @@ export function JsonDropZone({ onFile, busy, label = "Drop a master résumé JSO
     >
       <FileJson className="mb-3 size-8 text-slate-400" aria-hidden />
       <p className="font-medium text-slate-800 dark:text-slate-200">{label}</p>
-      <p className="mt-1 text-sm text-slate-500">JSON Resume files work too. Up to 1 MB.</p>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">JSON Resume files work too. Up to 1 MB.</p>
       <input
         id={inputId}
         ref={input}
@@ -116,7 +116,7 @@ export function SummaryStats({ summary }: { summary: MasterSummary }) {
     <dl className="grid grid-cols-3 gap-3 lg:grid-cols-6">
       {countLabels.map(([key, label]) => (
         <div key={key} className="rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-800">
-          <dt className="text-xs text-slate-500">{label}</dt>
+          <dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt>
           <dd className="text-lg font-semibold tabular-nums text-slate-900 dark:text-white">{summary.counts[key] ?? 0}</dd>
         </div>
       ))}
@@ -136,7 +136,7 @@ function BulletList({ bullets }: { bullets?: Bullet[] }) {
           <span className="min-w-0 flex-1 text-slate-700 dark:text-slate-300">
             {b.text}
             <span className="ml-2 inline-flex flex-wrap gap-1 align-middle">
-              <code className="rounded bg-slate-100 px-1 text-[11px] text-slate-500 dark:bg-slate-800">{b.id}</code>
+              <code className="rounded bg-slate-100 px-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">{b.id}</code>
               {b.pin && <Badge tone="brand">pinned</Badge>}
               {b.hidden && <Badge>hidden</Badge>}
               {b.variants?.length ? <Badge>{b.variants.length} variant{b.variants.length > 1 ? "s" : ""}</Badge> : null}
@@ -151,7 +151,7 @@ function BulletList({ bullets }: { bullets?: Bullet[] }) {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="border-t border-slate-200 pt-5 dark:border-slate-800">
-      <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-500 uppercase">{title}</h3>
+      <h3 className="mb-3 text-xs font-semibold tracking-wider text-slate-500 dark:text-slate-400 uppercase">{title}</h3>
       {children}
     </section>
   );
@@ -172,8 +172,8 @@ export function MasterOverview({ doc }: { doc: MasterDocument }) {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xl font-semibold text-slate-900 dark:text-white">{b.name}</p>
-        {contact && <p className="mt-1 text-sm text-slate-500">{contact}</p>}
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{b.name}</h2>
+        {contact && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{contact}</p>}
       </div>
 
       {(doc.headlines?.length || doc.summaries?.length) ? (
@@ -184,7 +184,7 @@ export function MasterOverview({ doc }: { doc: MasterDocument }) {
           <div className="mt-3 space-y-3">
             {doc.summaries?.map((s) => (
               <p key={s.id} className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
-                {s.text} <code className="rounded bg-slate-100 px-1 text-[11px] text-slate-500 dark:bg-slate-800">{s.id}</code>
+                {s.text} <code className="rounded bg-slate-100 px-1 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-400">{s.id}</code>
               </p>
             ))}
           </div>
@@ -198,9 +198,9 @@ export function MasterOverview({ doc }: { doc: MasterDocument }) {
               <div key={w.id}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-4">
                   <p className="font-medium text-slate-900 dark:text-slate-100">
-                    {w.position} <span className="font-normal text-slate-500">· {w.company}</span>
+                    {w.position} <span className="font-normal text-slate-500 dark:text-slate-400">· {w.company}</span>
                   </p>
-                  <p className="text-sm tabular-nums text-slate-500">
+                  <p className="text-sm tabular-nums text-slate-500 dark:text-slate-400">
                     {w.startDate ? `${formatPartialDate(w.startDate)} – ${formatPartialDate(w.endDate)}` : "No dates"}
                   </p>
                 </div>
@@ -217,7 +217,7 @@ export function MasterOverview({ doc }: { doc: MasterDocument }) {
             {doc.projects.map((p) => (
               <div key={p.id}>
                 <p className="font-medium text-slate-900 dark:text-slate-100">
-                  {p.name} {p.description && <span className="font-normal text-slate-500">· {p.description}</span>}
+                  {p.name} {p.description && <span className="font-normal text-slate-500 dark:text-slate-400">· {p.description}</span>}
                 </p>
                 <BulletList bullets={p.highlights} />
               </div>

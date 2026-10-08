@@ -8,7 +8,7 @@
 FROM node:24-slim AS frontend
 WORKDIR /build/frontend
 RUN corepack enable
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
     pnpm config set store-dir /pnpm-store && pnpm install --frozen-lockfile
 COPY frontend/ ./
@@ -35,6 +35,8 @@ RUN playwright install --with-deps --only-shell chromium && rm -rf /var/lib/apt/
 COPY backend/ ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --extra postgres
+# uv installs everything: the base image's pip (and the libraries it vendors) is unused attack surface.
+RUN /usr/local/bin/python3 -m pip uninstall --yes --quiet pip
 RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin app \
     && mkdir -p /data && chown app:app /data
 # The root filesystem is read-only at runtime; Chromium and fontconfig write their profile and caches to /tmp.

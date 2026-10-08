@@ -1,0 +1,21 @@
+Engineering Manager, Infrastructure
+Umbrella Logistics — Austin, TX or remote
+
+Umbrella moves freight for 2,000 shippers. Our infrastructure group (9 engineers across two teams) runs the cloud platform, CI/CD, and developer tooling. We're hiring a manager to lead it.
+
+In this role you'll
+- Manage, hire, and grow a team of infrastructure engineers
+- Own the infrastructure roadmap and balance it against reliability and cost goals
+- Partner with product engineering leaders on platform adoption
+- Run planning, 1:1s, and performance reviews
+- Stay technical enough to review designs and make architectural calls
+
+We're looking for
+- 3+ years leading engineers, formally or as a tech lead
+- A strong background in cloud infrastructure (AWS), Kubernetes, and CI/CD
+- Experience reducing cloud costs
+- Excellent communication with both engineers and executives
+
+Nice to have
+- People management experience with direct reports
+- Logistics or marketplace background

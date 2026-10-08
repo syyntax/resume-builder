@@ -145,7 +145,7 @@ function EditorScreen({ master, onSaved }: { master: MasterDetail; onSaved: (sav
               </Button>
             </>
           )}
-          <span className="text-sm text-slate-500" aria-live="polite">{dirty ? "Unsaved changes" : "No changes"}</span>
+          <span className="text-sm text-slate-500 dark:text-slate-400" aria-live="polite">{dirty ? "Unsaved changes" : "No changes"}</span>
           <Button size="sm" icon={<Save className="size-4" aria-hidden />} loading={saving} disabled={!dirty} onClick={() => void save()}>
             Save new version
           </Button>
@@ -163,7 +163,7 @@ function EditorScreen({ master, onSaved }: { master: MasterDetail; onSaved: (sav
         }} />
       ) : (
         <Suspense fallback={<Spinner />}>
-          <p className="mb-3 text-sm text-slate-500">
+          <p className="mb-3 text-sm text-slate-500 dark:text-slate-400">
             Edit the raw JSON. It's checked against the master résumé schema as you type; hover a field for its description.
           </p>
           <JsonEditor value={jsonText} onChange={setJsonText} />
@@ -187,11 +187,11 @@ export function MasterEditPage() {
 
   return (
     <>
-      <Link to={`/masters/${id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <Link to={`/masters/${id}`} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
         <ArrowLeft className="size-4" aria-hidden /> {master.label}
       </Link>
       <h1 className="mb-1 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Edit master résumé</h1>
-      <p className="mb-6 text-sm text-slate-500">
+      <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
         Saving creates version {(master.currentVersion?.versionNumber ?? 0) + 1}. Earlier versions, and applications made from them, stay as they are.
       </p>
       {lastSave && (

@@ -1,0 +1,22 @@
+Staff Platform Engineer
+Globex — Remote (US)
+
+Globex is building an internal developer platform used by 400 engineers across payments, lending, and fraud. You'll set the technical direction for how services are built, deployed, and run.
+
+What you'll do
+- Own the architecture of our Kubernetes platform on AWS (EKS) and the paved road for new services
+- Lead migrations off legacy VMs and make them boring
+- Build self-service tooling so product teams can ship without filing tickets
+- Mentor senior engineers and write the design docs others follow
+
+What we're looking for
+- 7+ years building and operating distributed systems, with Go or Python
+- Deep experience running Kubernetes in production on AWS
+- Infrastructure as code with Terraform
+- A track record of improving developer experience with measurable results
+- Strong written communication and mentoring
+
+Nice to have
+- Experience with GCP
+- Backstage or a similar developer portal
+- Payments or other regulated industries

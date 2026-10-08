@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { MailCheck } from "lucide-react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 
 import { ApiError, api } from "../api/client";
-import type { Me, TokenCheck } from "../api/types";
+import type { Me, TokenCheck, VerificationSent } from "../api/types";
 import { registrationKey, useRegistrationInfo, useSetMe } from "../auth/auth";
 import { PasswordFields } from "../components/PasswordFields";
 import { Alert, Button, Checkbox, FullPageSpinner, TextField } from "../components/ui";
@@ -67,7 +68,7 @@ export function SetupPage() {
           hint={
             <>
               Printed in the server log on first start. Run{" "}
-              <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">docker compose logs app | grep "Setup token"</code>
+              <code className="rounded bg-slate-100 px-1 text-slate-700 dark:bg-slate-800 dark:text-slate-300">docker compose logs app | grep "Setup token"</code>
             </>
           }
         />
@@ -144,7 +145,13 @@ export function LoginPage() {
         <Button type="submit" className="w-full" loading={login.isPending}>
           Sign in
         </Button>
-        <p className="text-center text-xs text-slate-500">Forgot your password? Ask an admin for a reset link.</p>
+        {registration.data?.emailEnabled ? (
+          <p className="text-center text-sm">
+            <Link to="/forgot-password" className="font-medium text-brand-600 hover:underline dark:text-brand-300">Forgot your password?</Link>
+          </p>
+        ) : (
+          <p className="text-center text-xs text-slate-500 dark:text-slate-400">Forgot your password? Ask an admin for a reset link.</p>
+        )}
       </form>
     </AuthLayout>
   );
@@ -167,7 +174,7 @@ export function RegisterPage() {
 
   const register = useMutation({
     mutationFn: () =>
-      api<Me>("POST", "/api/auth/register", {
+      api<Me | VerificationSent>("POST", "/api/auth/register", {
         json: {
           displayName: form.displayName,
           email: invite.data?.email ?? form.email,
@@ -175,13 +182,24 @@ export function RegisterPage() {
           ...(token ? { inviteToken: token } : {}),
         },
       }),
-    onSuccess: (me) => {
-      setMe(me);
+    onSuccess: (result) => {
+      if ("verificationSent" in result) return; // shown below: check your email
+      setMe(result);
       navigate("/", { replace: true });
     },
   });
 
   if (registration.isPending || (token && invite.isPending)) return <FullPageSpinner />;
+  if (register.data && "verificationSent" in register.data) {
+    return (
+      <AuthLayout title="Check your email" footer={<Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-300">Go to sign in</Link>}>
+        <div className="flex gap-3 text-sm text-slate-700 dark:text-slate-300">
+          <MailCheck className="mt-0.5 size-5 shrink-0 text-brand-600 dark:text-brand-300" aria-hidden />
+          <p>We've sent a link to <b>{register.data.email}</b>. Open it to confirm your address, then sign in. It works for 24 hours.</p>
+        </div>
+      </AuthLayout>
+    );
+  }
   const signIn = (
     <Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-300">
       Sign in
@@ -251,7 +269,55 @@ export function RegisterPage() {
   );
 }
 
-// ---- password reset (from an admin-generated link) --------------------------------------------------
+// ---- forgot password (when email is set up) and confirming an address ------------------------------------
+
+export function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
+  const forgot = useMutation({ mutationFn: () => api<void>("POST", "/api/auth/password/forgot", { json: { email } }) });
+  const back = <Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-300">Back to sign in</Link>;
+  if (forgot.isSuccess) {
+    return (
+      <AuthLayout title="Check your email" footer={back}>
+        <Alert tone="success">If {email} has an account, a reset link is on its way. It works for 30 minutes.</Alert>
+      </AuthLayout>
+    );
+  }
+  return (
+    <AuthLayout title="Reset your password" subtitle="We'll email you a link to choose a new one." footer={back}>
+      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); forgot.mutate(); }}>
+        <FormError error={forgot.error} />
+        <TextField label="Email" type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Button type="submit" className="w-full" loading={forgot.isPending}>Send reset link</Button>
+      </form>
+    </AuthLayout>
+  );
+}
+
+export function VerifyEmailPage() {
+  const { token = "" } = useParams();
+  const verify = useMutation({ mutationFn: () => api<void>("POST", "/api/auth/verify-email", { json: { token } }) });
+  const started = useRef(false);
+  useEffect(() => {
+    if (!started.current) {
+      started.current = true; // once, even in development's double effects
+      verify.mutate();
+    }
+  }, [verify]);
+  const signIn = <Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-300">Go to sign in</Link>;
+  if (verify.isSuccess) {
+    return <AuthLayout title="Email confirmed" footer={signIn}><Alert tone="success">Thanks. You can sign in now.</Alert></AuthLayout>;
+  }
+  if (verify.isError) {
+    return (
+      <AuthLayout title="This link doesn't work" footer={signIn}>
+        <Alert tone="warning">{verify.error instanceof ApiError ? verify.error.message : "Something went wrong. Try the link again, or sign in to get a new one."}</Alert>
+      </AuthLayout>
+    );
+  }
+  return <FullPageSpinner />;
+}
+
+// ---- password reset (from an emailed or admin-generated link) -----------------------------------------
 
 export function ResetPasswordPage() {
   const { token = "" } = useParams();
@@ -281,7 +347,7 @@ export function ResetPasswordPage() {
   if (!check.data?.valid) {
     return (
       <AuthLayout title="This reset link doesn't work" footer={signIn}>
-        <Alert tone="warning">Reset links expire after 30 minutes and work once. Ask an admin for a new one.</Alert>
+        <Alert tone="warning">Reset links expire after 30 minutes and work once. Request a new one, or ask an admin.</Alert>
       </AuthLayout>
     );
   }

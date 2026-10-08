@@ -12,7 +12,7 @@ import { AppShell } from "./layouts/AppShell";
 import { AccountPage } from "./pages/AccountPage";
 import { AdminPage } from "./pages/AdminPage";
 import { ApplicationsPage, NewApplicationPage } from "./pages/ApplicationsPages";
-import { LoginPage, RegisterPage, ResetPasswordPage, SetupPage } from "./pages/AuthPages";
+import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage, SetupPage, VerifyEmailPage } from "./pages/AuthPages";
 import { HomePage } from "./pages/HomePage";
 import { MasterDetailPage, MastersPage } from "./pages/MastersPages";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -26,8 +26,12 @@ const queryClient = new QueryClient({
   },
 });
 
-// A 401 anywhere means the session ended (expired, or revoked on another device): show sign-in.
-setUnauthorizedHandler(() => queryClient.setQueryData(meKey, null));
+// A 401 anywhere means the session ended (expired, or revoked on another device): show sign-in. If sign-in is only
+// incomplete (two-step verification became required), reload who's signed in: the app then asks for it.
+setUnauthorizedHandler((reason) => {
+  if (reason === "signed-out") queryClient.setQueryData(meKey, null);
+  else void queryClient.invalidateQueries({ queryKey: meKey });
+});
 
 const router = createBrowserRouter([
   { path: "/setup", element: <SetupPage /> },
@@ -37,9 +41,11 @@ const router = createBrowserRouter([
       { path: "/login", element: <LoginPage /> },
       { path: "/register", element: <RegisterPage /> },
       { path: "/invite/:token", element: <RegisterPage /> },
+      { path: "/forgot-password", element: <ForgotPasswordPage /> },
     ],
   },
   { path: "/reset-password/:token", element: <ResetPasswordPage /> },
+  { path: "/verify-email/:token", element: <VerifyEmailPage /> },
   {
     element: <RequireAuth />,
     children: [

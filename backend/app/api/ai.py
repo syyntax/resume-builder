@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request, Response
+from datetime import timedelta
+
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.llm import LLMError
-from app.api.common import enforce_backoff, verify_password
+from app.api.common import confirm_password, month_range
 from app.auth.audit import audit
 from app.auth.deps import current_user, get_limits, get_settings
 from app.auth.ratelimit import Limits
 from app.auth.sessions import AuthContext
 from app.config import Settings
 from app.db.engine import get_db
-from app.db.models import AiCall
+from app.db.models import AiCall, Application, ImportJob, JobPosting
 from app.db.types import utcnow
 from app.errors import ApiError
 from app.keys import service as keys
@@ -23,6 +25,8 @@ from app.models.api import (
     AiSettingsOut,
     ApiKeyIn,
     ApiKeyStatusOut,
+    ItemUsageOut,
+    MonthUsageOut,
     PasswordConfirmIn,
     SpendOut,
     StageUsageOut,
@@ -35,13 +39,6 @@ from app.services import settings_store
 router = APIRouter(prefix="/api/account", tags=["account-ai"])
 
 
-async def _confirm_password(ctx: AuthContext, password: str, limits: Limits) -> None:
-    enforce_backoff(limits.password_check, ctx.user.id)
-    ok, _ = await verify_password(ctx.user.password_hash, password)
-    if not ok:
-        limits.password_check.failure(ctx.user.id)
-        raise ApiError(400, "Your password is incorrect.", errors=[{"field": "password", "message": "incorrect"}])
-    limits.password_check.reset(ctx.user.id)
 
 
 async def _verify_with_provider(request: Request, api_key: str) -> None:
@@ -76,7 +73,7 @@ async def get_api_key(ctx: AuthContext = Depends(current_user), db: AsyncSession
 async def save_api_key(body: ApiKeyIn, request: Request, ctx: AuthContext = Depends(current_user),
                        db: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings),
                        limits: Limits = Depends(get_limits)) -> ApiKeyStatusOut:
-    await _confirm_password(ctx, body.password, limits)
+    await confirm_password(ctx, body.password, limits)
     key = keys.check_format(body.api_key)
     await _verify_with_provider(request, key)
     replaced = await keys.get_row(db, ctx.user.id) is not None
@@ -113,7 +110,7 @@ async def test_api_key(request: Request, ctx: AuthContext = Depends(current_user
 @router.delete("/api-key", status_code=204)
 async def delete_api_key(body: PasswordConfirmIn, request: Request, ctx: AuthContext = Depends(current_user),
                          db: AsyncSession = Depends(get_db), limits: Limits = Depends(get_limits)) -> Response:
-    await _confirm_password(ctx, body.password, limits)
+    await confirm_password(ctx, body.password, limits)
     row = await keys.get_row(db, ctx.user.id)
     if row is None:
         raise ApiError(404, "You haven't added an API key.")
@@ -159,11 +156,15 @@ async def update_ai_settings(body: AiSettingsIn, request: Request, ctx: AuthCont
 
 @router.get("/usage", response_model=UsageOut)
 async def get_usage(ctx: AuthContext = Depends(current_user), db: AsyncSession = Depends(get_db),
-                    settings: Settings = Depends(get_settings)) -> UsageOut:
+                    settings: Settings = Depends(get_settings),
+                    month: str | None = Query(default=None, pattern=r"^\d{4}-\d{2}$")) -> UsageOut:
+    """Spending against this month's caps, and tokens and cost for a month by stage and by application or
+    import, plus the last 12 months (KEY-5)."""
     def spend(status: usage.CapStatus) -> SpendOut:
         percent = round(100 * status.spent / status.cap, 1) if status.cap else None
         return SpendOut(spent_usd=round(status.spent, 4), cap_usd=status.cap, percent=percent)
 
+    start, end = month_range(month)
     own = await usage.cap_status(db, ctx.user, "own", settings)
     shared = await usage.cap_status(db, ctx.user, "shared", settings)
     show_shared = shared.spent > 0 or await keys.shared_key_enabled(db, settings)
@@ -171,13 +172,44 @@ async def get_usage(ctx: AuthContext = Depends(current_user), db: AsyncSession =
         select(AiCall.stage, func.count(), func.sum(AiCall.input_tokens + AiCall.cache_read_tokens
                                                      + AiCall.cache_write_tokens),
                func.sum(AiCall.output_tokens), func.sum(AiCall.est_cost_usd))
-        .where(AiCall.owner_id == ctx.user.id, AiCall.created_at >= usage.month_start())
+        .where(AiCall.owner_id == ctx.user.id, AiCall.created_at >= start, AiCall.created_at < end)
         .group_by(AiCall.stage).order_by(AiCall.stage)
     )).all()
+    items = (await db.execute(
+        select(AiCall.application_id, AiCall.import_job_id, JobPosting.title, JobPosting.company,
+               ImportJob.source_name, func.count(), func.sum(AiCall.est_cost_usd))
+        .outerjoin(Application, Application.id == AiCall.application_id)
+        .outerjoin(JobPosting, JobPosting.id == Application.job_id)
+        .outerjoin(ImportJob, ImportJob.id == AiCall.import_job_id)
+        .where(AiCall.owner_id == ctx.user.id, AiCall.created_at >= start, AiCall.created_at < end)
+        .group_by(AiCall.application_id, AiCall.import_job_id, JobPosting.title, JobPosting.company,
+                  ImportJob.source_name)
+    )).all()
+    by_item = []
+    for app_id, import_id, title, company, source, calls, cost in items:
+        amount = round(float(cost or 0), 4)
+        if import_id or source:
+            by_item.append(ItemUsageOut(kind="import", id=import_id, label=f"Import: {source}" if source
+                                        else "A deleted import", calls=calls, cost_usd=amount))
+        else:  # an application, or one since deleted (its calls still count toward the month)
+            label = " at ".join(p for p in (title, company) if p) or ("Application" if app_id
+                                                                      else "Deleted applications")
+            by_item.append(ItemUsageOut(kind="application", id=app_id, label=label, calls=calls, cost_usd=amount))
+    by_item.sort(key=lambda i: -i.cost_usd)
+    year_ago = (usage.month_start() - timedelta(days=330)).replace(day=1)
+    history: dict[str, list[float]] = {}
+    for created, cost in (await db.execute(select(AiCall.created_at, AiCall.est_cost_usd).where(
+            AiCall.owner_id == ctx.user.id, AiCall.created_at >= year_ago))).all():
+        bucket = history.setdefault(created.strftime("%Y-%m"), [0, 0.0])
+        bucket[0] += 1
+        bucket[1] += float(cost or 0)
     return UsageOut(
-        month=usage.month_start().strftime("%Y-%m"),
+        month=start.strftime("%Y-%m"),
         own=spend(own),
         shared=spend(shared) if show_shared else None,
         by_stage=[StageUsageOut(stage=s, calls=c, input_tokens=int(i or 0), output_tokens=int(o or 0),
                                 cost_usd=round(float(cost or 0), 4)) for s, c, i, o, cost in rows],
+        by_item=by_item,
+        months=[MonthUsageOut(month=m, calls=int(v[0]), cost_usd=round(v[1], 4))
+                for m, v in sorted(history.items(), reverse=True)],
     )

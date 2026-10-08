@@ -1,0 +1,155 @@
+{
+  "meta": {"schemaVersion": "1.0", "label": "Analytics master"},
+  "basics": {
+    "name": "Marcus Bell",
+    "email": "marcus.bell@example.com",
+    "phone": "(555) 010-0172",
+    "location": {"city": "Chicago", "region": "IL", "countryCode": "US", "remote": false},
+    "profiles": [
+      {"network": "LinkedIn", "username": "marcusbell", "url": "https://linkedin.com/in/marcusbell"},
+      {"network": "GitHub", "username": "mbell-data", "url": "https://github.com/mbell-data"}
+    ]
+  },
+  "headlines": [
+    {"id": "h-analyst", "text": "Senior Data Analyst", "tags": ["analytics"]},
+    {"id": "h-experiments", "text": "Data Analyst, Experimentation and Pricing", "tags": ["experimentation"]}
+  ],
+  "summaries": [
+    {
+      "id": "s-analyst",
+      "tags": ["analytics"],
+      "text": "Data analyst with 8 years of experience in retail and insurance. Designs experiments, builds the SQL and dashboards teams run on, and explains results in plain language to the people who act on them."
+    }
+  ],
+  "work": [
+    {
+      "id": "fieldstone",
+      "company": "Fieldstone Retail",
+      "position": "Senior Data Analyst",
+      "location": "Chicago, IL",
+      "startDate": "2020-02",
+      "endDate": null,
+      "employmentType": "full-time",
+      "summary": "Regional grocery and home goods chain, 210 stores.",
+      "tags": ["retail", "pricing", "experimentation"],
+      "skills": ["sql", "python", "bigquery", "tableau", "ab-testing"],
+      "highlights": [
+        {
+          "id": "fieldstone-b1",
+          "text": "Built the company's pricing experiment framework in Python and BigQuery; ran 40 store-level A/B tests a year that added 3.2% to gross margin in tested categories.",
+          "tags": ["experimentation", "pricing"],
+          "skills": ["python", "bigquery", "ab-testing", "statistics"],
+          "priority": 5,
+          "pin": true
+        },
+        {
+          "id": "fieldstone-b2",
+          "text": "Automated weekly KPI reporting with scheduled SQL and Tableau dashboards, saving analysts 15 hours a week and giving 210 store managers same-day numbers.",
+          "tags": ["reporting", "automation"],
+          "skills": ["sql", "tableau"],
+          "priority": 5
+        },
+        {
+          "id": "fieldstone-b3",
+          "text": "Modeled promotion cannibalization across 12,000 products, which led merchandising to drop 3 recurring promotions that were losing money.",
+          "tags": ["pricing", "modeling"],
+          "skills": ["sql", "python", "statistics"],
+          "priority": 4
+        },
+        {
+          "id": "fieldstone-b4",
+          "text": "Trained 25 merchandisers to answer their own questions in Tableau, cutting ad hoc data requests by 40%.",
+          "tags": ["enablement", "communication"],
+          "skills": ["tableau"],
+          "priority": 3
+        }
+      ]
+    },
+    {
+      "id": "harbor",
+      "company": "Harbor Insurance",
+      "position": "Data Analyst",
+      "location": "Chicago, IL",
+      "startDate": "2017-08",
+      "endDate": "2020-01",
+      "employmentType": "full-time",
+      "tags": ["insurance", "retention"],
+      "skills": ["python", "sql", "power-bi"],
+      "highlights": [
+        {
+          "id": "harbor-b1",
+          "text": "Built a churn model in Python (scikit-learn) that flagged at-risk policies for agents, improving 12-month retention by 4 points.",
+          "tags": ["modeling", "retention"],
+          "skills": ["python", "statistics"],
+          "priority": 5
+        },
+        {
+          "id": "harbor-b2",
+          "text": "Created Power BI dashboards used by 200 agents to track renewals and follow-ups.",
+          "tags": ["reporting"],
+          "skills": ["power-bi"],
+          "priority": 4
+        },
+        {
+          "id": "harbor-b3",
+          "text": "Wrote data quality checks for the policy warehouse that caught a billing feed error affecting 8,000 records before month-end close.",
+          "tags": ["data-quality"],
+          "skills": ["sql"],
+          "priority": 3
+        }
+      ]
+    },
+    {
+      "id": "chicago-budget",
+      "company": "City of Chicago, Office of Budget and Management",
+      "position": "Budget Analyst",
+      "location": "Chicago, IL",
+      "startDate": "2015-06",
+      "endDate": "2017-07",
+      "employmentType": "full-time",
+      "tags": ["public-sector"],
+      "skills": ["excel"],
+      "highlights": [
+        {
+          "id": "chicago-b1",
+          "text": "Analyzed department spending across a $1.2 billion budget and prepared variance reports for the budget director.",
+          "tags": ["finance"],
+          "skills": ["excel"],
+          "priority": 3
+        }
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "uic",
+      "institution": "University of Illinois Chicago",
+      "studyType": "M.S.",
+      "area": "Statistics",
+      "startDate": "2016-08",
+      "endDate": "2018-05"
+    },
+    {
+      "id": "depaul",
+      "institution": "DePaul University",
+      "studyType": "B.S.",
+      "area": "Economics",
+      "startDate": "2011-09",
+      "endDate": "2015-06"
+    }
+  ],
+  "certifications": [
+    {"id": "tableau-cert", "name": "Tableau Certified Data Analyst", "issuer": "Tableau", "date": "2021-11"}
+  ],
+  "skills": [
+    {"id": "sql", "name": "SQL", "category": "Languages", "level": "expert", "years": 8},
+    {"id": "python", "name": "Python", "category": "Languages", "level": "advanced", "years": 6, "aliases": ["pandas"]},
+    {"id": "bigquery", "name": "BigQuery", "category": "Data platforms", "level": "advanced", "years": 4},
+    {"id": "tableau", "name": "Tableau", "category": "BI tools", "level": "expert", "years": 5},
+    {"id": "power-bi", "name": "Power BI", "category": "BI tools", "level": "advanced", "years": 3},
+    {"id": "excel", "name": "Excel", "category": "BI tools", "level": "expert", "years": 10},
+    {"id": "ab-testing", "name": "A/B testing", "category": "Methods", "level": "advanced", "years": 5, "aliases": ["experimentation"]},
+    {"id": "statistics", "name": "Statistics", "category": "Methods", "level": "advanced", "years": 8, "aliases": ["statistical modeling"]}
+  ],
+  "preferences": {"pageLimit": 1, "recentYears": 12, "tone": "neutral", "spelling": "en-US"}
+}

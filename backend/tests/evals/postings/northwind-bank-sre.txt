@@ -1,0 +1,22 @@
+Senior Site Reliability Engineer
+Northwind Bank — Denver, CO (hybrid)
+
+Our SRE team keeps online and mobile banking available for 3 million customers. We're looking for a senior SRE who treats reliability as a product.
+
+Responsibilities
+- Define and track SLOs with service teams, and make error budgets drive decisions
+- Lead incident response and run blameless postmortems
+- Improve our observability stack (Prometheus, Grafana, OpenTelemetry)
+- Automate toil and make releases safer with progressive delivery
+- Take part in a shared on-call rotation
+
+Requirements
+- 5+ years in SRE, platform, or infrastructure roles
+- Kubernetes and a major cloud provider (we run on AWS)
+- Proficiency in Go or Python
+- Experience with canary releases or other progressive delivery techniques
+- Calm under pressure and clear in writing
+
+Bonus
+- Financial services experience
+- Chaos engineering

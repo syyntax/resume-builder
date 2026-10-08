@@ -40,15 +40,15 @@ function Progress({ status, letter }: { status: ApplicationStatus; letter: boole
             return (
               <li key={step.status} className="flex items-center gap-2 text-sm">
                 <span className={cn("grid size-6 place-items-center rounded-full text-xs font-semibold",
-                  state === "done" ? "bg-emerald-600 text-white" : state === "active" ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-800")}>
+                  state === "done" ? "bg-emerald-600 text-white" : state === "active" ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-500 dark:text-slate-400 dark:bg-slate-800")}>
                   {state === "active" ? <Spinner className="size-3.5 text-white" /> : state === "done" ? <Check className="size-3.5" aria-label="Done" /> : i + 1}
                 </span>
-                <span className={state === "todo" ? "text-slate-500" : "font-medium text-slate-900 dark:text-slate-100"}>{step.label}</span>
+                <span className={state === "todo" ? "text-slate-500 dark:text-slate-400" : "font-medium text-slate-900 dark:text-slate-100"}>{step.label}</span>
               </li>
             );
           })}
         </ol>
-        <p className="mt-3 text-sm text-slate-500">{status === "queued" ? "Waiting to start…" : "This usually takes about a minute. You can leave this page."}</p>
+        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{status === "queued" ? "Waiting to start…" : "This usually takes about a minute. You can leave this page."}</p>
       </CardBody>
     </Card>
   );
@@ -106,12 +106,12 @@ function ExportMenu({ id, hasLetter }: { id: string; hasLetter: boolean }) {
       {() => (
         <div className="grid grid-cols-2 gap-x-4 text-sm">
           <div>
-            <p className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Résumé</p>
+            <p className="px-2 pb-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Résumé</p>
             {link("resume", "pdf", "PDF")}{link("resume", "docx", "Word")}{link("resume", "txt", "Plain text")}
             {link("resume", "md", "Markdown")}{link("resume", "json", "JSON")}
           </div>
           <div>
-            <p className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Cover letter</p>
+            <p className="px-2 pb-1 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Cover letter</p>
             {link("cover-letter", "pdf", "PDF", hasLetter)}{link("cover-letter", "docx", "Word", hasLetter)}
             {link("cover-letter", "txt", "Plain text", hasLetter)}{link("cover-letter", "md", "Markdown", hasLetter)}
             {link("cover-letter", "json", "JSON", hasLetter)}
@@ -165,7 +165,7 @@ export function ApplicationDetailPage() {
 
   return (
     <>
-      <Link to="/applications" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+      <Link to="/applications" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200">
         <ArrowLeft className="size-4" aria-hidden /> Applications
       </Link>
       <PageHeader

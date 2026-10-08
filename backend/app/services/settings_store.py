@@ -16,6 +16,11 @@ REGISTRATION_DOMAINS = "registration_email_domains"
 ALLOW_SHARED_KEY = "allow_shared_key"
 DEFAULT_MODEL = "default_model"
 ALLOWED_MODELS = "allowed_models"
+REQUIRE_MFA = "require_mfa"
+AI_EFFORT = "ai_effort"  # {stage: effort}
+CLAIM_AUDIT = "claim_audit"
+DEFAULT_DESIGN = "default_design"  # {template, theme} for new applications
+EFFORT_STAGES = ("analyze", "tailor", "letter", "import", "refine", "audit", "condense")
 
 
 @dataclass
@@ -36,11 +41,25 @@ async def init_defaults(db: AsyncSession, settings: Settings) -> None:
         ALLOW_SHARED_KEY: settings.allow_shared_key,
         DEFAULT_MODEL: settings.anthropic_model,
         ALLOWED_MODELS: sorted({*settings.allowed_model_list, settings.anthropic_model}),
+        REQUIRE_MFA: settings.require_mfa,
+        AI_EFFORT: {stage: getattr(settings, f"ai_effort_{stage}") for stage in EFFORT_STAGES},
+        CLAIM_AUDIT: settings.ai_claim_audit,
+        DEFAULT_DESIGN: {"template": "meridian", "theme": {}},
     }
     for key, value in defaults.items():
         if await db.get(SystemSetting, key) is None:
             db.add(SystemSetting(key=key, value=value, updated_at=utcnow()))
     await db.commit()
+
+
+async def apply_runtime(db: AsyncSession, settings: Settings) -> str:
+    """Put the admin-editable AI settings into the running settings (the environment only seeds them), and
+    return the MFA policy. Run at startup and after an admin changes them."""
+    for stage, effort in (await get_value(db, AI_EFFORT, {}) or {}).items():
+        if stage in EFFORT_STAGES:
+            setattr(settings, f"ai_effort_{stage}", effort)
+    settings.ai_claim_audit = bool(await get_value(db, CLAIM_AUDIT, settings.ai_claim_audit))
+    return str(await get_value(db, REQUIRE_MFA, settings.require_mfa))
 
 
 async def get_value(db: AsyncSession, key: str, default: Any = None) -> Any:
@@ -61,6 +80,11 @@ async def registration_policy(db: AsyncSession) -> RegistrationPolicy:
         mode=str(await get_value(db, REGISTRATION_MODE, "open")),
         domains=list(await get_value(db, REGISTRATION_DOMAINS, [])),
     )
+
+
+def mfa_required(role: str, policy: str) -> bool:
+    """Whether the MFA policy ("none", "admins", "all") requires MFA for someone with this role."""
+    return policy == "all" or (policy == "admins" and role == "admin")
 
 
 @dataclass
