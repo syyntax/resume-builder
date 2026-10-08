@@ -1,27 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Briefcase, Check, Download, FileJson, Lightbulb, Plus, RotateCcw, Sparkles, Trash2 } from "lucide-react";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { ArrowLeft, Briefcase, Plus, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router";
 
 import { ApiError, api, errorMessage } from "../api/client";
-import type { AiSettings, Application, ApplicationDetail, ApplicationStatus, JobAnalysis, TailoredResume, Theme } from "../api/types";
+import type { AiSettings, Application, ApplicationStatus } from "../api/types";
 import { aiSettingsKey, useApiKeyStatus } from "../components/AiSettingsCard";
-import { Dialog } from "../components/Dialog";
-import { DesignPanel } from "../components/design";
-import { AnalysisPanel, ResumePreview } from "../components/resume";
 import {
-  Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader, Spinner, TextArea, TextField, cn, linkButtonClass,
+  Alert, Badge, Button, Card, CardBody, CardHeader, EmptyState, PageHeader, Spinner, TextArea, TextField, linkButtonClass,
 } from "../components/ui";
-import { formatDateTime, formatUsd, modelLabel, timeAgo } from "../lib/format";
+import { modelLabel, timeAgo } from "../lib/format";
 import { useMasters } from "./MastersPages";
-import { NotFoundPage } from "./NotFoundPage";
-
-const PdfViewer = lazy(() => import("../preview/PdfViewer"));
 
 export const applicationsKey = ["applications"] as const;
-const ACTIVE: ApplicationStatus[] = ["queued", "analyzing", "tailoring", "validating"];
+export const ACTIVE: ApplicationStatus[] = ["queued", "analyzing", "tailoring", "validating", "writing", "auditing"];
 
-function roleName(a: Application): string {
+export function roleName(a: Application): string {
   if (a.job.title && a.job.company) return `${a.job.title} at ${a.job.company}`;
   return a.job.title ?? a.job.company ?? "Untitled application";
 }
@@ -29,6 +23,7 @@ function roleName(a: Application): string {
 export function StatusBadge({ status }: { status: ApplicationStatus }) {
   if (status === "done") return <Badge tone="green">Ready</Badge>;
   if (status === "failed") return <Badge tone="red">Failed</Badge>;
+  if (status === "review") return <Badge tone="amber">Review the analysis</Badge>;
   return <Badge tone="brand">{status === "queued" ? "Queued" : "Generating…"}</Badge>;
 }
 
@@ -176,287 +171,6 @@ export function ApplicationsPage() {
           </ul>
         </Card>
       )}
-    </>
-  );
-}
-
-// ---- detail ---------------------------------------------------------------------------------------------
-
-const steps: { status: ApplicationStatus; label: string }[] = [
-  { status: "analyzing", label: "Analyzing the posting" },
-  { status: "tailoring", label: "Tailoring your résumé" },
-  { status: "validating", label: "Checking every claim" },
-];
-
-function Progress({ status }: { status: ApplicationStatus }) {
-  const current = steps.findIndex((s) => s.status === status);
-  return (
-    <Card className="mb-6">
-      <CardBody>
-        <ol className="flex flex-col gap-3 sm:flex-row sm:gap-6" aria-label="Progress">
-          {steps.map((step, i) => {
-            const state = status === "queued" ? "todo" : i < current ? "done" : i === current ? "active" : "todo";
-            return (
-              <li key={step.status} className="flex items-center gap-2 text-sm">
-                <span className={cn("grid size-6 place-items-center rounded-full text-xs font-semibold",
-                  state === "done" ? "bg-emerald-600 text-white" : state === "active" ? "bg-brand-600 text-white" : "bg-slate-200 text-slate-500 dark:bg-slate-800")}>
-                  {state === "active" ? <Spinner className="size-3.5 text-white" /> : state === "done" ? <Check className="size-3.5" aria-label="Done" /> : i + 1}
-                </span>
-                <span className={state === "todo" ? "text-slate-500" : "font-medium text-slate-900 dark:text-slate-100"}>{step.label}</span>
-              </li>
-            );
-          })}
-        </ol>
-        <p className="mt-3 text-sm text-slate-500">{status === "queued" ? "Waiting to start…" : "This usually takes about a minute. You can leave this page."}</p>
-      </CardBody>
-    </Card>
-  );
-}
-
-/** Live progress over SSE, with polling as a fallback. */
-function useApplication(id: string) {
-  const queryClient = useQueryClient();
-  const key = ["application", id];
-  const query = useQuery({
-    queryKey: key,
-    queryFn: () => api<ApplicationDetail>("GET", `/api/applications/${id}`),
-    retry: false,
-    refetchInterval: (q) => (q.state.data && ACTIVE.includes(q.state.data.status) ? 5000 : false),
-  });
-  const active = query.data ? ACTIVE.includes(query.data.status) : false;
-  useEffect(() => {
-    if (!active) return;
-    const source = new EventSource(`/api/applications/${id}/events`);
-    const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
-    const onStatus = (e: MessageEvent<string>) => {
-      const data = JSON.parse(e.data) as { status: ApplicationStatus };
-      queryClient.setQueryData<ApplicationDetail>(key, (old) => (old ? { ...old, status: data.status } : old));
-    };
-    source.addEventListener("status", onStatus);
-    source.addEventListener("analysis", refresh);
-    source.addEventListener("done", () => { refresh(); source.close(); void queryClient.invalidateQueries({ queryKey: applicationsKey }); });
-    source.addEventListener("error", () => { refresh(); source.close(); });
-    return () => source.close();
-  }, [id, active, queryClient]); // key is derived from id
-  return query;
-}
-
-function errorHelp(code: string | undefined) {
-  if (code === "no_api_key" || code === "key_rejected" || code === "key_unreadable" || code === "out_of_credit" || code === "model_unavailable") {
-    return <Link to="/account#ai" className="font-medium underline underline-offset-2">Open Account → AI</Link>;
-  }
-  if (code === "cap_reached") return <Link to="/account#ai" className="font-medium underline underline-offset-2">Review your spending cap</Link>;
-  return null;
-}
-
-// ---- résumé preview and design -----------------------------------------------------------------------
-
-/** The design (template and theme) is saved a moment after the last change. Saving updates the cached
- * application, whose template and theme are part of the preview URL, so the preview re-renders. */
-function useDesign(application: ApplicationDetail) {
-  const queryClient = useQueryClient();
-  const [design, setDesign] = useState({ template: application.template, theme: application.theme });
-  const [error, setError] = useState<string | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(timer.current), []);
-  const change = (template: string, theme: Theme) => {
-    setDesign({ template, theme });
-    setError(null);
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      api("PUT", `/api/applications/${application.id}/design`, { json: { template, theme } })
-        .then(() => {
-          queryClient.setQueryData<ApplicationDetail>(["application", application.id], (old) => (old ? { ...old, template, theme } : old));
-        })
-        .catch((e: unknown) => {
-          const detail = e instanceof ApiError ? e.errors[0]?.message ?? e.message : errorMessage(e);
-          setError(detail.replace(/^Value error, /, ""));
-        });
-    }, 400);
-  };
-  return { design, change, error };
-}
-
-function DesignCard({ application }: { application: ApplicationDetail }) {
-  const { design, change, error } = useDesign(application);
-  return (
-    <Card>
-      <CardHeader title="Design" description="Changes update the preview and the PDF." />
-      <CardBody>
-        <DesignPanel template={design.template} theme={design.theme} error={error} onChange={change} />
-      </CardBody>
-    </Card>
-  );
-}
-
-export function pageNote(pages: number, limit: unknown, theme: Theme): { ok: boolean; text: string } {
-  const label = `${pages} ${pages === 1 ? "page" : "pages"}`;
-  if (typeof limit !== "number") return { ok: true, text: label };
-  if (pages <= limit) return { ok: true, text: `${label} · fits the ${limit}-page target` };
-  const tries = [theme.density !== "compact" && "Compact density", theme.margins !== "narrow" && "Narrow margins"].filter(Boolean);
-  const hint = tries.length ? `Try ${tries.join(" or ")}.` : "Hide less relevant bullets in your master résumé, or allow a longer résumé.";
-  return { ok: false, text: `${label} · over the ${limit}-page target. ${hint}` };
-}
-
-function ResumeTabs({ application, resume, flagged }: { application: ApplicationDetail; resume: TailoredResume; flagged: number }) {
-  const [tab, setTab] = useState<"pdf" | "content">("pdf");
-  const [pages, setPages] = useState<number | null>(null);
-  // The saved design is part of the URL, so a design change (or a newer résumé) fetches a fresh render.
-  const savedDesign = `${application.template}:${JSON.stringify(application.theme)}`;
-  const url = `/api/applications/${application.id}/preview.pdf?d=${encodeURIComponent(savedDesign)}&u=${encodeURIComponent(application.updatedAt)}`;
-  const note = pages !== null ? pageNote(pages, application.options.pageLimit, application.theme) : null;
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Résumé view" className="inline-flex rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
-          {([["pdf", "Preview"], ["content", flagged ? `Check content (${flagged})` : "Check content"]] as const).map(([key, label]) => (
-            <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-              className={cn("rounded-md px-3 py-1.5 text-sm font-medium", tab === key ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white" : "text-slate-600 dark:text-slate-400")}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {tab === "pdf" && note && (
-          <span className={cn("text-sm", note.ok ? "text-slate-500" : "text-amber-700 dark:text-amber-400")} aria-live="polite">{note.text}</span>
-        )}
-      </div>
-      {tab === "pdf" ? (
-        <div className="rounded-xl bg-slate-200/60 p-4 dark:bg-slate-800/60">
-          <Suspense fallback={<Spinner />}>
-            <PdfViewer url={url} onLoad={setPages} />
-          </Suspense>
-          <p className="mt-3 text-xs text-slate-500">This is the PDF exactly as it downloads.</p>
-        </div>
-      ) : (
-        <>
-          {flagged > 0 && (
-            <Alert tone="warning" title={`${flagged} ${flagged === 1 ? "line needs" : "lines need"} a check`}>
-              Highlighted lines mention a number or term that their source in your master résumé doesn't. Hover the warning icon for details.
-            </Alert>
-          )}
-          <ResumePreview resume={resume} />
-        </>
-      )}
-    </div>
-  );
-}
-
-export function ApplicationDetailPage() {
-  const { id = "" } = useParams();
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const detail = useApplication(id);
-  const [deleting, setDeleting] = useState(false);
-  const retry = useMutation({
-    mutationFn: () => api<Application>("POST", `/api/applications/${id}/retry`),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["application", id] }),
-  });
-  const remove = useMutation({
-    mutationFn: () => api<void>("DELETE", `/api/applications/${id}`),
-    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: applicationsKey }); navigate("/applications", { replace: true }); },
-  });
-
-  if (detail.isPending) return <Spinner />;
-  if (detail.error instanceof ApiError && detail.error.status === 404) return <NotFoundPage />;
-  if (detail.isError) return <Alert tone="error">{errorMessage(detail.error)}</Alert>;
-  const a = detail.data;
-  const analysis = a.analysis as JobAnalysis | null;
-  const resume = a.resume as TailoredResume | null;
-  const running = ACTIVE.includes(a.status);
-  const report = resume?.analysis;
-  const flagged = report ? report.warnings.length : 0;
-
-  return (
-    <>
-      <Link to="/applications" className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
-        <ArrowLeft className="size-4" aria-hidden /> Applications
-      </Link>
-      <PageHeader
-        title={<span className="flex flex-wrap items-center gap-3">{roleName(a)} <StatusBadge status={a.status} /></span>}
-        description={`From ${a.master.label ?? "a deleted master"} (v${a.master.versionNumber}) · ${modelLabel(a.model)} · created ${formatDateTime(a.createdAt)}`}
-        actions={
-          <>
-            {resume && (
-              <>
-                <a href={`/api/applications/${id}/export?format=pdf`} className={linkButtonClass("primary", "sm")}><Download className="size-4" aria-hidden /> PDF</a>
-                <a href={`/api/applications/${id}/export?format=md`} className={linkButtonClass("secondary", "sm")}><Download className="size-4" aria-hidden /> Markdown</a>
-                <a href={`/api/applications/${id}/export?format=json`} className={linkButtonClass("ghost", "sm")}><FileJson className="size-4" aria-hidden /> JSON</a>
-              </>
-            )}
-            {!running && <Button variant="ghost" size="sm" icon={<Trash2 className="size-4" aria-hidden />} onClick={() => setDeleting(true)}><span className="sr-only">Delete application</span></Button>}
-          </>
-        }
-      />
-
-      {running && <Progress status={a.status} />}
-      {a.status === "failed" && (
-        <Alert tone="error" title="Generation failed" className="mb-6">
-          <p>{String(a.error?.message ?? "Something went wrong.")} {errorHelp(a.error?.code as string | undefined)}</p>
-          <Button className="mt-3" size="sm" variant="secondary" icon={<RotateCcw className="size-4" aria-hidden />} loading={retry.isPending} onClick={() => retry.mutate()}>Retry</Button>
-          {retry.isError && <p className="mt-2">{errorMessage(retry.error)}</p>}
-        </Alert>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0 space-y-6">
-          {resume ? (
-            <>
-              <ResumeTabs application={a} resume={resume} flagged={flagged} />
-            </>
-          ) : running ? (
-            <Card><CardBody className="py-16 text-center text-sm text-slate-500">Your tailored résumé will appear here.</CardBody></Card>
-          ) : null}
-        </div>
-
-        <aside className="space-y-6">
-          {resume && <DesignCard application={a} />}
-          {report?.coverage.score !== undefined && report.coverage.score !== null && (
-            <Card>
-              <CardHeader title="Keyword coverage" />
-              <CardBody className="space-y-3">
-                <p className="text-3xl font-semibold tabular-nums text-slate-900 dark:text-white">{Math.round(report.coverage.score * 100)}%</p>
-                <p className="text-sm text-slate-500">of the posting's weighted keywords appear on the résumé.</p>
-                {report.coverage.available.length > 0 && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    In your master but not used: {report.coverage.available.map((x) => x.term).join(", ")}.
-                  </p>
-                )}
-                {report.coverage.gaps.length > 0 && (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Gaps (not claimed): {report.coverage.gaps.join(", ")}.</p>
-                )}
-              </CardBody>
-            </Card>
-          )}
-          {report && report.notes.length > 0 && (
-            <Card>
-              <CardHeader title="Notes for you" />
-              <CardBody>
-                <ul className="space-y-2 text-sm">
-                  {report.notes.map((n, i) => (
-                    <li key={i} className="flex gap-2">
-                      <Lightbulb className={cn("mt-0.5 size-4 shrink-0", n.type === "gap" ? "text-red-500" : "text-amber-500")} aria-hidden />
-                      <span className="text-slate-700 dark:text-slate-300">{n.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardBody>
-            </Card>
-          )}
-          {analysis && (
-            <Card>
-              <CardHeader title="Job analysis" />
-              <CardBody><AnalysisPanel analysis={analysis} coverage={report?.coverage} /></CardBody>
-            </Card>
-          )}
-          <p className="text-xs text-slate-500">Estimated cost: {formatUsd(a.costUsd)}</p>
-        </aside>
-      </div>
-
-      <Dialog open={deleting} tone="danger" title="Delete this application?" confirmLabel="Delete" busy={remove.isPending}
-        description="The posting, analysis and tailored résumé are deleted. Its usage still counts toward this month's cap."
-        onClose={() => setDeleting(false)} onConfirm={() => remove.mutate()}>
-        {remove.isError && <Alert tone="error">{errorMessage(remove.error)}</Alert>}
-      </Dialog>
     </>
   );
 }

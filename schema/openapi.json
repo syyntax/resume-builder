@@ -2499,7 +2499,7 @@
           "applications"
         ],
         "summary": "Preview Pdf",
-        "description": "The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.",
+        "description": "A document exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.",
         "operationId": "preview_pdf_api_applications__application_id__preview_pdf_get",
         "parameters": [
           {
@@ -2509,6 +2509,21 @@
             "schema": {
               "type": "string",
               "title": "Application Id"
+            }
+          },
+          {
+            "name": "doc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "resume",
+                "cover-letter",
+                "packet"
+              ],
+              "type": "string",
+              "default": "resume",
+              "title": "Doc"
             }
           }
         ],
@@ -2593,6 +2608,7 @@
           "applications"
         ],
         "summary": "Export Application",
+        "description": "Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only).",
         "operationId": "export_application_api_applications__application_id__export_get",
         "parameters": [
           {
@@ -2602,6 +2618,21 @@
             "schema": {
               "type": "string",
               "title": "Application Id"
+            }
+          },
+          {
+            "name": "doc",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "resume",
+                "cover-letter",
+                "packet"
+              ],
+              "type": "string",
+              "default": "resume",
+              "title": "Doc"
             }
           },
           {
@@ -2622,6 +2653,506 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/resume": {
+      "put": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Save Resume",
+        "description": "Autosave the edited résumé. Facts and sources are enforced, and warnings and coverage recomputed.",
+        "operationId": "save_resume_api_applications__application_id__resume_put",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIn"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/resume/refine": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Refine Resume",
+        "description": "AI refine (EDT-4): suggestions only. Nothing changes until the editor applies them.",
+        "operationId": "refine_resume_api_applications__application_id__resume_refine_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefineIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RefineOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/cover-letter": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Generate Letter",
+        "description": "Write (or rewrite) the cover letter with these options (CVL-1, CVL-2).",
+        "operationId": "generate_letter_api_applications__application_id__cover_letter_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverLetterOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Save Letter",
+        "description": "Autosave the edited cover letter (CVL-5).",
+        "operationId": "save_letter_api_applications__application_id__cover_letter_put",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentIn"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/cover-letter/refine": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Refine Letter",
+        "description": "Rewrite one paragraph, or the whole letter, from an instruction. A suggestion only.",
+        "operationId": "refine_letter_api_applications__application_id__cover_letter_refine_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LetterRefineIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LetterRefineOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/audit": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Rerun Audit",
+        "description": "Check the current wording again (TLR-8), for example after edits.",
+        "operationId": "rerun_audit_api_applications__application_id__audit_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/analysis": {
+      "put": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Edit Analysis",
+        "description": "Promote, demote or add keywords, mark must-includes, and set the themes to emphasize (JOB-4).\nRegenerating then uses the edited analysis.",
+        "operationId": "edit_analysis_api_applications__application_id__analysis_put",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisEditIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Edit Analysis Api Applications  Application Id  Analysis Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/continue": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Continue After Review",
+        "description": "After reviewing (and maybe editing) the analysis, write the résumé (JOB-5).",
+        "operationId": "continue_after_review_api_applications__application_id__continue_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/regenerate": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Regenerate",
+        "description": "Write the résumé again from the current analysis. This replaces the edited résumé.",
+        "operationId": "regenerate_api_applications__application_id__regenerate_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegenerateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/duplicate": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Duplicate",
+        "description": "A copy to try a different version against (EDT-7): same posting, analysis and documents.",
+        "operationId": "duplicate_api_applications__application_id__duplicate_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationOut"
+                }
               }
             }
           },
@@ -2967,6 +3498,34 @@
         ],
         "title": "AiSettingsOut"
       },
+      "AnalysisEditIn": {
+        "properties": {
+          "keywords": {
+            "items": {
+              "$ref": "#/components/schemas/KeywordEdit"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "title": "Keywords"
+          },
+          "suggestedEmphasis": {
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Suggestedemphasis",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "keywords"
+        ],
+        "title": "AnalysisEditIn"
+      },
       "ApiKeyIn": {
         "properties": {
           "apiKey": {
@@ -3086,7 +3645,26 @@
           },
           "options": {
             "$ref": "#/components/schemas/GenerationOptions",
-            "default": {}
+            "default": {
+              "reviewAnalysis": false
+            }
+          },
+          "coverLetter": {
+            "$ref": "#/components/schemas/CoverLetterOptions",
+            "default": {
+              "generate": true,
+              "recipient": {
+                "address": [],
+                "company": "",
+                "name": "",
+                "title": ""
+              },
+              "tone": "confident",
+              "length": "standard",
+              "notes": "",
+              "highlights": "",
+              "referral": ""
+            }
           }
         },
         "additionalProperties": false,
@@ -3108,8 +3686,11 @@
             "enum": [
               "queued",
               "analyzing",
+              "review",
               "tailoring",
               "validating",
+              "writing",
+              "auditing",
               "done",
               "failed"
             ],
@@ -3186,6 +3767,10 @@
             ],
             "title": "Analysis"
           },
+          "analysisEdited": {
+            "type": "boolean",
+            "title": "Analysisedited"
+          },
           "resume": {
             "anyOf": [
               {
@@ -3197,6 +3782,40 @@
               }
             ],
             "title": "Resume"
+          },
+          "coverLetter": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverletter"
+          },
+          "coverLetterStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "generating",
+              "ready",
+              "failed"
+            ],
+            "title": "Coverletterstatus"
+          },
+          "coverLetterError": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverlettererror"
           },
           "costUsd": {
             "type": "number",
@@ -3220,7 +3839,11 @@
           "theme",
           "posting",
           "analysis",
+          "analysisEdited",
           "resume",
+          "coverLetter",
+          "coverLetterStatus",
+          "coverLetterError",
           "costUsd"
         ],
         "title": "ApplicationDetailOut"
@@ -3236,8 +3859,11 @@
             "enum": [
               "queued",
               "analyzing",
+              "review",
               "tailoring",
               "validating",
+              "writing",
+              "auditing",
               "done",
               "failed"
             ],
@@ -3396,6 +4022,68 @@
         ],
         "title": "AuditEntryOut"
       },
+      "CoverLetterOptions": {
+        "properties": {
+          "generate": {
+            "type": "boolean",
+            "title": "Generate",
+            "description": "Write the letter along with the résumé.",
+            "default": true
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/RecipientIn",
+            "default": {
+              "name": "",
+              "title": "",
+              "company": "",
+              "address": []
+            }
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "neutral",
+              "confident",
+              "warm",
+              "formal"
+            ],
+            "title": "Tone",
+            "default": "confident"
+          },
+          "length": {
+            "type": "string",
+            "enum": [
+              "short",
+              "standard",
+              "detailed"
+            ],
+            "title": "Length",
+            "default": "standard"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 3000,
+            "title": "Notes",
+            "description": "\"Why this company?\" notes: the only source for statements about the company.",
+            "default": ""
+          },
+          "highlights": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Highlights",
+            "default": ""
+          },
+          "referral": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Referral",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CoverLetterOptions"
+      },
       "DeleteAccountIn": {
         "properties": {
           "password": {
@@ -3448,6 +4136,21 @@
           "theme"
         ],
         "title": "DesignOut"
+      },
+      "DocumentIn": {
+        "properties": {
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "document"
+        ],
+        "title": "DocumentIn"
       },
       "FidelityOut": {
         "properties": {
@@ -3534,6 +4237,12 @@
               }
             ],
             "title": "Instructions"
+          },
+          "reviewAnalysis": {
+            "type": "boolean",
+            "title": "Reviewanalysis",
+            "description": "Pause after the job analysis so it can be edited.",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -4255,6 +4964,110 @@
         ],
         "title": "JobRef"
       },
+      "KeywordEdit": {
+        "properties": {
+          "term": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Term"
+          },
+          "importance": {
+            "type": "integer",
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Importance"
+          },
+          "mustInclude": {
+            "type": "boolean",
+            "title": "Mustinclude",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "term",
+          "importance"
+        ],
+        "title": "KeywordEdit"
+      },
+      "LetterRefineIn": {
+        "properties": {
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid",
+            "description": "A paragraph id, or empty for the whole letter."
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Instruction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "instruction"
+        ],
+        "title": "LetterRefineIn"
+      },
+      "LetterRefineOut": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "paragraph",
+              "letter"
+            ],
+            "title": "Scope"
+          },
+          "paragraphs": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Paragraphs",
+            "description": "Replacement paragraphs, ready to use."
+          },
+          "notes": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "paragraphs",
+          "notes",
+          "costUsd"
+        ],
+        "title": "LetterRefineOut"
+      },
       "LinkOut": {
         "properties": {
           "url": {
@@ -4698,6 +5511,136 @@
         "type": "object",
         "title": "ProfileIn"
       },
+      "RecipientIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name",
+            "default": ""
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Title",
+            "default": ""
+          },
+          "company": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Company",
+            "default": ""
+          },
+          "address": {
+            "items": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Address",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RecipientIn"
+      },
+      "RefineIn": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "item",
+              "headline",
+              "summary",
+              "document"
+            ],
+            "title": "Scope"
+          },
+          "targetId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetid",
+            "description": "A bullet id (bullet scope) or a role or project's sourceId (item scope)."
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Instruction"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope",
+          "instruction"
+        ],
+        "title": "RefineIn"
+      },
+      "RefineOut": {
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestedChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestedItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "notes": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "changes",
+          "items",
+          "notes",
+          "costUsd"
+        ],
+        "title": "RefineOut"
+      },
+      "RegenerateIn": {
+        "properties": {
+          "letter": {
+            "type": "boolean",
+            "title": "Letter",
+            "description": "Write the cover letter again too.",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RegenerateIn"
+      },
       "RegisterIn": {
         "properties": {
           "email": {
@@ -4986,6 +5929,83 @@
           "costUsd"
         ],
         "title": "StageUsageOut"
+      },
+      "SuggestedChange": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bullet",
+              "headline",
+              "summary"
+            ],
+            "title": "Kind"
+          },
+          "targetId": {
+            "type": "string",
+            "title": "Targetid"
+          },
+          "before": {
+            "type": "string",
+            "title": "Before"
+          },
+          "after": {
+            "type": "string",
+            "title": "After"
+          },
+          "sourceIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sourceids"
+          },
+          "warnings": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "targetId",
+          "before",
+          "after",
+          "sourceIds",
+          "warnings"
+        ],
+        "title": "SuggestedChange"
+      },
+      "SuggestedItem": {
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "title": "Itemid"
+          },
+          "bullets": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Bullets",
+            "description": "The item's complete new bullet list, ready to use."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "itemId",
+          "bullets"
+        ],
+        "title": "SuggestedItem"
       },
       "SystemSettingsIn": {
         "properties": {

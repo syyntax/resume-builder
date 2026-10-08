@@ -568,9 +568,9 @@ Every table that holds user data has an indexed `owner_id` foreign key with `ON 
 | `uploaded_file` | `id`, `owner_id`, `kind`, `original_name`, `mime`, `size`, `sha256`, `storage_key`, `created_at` | Stored under `/data/uploads/<owner>/<random>` |
 | `import_job` | `id`, `owner_id`, `file_id`, `status`, `draft` (JSON), `notes` (JSON), `fidelity` (JSON), `result_version_id`, timestamps | |
 | `job_posting` | `id`, `owner_id`, `company`, `title`, `url`, `raw_text`, `analysis` (JSON), `analysis_edited`, `created_at` | |
-| `application` | `id`, `owner_id`, `master_version_id`, `job_id`, `status`, `options` (JSON), `template`, `theme` (JSON), `coverage_score`, timestamps | |
-| `document` | `id`, `owner_id`, `application_id`, `kind` (`resume`\|`cover_letter`), `options` (JSON), `ai_draft` (JSON), `current` (JSON), `status`, `updated_at` | unique(`application_id`, `kind`) |
-| `document_revision` | `id`, `document_id`, `owner_id`, `content` (JSON), `reason`, `created_at` | Snapshot taken before each AI refine or auto-fit |
+| `application` | `id`, `owner_id`, `master_version_id`, `job_id`, `status`, `options` (JSON), `template`, `theme` (JSON), `coverage_score`, timestamps | `status`: `queued` → `analyzing` → (`review`, when reviewing the analysis first) → `tailoring` → `validating` → `writing` → `auditing` → `done`, or `failed` |
+| `document` | `id`, `owner_id`, `application_id`, `kind` (`resume`\|`cover_letter`), `options` (JSON), `ai_draft` (JSON), `current` (JSON), `status` (`ready`\|`generating`\|`failed`), `error` (JSON), `updated_at` | unique(`application_id`, `kind`). A letter has its own status, so writing one never blocks the résumé. |
+| `document_revision` | `id`, `document_id`, `owner_id`, `content` (JSON), `reason`, `created_at` | Snapshot taken before each auto-fit (M6). Refines don't need one: they're suggestions until accepted, and accepting is an undoable edit. |
 | `ai_call` | `id`, `owner_id`, `application_id`/`import_job_id`, `stage`, `model`, `key_source` (`own`\|`shared`), `prompt_version`, `request_id`, token counts (input, output, cache read, cache write), `stop_reason`, `duration_ms`, `est_cost_usd`, `created_at` | Feeds spending caps and usage. Prompt and response bodies are stored only when `AI_DEBUG_LOG=true`. |
 
 ---
@@ -1182,16 +1182,18 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | PUT | `/imports/{id}/review` | Autosave `{document, resolved}` while reviewing |
 | POST | `/imports/{id}/accept` · `/imports/{id}/retry` | Save as a new master `{label, document}` (merging into an existing master comes in M7); re-run a failed import |
 | DELETE | `/imports/{id}` | Discard an import, and its file unless a saved version uses it |
-| POST | `/applications` | `{masterId, job:{text,company?,title?,url?}, options:{pageLimit?,tone?,instructions?}}` uses the master's current version and returns `202` (M2; `coverLetter` options arrive in M5) |
+| POST | `/applications` | `{masterId, job:{text,company?,title?,url?}, options:{pageLimit?,tone?,instructions?,reviewAnalysis?}, coverLetter:{generate,recipient?,tone?,length?,notes?,highlights?,referral?}}` uses the master's current version and returns `202` |
 | GET | `/applications` · `/applications/{id}` · `/applications/{id}/events` (SSE) | List, get (posting, analysis, résumé, cost), and progress |
-| POST | `/applications/{id}/retry` | Re-run a failed application |
-| PUT | `/applications/{id}/analysis` | Save edits to the analysis |
-| GET · PUT | `/applications/{id}/resume` | Get or save (autosave) |
-| POST | `/applications/{id}/resume/refine` · `/resume/fit` | `{scope, targetId, instruction}` / `{targetPages}` |
-| POST | `/applications/{id}/cover-letter` | Generate or regenerate with `{options}` |
-| GET · PUT | `/applications/{id}/cover-letter` | Get or save |
-| POST | `/applications/{id}/cover-letter/refine` · `/cover-letter/fit` | |
-| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download (implemented so far: the résumé as `pdf`, `md` and `json`) |
+| POST | `/applications/{id}/retry` | Re-run a failed application (from tailoring, when the analysis is already done) |
+| PUT | `/applications/{id}/analysis` | Save edits to the analysis: `{keywords:[{term,importance,mustInclude}], suggestedEmphasis}` |
+| POST | `/applications/{id}/continue` · `/applications/{id}/regenerate` | Write the résumé after reviewing the analysis; write it again from the (edited) analysis, `{letter}` to rewrite the letter too |
+| PUT | `/applications/{id}/resume` | Save (autosave) `{document}`; returns it with fresh warnings and coverage. Facts come from the master whatever is sent. |
+| POST | `/applications/{id}/resume/refine` | `{scope: bullet\|item\|headline\|summary\|document, targetId, instruction}` returns suggestions (nothing is saved) and their cost. `/resume/fit` comes with auto-fit in M6. |
+| POST | `/applications/{id}/cover-letter` | Write, or rewrite, the letter with `{options}`; returns `202` |
+| PUT | `/applications/{id}/cover-letter` | Save (autosave) `{document}` |
+| POST | `/applications/{id}/cover-letter/refine` | `{targetId?, instruction}`: one paragraph, or the whole letter; suggestions only |
+| POST | `/applications/{id}/audit` | Re-run the claim audit on the current résumé and letter; returns `202` |
+| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download. Implemented so far: the résumé and the letter as `pdf`, `md` and `json`, and the packet as `pdf`. |
 | GET | `/applications/{id}/preview.pdf?doc=…&rev=…` | Preview render: the same PDF as the export, with `X-Page-Count` |
 | PUT | `/applications/{id}/design` | `{template, theme}`: the template and theme options (§11.4) |
 | POST · DELETE | `/applications/{id}/duplicate` · `/applications/{id}` | |
@@ -1353,12 +1355,12 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
 | `PDF_RENDER_CONCURRENCY` | `2` | PDF renders at a time (one shared Chromium) |
 | `PDF_WARMUP` | `true` | Start Chromium at startup (in the background), so the first preview is fast |
-| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | Implemented so far: `AI_EFFORT_ANALYZE`, `AI_EFFORT_TAILOR`, `AI_EFFORT_IMPORT` |
+| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | `AI_EFFORT_ANALYZE`, `_TAILOR`, `_LETTER`, `_IMPORT`, `_REFINE`, `_AUDIT` |
 | `AI_PROVIDER` | `anthropic` | `fake` runs a deterministic offline stand-in model for tests and demos (never for real use) |
 | `AI_FAKE_DELAY_SECONDS` | `0` | With `AI_PROVIDER=fake`, wait this long per step, to demo the progress UI |
 | `APP_SECRET_KEY_PREVIOUS` | (empty) | Only while rotating `APP_SECRET_KEY` (see §8.6) |
 | `PRICING_FILE` | (built in) | Path to a replacement `pricing.toml` |
-| `AI_CLAIM_AUDIT` | `true` | |
+| `AI_CLAIM_AUDIT` | `true` | Run the claim audit (stage D) after each generation. It can always be run on demand. |
 | `AI_DEBUG_LOG` | `false` | Store prompt and response bodies (development only) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` / `SMTP_STARTTLS` | (empty: disabled) | Optional. When set, enables emailed password resets, invites, and email verification. |
 | `TRUSTED_PROXIES` | `127.0.0.1` | Set to the Caddy container's network when the `https` profile is used |
@@ -1446,7 +1448,7 @@ resume-builder/
 | **M2: AI core** ✅ | **Bring-your-own API keys** (encrypted storage, verification, resolution), Anthropic client wrapper with usage capture and **spending caps**, job queue, stages A and B, hydration, validators G1–G5, coverage, SSE, JSON and MD export | A valid, provenance-checked `TailoredResume` from one click, billed to the user's own key |
 | **M3: Import and master editor** ✅ | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
 | **M4: Beautiful output** ✅ | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
-| **M5: Editing and cover letters** | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
+| **M5: Editing and cover letters** ✅ | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
 | **M6: Formats and templates** | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
 | **M7: Hardening and polish** | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
 
@@ -1481,6 +1483,19 @@ resume-builder/
 - **Image size:** the Chromium layer adds about 620 MB unpacked: 270 MB for the headless shell, the rest its system libraries and fallback fonts (including CJK and emoji). Installing a hand-picked set of libraries instead of `--with-deps` could trim it later.
 - **Testing:** 172 backend tests (14 on rendering, several against real PDFs from Chromium) and 20 frontend tests, plus a browser walkthrough of the preview and design panel in the production container.
 - **Deferred:** auto-fit (TPL-4, M6), the template gallery thumbnails (M6), and the other three templates (M6). Templates that aren't built yet show as "Soon" in the design panel.
+
+### M5 notes (2026-10-07)
+
+- **Done:** EDT-1 to EDT-7, CVL-1 to CVL-8, TLR-8 (the claim audit), JOB-4 and JOB-5 (deferred from M2), and guardrail G6.
+  - **Workspace:** each application opens as a workspace with Résumé, Cover letter and Job analysis tabs beside a live PDF preview. The résumé editor edits, removes, adds and drags sections, items and bullets; shows each line's provenance with a diff against the AI draft and the master, and *Revert to AI draft* / *Revert to master*; and has an Add-from-master drawer ranked by keyword relevance, which opens filtered when you click a missing keyword in the coverage panel. Autosave is debounced, with ⌘Z / ⇧⌘Z undo, and pending edits are sent when the page closes. The server re-checks every save: facts (employers, titles, dates) always come from the master, bullets can only cite their own item, and skills must be in the master.
+  - **Refine:** bullets (rephrase, shorten, lead with impact, emphasize a keyword, or your own instruction), a role's bullets, the headline and summary, the whole résumé, a letter paragraph, and the whole letter. Results come back as suggestions with a diff and fresh warnings, and nothing changes until you accept.
+  - **Cover letters (stage C):** written with the résumé (on by default) or on demand, with the CVL-2 options. Paragraphs cite master sources and posting requirements; company statements must come from the posting or your notes (G6), and without notes the motivation paragraph is flagged **Personalize**. The salutation uses the recipient's full name, or "Dear Hiring Team,". A failed letter doesn't fail the application. The paragraph editor reorders, edits, refines, changes roles and diffs against the AI draft.
+  - **Claim audit (stage D):** after each generation, a separate low-effort call checks the headline, the summary, every bullet that isn't copied word for word from the master, and every letter paragraph against their sources (company statements against the posting and your notes). Its verdicts are stored with the text they judged, so an edit clears a stale verdict. If the audit fails, the application still completes and says the audit was unavailable.
+  - **Exports:** the letter as PDF, Markdown and JSON, and the application packet (letter, then résumé, with bookmarks). The packet is merged with pypdf and isn't PDF-tagged; each document is tagged on its own.
+  - **Also:** review-the-analysis-first mode and analysis editing (importance, must-include, added keywords, themes), then Regenerate (optionally with a new letter); and Duplicate for A/B variants.
+- **Fixed during verification:** the autosave started a new save whenever it merged the server's answer back into the editor, so it saved in a loop. Autosave now follows an edit counter that only your own changes (and undo/redo) advance; a test covers it. Number warnings now read "Mentions 4; 2,025 and 1,500,000" rather than "4, 2,025, 1,500,000".
+- **Testing:** 185 backend tests and 24 frontend tests, plus a browser walkthrough with the offline model (editing, autosave, refine and accept, provenance, Add from master, letter writing and editing, the Personalize flag, review-first mode and continue) and an API smoke test of every export, including the packet. The application page now loads on demand, which keeps the main bundle at 450 KB.
+- **Deferred:** auto-fit (`/resume/fit`, `/cover-letter/fit`) and its `document_revision` snapshots move to M6 with the other templates, as planned.
 
 ---
 

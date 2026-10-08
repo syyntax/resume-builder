@@ -12,7 +12,7 @@ import json
 import re
 from typing import Any
 
-from app.ai import fake_import
+from app.ai import fake_import, fake_stages
 from app.ai.llm import LLMError, LLMRequest, LLMResult, Usage, key_rejected
 
 # Terms the fake recognizes in postings even when the master résumé doesn't mention them (to produce gaps).
@@ -51,13 +51,25 @@ class FakeLLM:
             data = fake_import.transcribe(self._document_text(request))
             return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
                              request_id="req_fake", duration_ms=5)
+        if request.stage == "audit":
+            data = fake_stages.audit(json.loads(_between(request.blocks[0].text, "claims")))
+            return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
+                             request_id="req_fake", duration_ms=5)
         master = json.loads(_between(request.blocks[0].text, "master_resume"))
         posting = _between(request.blocks[1].text, "job_posting")
+        task = request.blocks[2].text
         if request.stage == "analyze":
             data = self._analyze(master, posting)
         elif request.stage.startswith("tailor"):
-            analysis = json.loads(_between(request.blocks[2].text, "job_analysis"))
+            analysis = json.loads(_between(task, "job_analysis"))
             data = self._tailor(master, analysis)
+        elif request.stage == "letter":
+            data = fake_stages.letter(json.loads(_between(task, "job_analysis")),
+                                      json.loads(_between(task, "tailored_resume")), _between(task, "user_notes"))
+        elif request.stage == "refine":
+            data = fake_stages.refine(json.loads(_between(task, "current_resume")), _between(task, "request"))
+        elif request.stage == "letter_refine":
+            data = fake_stages.refine_letter(json.loads(_between(task, "current_letter")), _between(task, "request"))
         else:
             raise LLMError("bad_request", f"fake model has no stage {request.stage!r}")
         return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",

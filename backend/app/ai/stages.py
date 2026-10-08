@@ -16,7 +16,15 @@ from pydantic import ValidationError
 from app.ai import prompts
 from app.ai.import_schema import MasterImportDraft
 from app.ai.llm import Block, LLMClient, LLMError, LLMRequest, LLMResult
-from app.ai.schemas import JobAnalysis, TailorDraft, strict_schema
+from app.ai.schemas import (
+    AuditResult,
+    JobAnalysis,
+    LetterDraft,
+    LetterRefineDraft,
+    RefineDraft,
+    TailorDraft,
+    strict_schema,
+)
 
 ITEM_SECTIONS = (
     "headlines", "summaries", "work", "projects", "education", "certifications", "skills", "awards",
@@ -141,3 +149,92 @@ async def transcribe(llm: LLMClient, *, model: str, effort: str, kind: str, text
     )
     result = await llm.complete(request)
     return StageResult(_validate("import", MasterImportDraft, result), result, task.tag)
+
+
+def _compact(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _analysis_json(analysis: JobAnalysis) -> str:
+    return json.dumps(analysis.model_dump(mode="json", by_alias=True), ensure_ascii=False, indent=1)
+
+
+LETTER_WORDS = {"short": 200, "standard": 300, "detailed": 400}
+
+
+async def letter(llm: LLMClient, *, model: str, effort: str, master: dict[str, Any], version_id: str, posting: str,
+                 analysis: JobAnalysis, resume: dict[str, Any], options: dict[str, Any],
+                 spelling: str) -> StageResult[LetterDraft]:
+    """Stage C. Same cached prefix (master, posting) as analyze and tailor."""
+    task = prompts.load("letter")
+    recipient = options.get("recipient") or {}
+    who = ", ".join(v for v in (recipient.get("name"), recipient.get("title"), recipient.get("company")) if v)
+    text = task.text.format(
+        analysis=_analysis_json(analysis), resume=_compact(resume_for_prompt(resume)),
+        notes=(options.get("notes") or "").strip() or "(none)", words=LETTER_WORDS[options.get("length") or "standard"],
+        tone=options.get("tone") or "confident", recipient=who or "unknown (the hiring team)",
+        highlights=(options.get("highlights") or "").strip() or "none", spelling=spelling,
+        referral=(options.get("referral") or "").strip() or "none",
+    )
+    request = LLMRequest(stage="letter", model=model, system=prompts.load("system").text,
+                         blocks=_blocks(master, version_id, posting, text), schema=strict_schema(LetterDraft),
+                         effort=effort, max_tokens=32_000)
+    result = await llm.complete(request)
+    return StageResult(_validate("letter", LetterDraft, result), result, task.tag)
+
+
+def resume_for_prompt(resume: dict[str, Any]) -> dict[str, Any]:
+    """The tailored résumé as the model needs it: wording and ids, without warnings or metadata."""
+    sections = []
+    for section in resume.get("sections") or []:
+        out = {"type": section["type"], "title": section.get("title")}
+        if section.get("items"):
+            out["items"] = [{**{k: v for k, v in item.items() if k != "bullets"},
+                             "bullets": [{"id": b["id"], "text": b["text"], "sourceIds": b.get("sourceIds", [])}
+                                         for b in item.get("bullets") or []]} for item in section["items"]]
+        if section.get("groups"):
+            out["groups"] = [{"name": g["name"], "skills": [i["display"] for i in g["items"]]}
+                             for g in section["groups"]]
+        sections.append(out)
+    return {"headline": (resume.get("headline") or {}).get("text"),
+            "summary": (resume.get("summary") or {}).get("text"), "sections": sections}
+
+
+async def refine(llm: LLMClient, *, model: str, effort: str, master: dict[str, Any], version_id: str, posting: str,
+                 analysis: JobAnalysis, resume: dict[str, Any], scope: str, target: str,
+                 instruction: str) -> StageResult[RefineDraft]:
+    task = prompts.load("refine")
+    text = task.text.format(analysis=_analysis_json(analysis), resume=_compact(resume_for_prompt(resume)),
+                            scope=scope, target=target, instruction=instruction.strip())
+    request = LLMRequest(stage="refine", model=model, system=prompts.load("system").text,
+                         blocks=_blocks(master, version_id, posting, text), schema=strict_schema(RefineDraft),
+                         effort=effort, max_tokens=16_000)
+    result = await llm.complete(request)
+    return StageResult(_validate("refine", RefineDraft, result), result, task.tag)
+
+
+async def refine_letter(llm: LLMClient, *, model: str, effort: str, master: dict[str, Any], version_id: str,
+                        posting: str, analysis: JobAnalysis, letter_doc: dict[str, Any], notes: str, target: str,
+                        instruction: str) -> StageResult[LetterRefineDraft]:
+    task = prompts.load("letter_refine")
+    paragraphs = [{"id": p["id"], "role": p["role"], "text": p["text"], "sourceIds": p.get("sourceIds", []),
+                   "jobRefs": p.get("jobRefs", []), "companySources": p.get("companySources", [])}
+                  for p in letter_doc.get("paragraphs") or []]
+    text = task.text.format(analysis=_analysis_json(analysis), notes=notes.strip() or "(none)",
+                            letter=_compact({"subject": letter_doc.get("subject"), "paragraphs": paragraphs}),
+                            target=target, instruction=instruction.strip())
+    request = LLMRequest(stage="letter_refine", model=model, system=prompts.load("system").text,
+                         blocks=_blocks(master, version_id, posting, text), schema=strict_schema(LetterRefineDraft),
+                         effort=effort, max_tokens=16_000)
+    result = await llm.complete(request)
+    return StageResult(_validate("letter_refine", LetterRefineDraft, result), result, task.tag)
+
+
+async def audit(llm: LLMClient, *, model: str, effort: str, claims: list[dict[str, Any]]) -> StageResult[AuditResult]:
+    """Stage D: an independent check of rewritten claims against their sources (no master or posting prefix)."""
+    task = prompts.load("audit")
+    request = LLMRequest(stage="audit", model=model, system=prompts.load("audit_system").text,
+                         blocks=[Block(task.text.format(claims=json.dumps(claims, ensure_ascii=False, indent=1)))],
+                         schema=strict_schema(AuditResult), effort=effort, max_tokens=16_000)
+    result = await llm.complete(request)
+    return StageResult(_validate("audit", AuditResult, result), result, task.tag)

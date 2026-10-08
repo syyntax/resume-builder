@@ -15,7 +15,7 @@ from app.ai.llm import AnthropicLLM, Block, LLMError, LLMRequest, LLMResult, Usa
 from app.ai.schemas import JobAnalysis, TailorDraft, strict_schema
 from app.masters.normalize import normalize
 from app.pipeline.hydrate import hydrate
-from app.pipeline.validators import coverage, validate
+from app.pipeline.validators import TermGroups, check_text, coverage, validate
 from tests.conftest import POSTING, Api, drain
 
 # ---- helpers ----------------------------------------------------------------------------------------
@@ -138,6 +138,12 @@ def test_validators_flag_unsupported_numbers_and_terms(master) -> None:
     assert {w["targetId"] for w in warnings} == {bullets[0]["id"]}
 
 
+def test_number_warning_lists_figures_unambiguously() -> None:
+    [warning] = check_text("Grew revenue 4x to 2,025 accounts and $1.5M.", "Grew revenue.", TermGroups([]))
+    # in order, and joined so a thousands separator can't be read as a list comma
+    assert warning["message"].startswith("Mentions 4; 2,025 and 1,500,000,")
+
+
 def test_coverage_score_and_suggestions(master) -> None:
     resume = hydrate(draft(), master).resume
     cover = coverage(resume, master, analysis())
@@ -173,9 +179,9 @@ def test_unresolved_references_trigger_one_repair(app: FastAPI, admin: Api, keye
     drain(app)
     detail = keyed_user.get(f"/api/applications/{app_id}").json()
     assert detail["status"] == "done"
-    assert RepairingLLM.stages == ["analyze", "tailor", "tailor_repair"]
+    assert RepairingLLM.stages == ["analyze", "tailor", "tailor_repair", "letter", "audit"]
     stages = {s["stage"] for s in keyed_user.get("/api/account/usage").json()["byStage"]}
-    assert stages == {"analyze", "tailor", "tailor_repair"}
+    assert stages == {"analyze", "tailor", "tailor_repair", "letter", "audit"}
 
 
 # ---- structured-output schemas -----------------------------------------------------------------------------

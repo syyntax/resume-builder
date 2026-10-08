@@ -49,7 +49,8 @@ def test_full_generation_flow(app: FastAPI, admin: Api, keyed_user: Api, example
     resume = detail["resume"]
     assert resume["basics"]["name"] == "Jordan Rivera"
     assert "workAuthorization" not in resume["basics"]  # preferences.showWorkAuthorization is false
-    assert resume["headline"] == {"text": "Senior Platform Engineer", "sourceIds": ["h-platform"], "edited": False}
+    assert resume["headline"] == {"text": "Senior Platform Engineer", "sourceIds": ["h-platform"], "edited": False,
+                                  "aiText": "Senior Platform Engineer"}
     experience = next(s for s in resume["sections"] if s["type"] == "experience")
     acme = experience["items"][0]
     assert acme["company"] == "Acme Payments" and acme["startDate"] == "2021-03"
@@ -62,7 +63,7 @@ def test_full_generation_flow(app: FastAPI, admin: Api, keyed_user: Api, example
     assert detail["costUsd"] > 0
 
     usage = keyed_user.get("/api/account/usage").json()
-    assert {s["stage"] for s in usage["byStage"]} == {"analyze", "tailor"}
+    assert {s["stage"] for s in usage["byStage"]} == {"analyze", "tailor", "letter", "audit"}
     assert usage["own"]["spentUsd"] > 0 and usage["own"]["capUsd"] == 20.0 and usage["shared"] is None
 
     listed = keyed_user.get("/api/applications").json()
@@ -189,7 +190,8 @@ def test_admin_usage_dashboard(app: FastAPI, admin: Api, keyed_user: Api, exampl
     drain(app)
     rows = {r["email"]: r for r in admin.get("/api/admin/usage").json()}
     kim = rows["keyed@example.com"]
-    assert kim["hasApiKey"] and kim["ownSpendUsd"] > 0 and kim["calls"] == 2 and kim["applications"] == 1
+    # analyze, tailor, cover letter, claim audit
+    assert kim["hasApiKey"] and kim["ownSpendUsd"] > 0 and kim["calls"] == 4 and kim["applications"] == 1
     assert json.dumps(rows).count("Jordan") == 0  # totals only, never content
     patched = admin.patch(f"/api/admin/users/{kim['userId']}", json={"sharedCapUsd": 3.5}).json()
     assert patched["sharedCapUsd"] == 3.5

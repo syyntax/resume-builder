@@ -62,11 +62,11 @@ describe("DesignPanel", () => {
 
 describe("page notes", () => {
   it("suggests only what hasn't been tried", async () => {
-    const { pageNote } = await import("../pages/ApplicationsPages");
+    const { pageNote } = await import("../workspace/preview");
     expect(pageNote(1, 1, theme)).toEqual({ ok: true, text: "1 page · fits the 1-page target" });
     expect(pageNote(2, 1, theme).text).toContain("Try Compact density or Narrow margins.");
     expect(pageNote(2, 1, { ...theme, density: "compact" }).text).toContain("Try Narrow margins.");
-    expect(pageNote(2, 1, { ...theme, density: "compact", margins: "narrow" }).text).toContain("Hide less relevant bullets");
+    expect(pageNote(2, 1, { ...theme, density: "compact", margins: "narrow" }).text).toContain("Remove less relevant bullets");
     expect(pageNote(3, "auto", theme)).toEqual({ ok: true, text: "3 pages" });
   });
 });

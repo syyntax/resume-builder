@@ -108,7 +108,10 @@ export interface ResumeBullet {
   sourceIds: string[];
   relevance: number;
   keywords: string[];
-  origin: "ai" | "master";
+  origin: "ai" | "master" | "user";
+  /** The AI's wording, for "Revert to AI draft". */
+  aiText?: string | null;
+  edited?: boolean;
   warnings: ResumeWarning[];
 }
 
@@ -130,8 +133,8 @@ export interface ResumeSection {
 export interface TailoredResume {
   meta: { model: string; generatedAt: string; job: { company: string | null; title: string | null } };
   basics: MasterDocument["basics"];
-  headline: { text: string; sourceIds: string[] };
-  summary: { text: string; sourceIds: string[] };
+  headline: SourcedBlock;
+  summary: SourcedBlock;
   sections: ResumeSection[];
   analysis: {
     coverage: {
@@ -144,5 +147,55 @@ export interface TailoredResume {
     warnings: ResumeWarning[];
     notices: ResumeWarning[];
     notes: { type: "gap" | "suggestion"; text: string }[];
+    audit?: AuditReport;
   };
 }
+
+export interface SourcedBlock {
+  text: string;
+  sourceIds: string[];
+  aiText?: string;
+  edited?: boolean;
+}
+
+export interface AuditReport {
+  status: "done" | "running" | "unavailable";
+  checkedAt?: string;
+  checked?: number;
+  message?: string;
+}
+
+export type ParagraphRole = "opening" | "evidence" | "motivation" | "closing";
+
+export interface LetterParagraph {
+  id: string;
+  role: ParagraphRole;
+  text: string;
+  sourceIds: string[];
+  jobRefs: string[];
+  companySources: ("posting" | "notes")[];
+  aiText?: string | null;
+  edited?: boolean;
+  flags: string[];
+  warnings: ResumeWarning[];
+}
+
+/** Shape of a CoverLetter document (DESIGN.md §7.4). */
+export interface CoverLetter {
+  meta?: { generatedAt: string; model: string };
+  options: LetterOptions;
+  sender: MasterDocument["basics"];
+  date: string;
+  recipient: { name?: string; title?: string; company?: string; address?: string[] };
+  subject: string;
+  salutation: string;
+  paragraphs: LetterParagraph[];
+  closing: string;
+  signature: string;
+  analysis: { wordCount: number; warnings: ResumeWarning[]; notes?: { type: string; text: string }[]; audit?: AuditReport };
+}
+
+export type LetterOptions = S["CoverLetterOptions"];
+export type RefineResult = S["RefineOut"];
+export type LetterRefineResult = S["LetterRefineOut"];
+export type LetterStatus = ApplicationDetail["coverLetterStatus"];

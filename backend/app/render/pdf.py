@@ -49,6 +49,23 @@ def finish_pdf(raw: bytes, metadata: dict[str, str]) -> RenderedPdf:
     return RenderedPdf(out.getvalue(), pages)
 
 
+def merge_pdfs(parts: list[tuple[str, RenderedPdf]], metadata: dict[str, str]) -> RenderedPdf:
+    """Concatenate PDFs with a top-level bookmark per part. (pypdf doesn't merge structure trees, so the
+    packet isn't tagged; the separate documents are.)"""
+    from pypdf import PdfReader, PdfWriter
+
+    writer = PdfWriter()
+    for title, part in parts:
+        start = len(writer.pages)
+        writer.append(PdfReader(io.BytesIO(part.data)), import_outline=False)
+        writer.add_outline_item(title, start)
+    writer.add_metadata({f"/{key}": value for key, value in {**metadata, "Creator": "Resume Tailor"}.items() if value})
+    writer.page_mode = "/UseOutlines"
+    out = io.BytesIO()
+    writer.write(out)
+    return RenderedPdf(out.getvalue(), len(writer.pages))
+
+
 class PdfRenderer:
     def __init__(self, *, concurrency: int = 2, cache_size: int = 24) -> None:
         self._slots = asyncio.Semaphore(max(1, concurrency))

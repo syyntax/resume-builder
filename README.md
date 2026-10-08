@@ -1,15 +1,17 @@
 # Resume Tailor
 
-A self-hosted, multi-user web app that tailors a master résumé (and, soon, a cover letter) to each job
+A self-hosted, multi-user web app that tailors a master résumé and writes a cover letter for each job
 posting with Claude, then exports polished PDF, DOCX, Markdown or JSON. See [DESIGN.md](DESIGN.md) for
 the full design and [mockups/](mockups/index.html) for the approved templates.
 
 **Status:** milestones M1 (accounts, master résumés), M2 (AI tailoring), M3 (résumé import and the master
-editor) and M4 (the Meridian template and PDF export) are built. Add your Anthropic API key under
-**Account → AI**, import your existing PDF or Word résumé (or upload JSON), review and edit it, then paste a job
-posting under **Applications** to get a tailored, fact-checked résumé. Preview it as a PDF, adjust the design
-(accent color, fonts, density, paper size), and download it as PDF, Markdown or JSON. Word export, the other
-three templates and cover letters come in later milestones.
+editor), M4 (the Meridian template and PDF export) and M5 (editing and cover letters) are built. Add your
+Anthropic API key under **Account → AI**, import your existing PDF or Word résumé (or upload JSON), review and
+edit it, then paste a job posting under **Applications** to get a tailored, fact-checked résumé and cover letter.
+Edit both side by side with a live PDF preview: rewrite or reorder lines, ask the AI for suggestions, see where
+every line came from, add back anything from your master, and let a second AI pass flag claims that overstate
+their sources. Download each as PDF, Markdown or JSON, or both as one application packet. Word export and the
+other three templates come in M6.
 
 ## Run it
 

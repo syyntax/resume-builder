@@ -98,7 +98,8 @@ class _Hydrator:
         bad = [s for s in source_ids if s not in self.index.all_ids or s in self.index.hidden]
         for s in bad:
             self.problems.append(f"{label} cites {s!r}, which isn't a visible item in the master résumé")
-        return {"text": text.strip(), "sourceIds": [s for s in source_ids if s not in bad], "edited": False}
+        return {"text": text.strip(), "sourceIds": [s for s in source_ids if s not in bad], "edited": False,
+                "aiText": text.strip()}
 
     def bullets(self, section: str, item: dict[str, Any], drafted: list[DraftBullet]) -> list[dict[str, Any]]:
         own = self.index.bullets.get(item["id"], {})
@@ -114,7 +115,7 @@ class _Hydrator:
             cited.update(b.source_ids)
             out.append({"id": self.bullet_id(), "text": b.text.strip(), "sourceIds": b.source_ids,
                         "relevance": b.relevance, "keywords": b.keywords, "origin": "ai", "edited": False,
-                        "warnings": []})
+                        "aiText": b.text.strip(), "warnings": []})
         for bid, bullet in own.items():  # pinned bullets are always included
             if bullet.get("pin") and bid not in cited and bid not in self.index.hidden:
                 out.append({"id": self.bullet_id(), "text": bullet["text"], "sourceIds": [bid], "relevance": 5,

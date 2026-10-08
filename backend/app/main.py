@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.ai.fake import FakeLLM
 from app.ai.llm import AnthropicLLM
-from app.api import account, admin, ai, applications, auth, imports, masters, meta, templates
+from app.api import account, admin, ai, applications, auth, imports, masters, meta, templates, workspace
 from app.auth import passwords
 from app.auth.bootstrap import announce_setup_token, ensure_setup_token
 from app.auth.ratelimit import Limits
@@ -105,7 +105,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_error_handlers(app)
     app.add_middleware(SecurityHeaders, settings=settings)
     app.add_middleware(BodySizeLimit, limit=MAX_REQUEST_BYTES)
-    for module in (meta, auth, account, ai, admin, masters, imports, applications, templates):
+    for module in (meta, auth, account, ai, admin, masters, imports, applications, workspace, templates):
         app.include_router(module.router)
     if settings.static_dir and settings.static_dir.is_dir():
         app.mount("/", SinglePageApp(settings.static_dir), name="spa")

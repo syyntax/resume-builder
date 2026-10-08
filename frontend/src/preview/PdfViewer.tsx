@@ -52,8 +52,7 @@ export default function PdfViewer({ url, onLoad }: PdfViewerProps) {
   useEffect(() => {
     let cancelled = false;
     let task: ReturnType<typeof getDocument> | null = null;
-    setPdf(null);
-    setError(null);
+    setError(null); // the previous document stays on screen until the new one is ready: no flicker on refresh
     fetch(url, { credentials: "same-origin" })
       .then(async (response) => {
         if (!response.ok) {

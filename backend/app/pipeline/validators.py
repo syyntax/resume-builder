@@ -44,6 +44,12 @@ def _fmt(value: float) -> str:
     return f"{value:,.0f}" if value == int(value) else f"{value:g}"
 
 
+def _list(values: set[float]) -> str:
+    # "1,000 and 4", not "1,000, 4": the thousands separator would read as a list comma
+    shown = [_fmt(v) for v in sorted(values)]
+    return shown[0] if len(shown) == 1 else "; ".join(shown[:-1]) + " and " + shown[-1]
+
+
 def term_regex(term: str) -> re.Pattern[str]:
     # Word-boundary match that also works for terms like "C++", "CI/CD" and ".NET"; allows a plural "s".
     return re.compile(rf"(?<![A-Za-z0-9]){re.escape(term)}(?:s|es)?(?![A-Za-z0-9])", re.IGNORECASE)
@@ -79,7 +85,7 @@ def build_term_groups(master: dict[str, Any], analysis: JobAnalysis) -> TermGrou
     return TermGroups(groups)
 
 
-def _source_text(index: MasterIndex, owner_id: str | None, source_ids: list[str]) -> str:
+def source_text(index: MasterIndex, owner_id: str | None, source_ids: list[str]) -> str:
     parts: list[str] = []
     for sid in source_ids:
         owner = index.owner_of.get(sid)
@@ -108,7 +114,7 @@ def check_text(text: str, source: str, groups: TermGroups) -> list[dict[str, str
     warnings = []
     unsupported_numbers = numbers(text) - numbers(source)
     if unsupported_numbers:
-        shown = ", ".join(sorted(_fmt(n) for n in unsupported_numbers))
+        shown = _list(unsupported_numbers)
         warnings.append({"code": "NUMBER_NOT_IN_SOURCE",
                          "message": f"Mentions {shown}, which its sources don't. Check the figure."})
     for term in groups.terms():
@@ -131,9 +137,10 @@ def validate(resume: dict[str, Any], master: dict[str, Any], analysis: JobAnalys
     groups = build_term_groups(master, analysis)
     all_warnings: list[dict[str, str]] = []
     for owner_id, bullet in iter_bullets(resume):
-        if bullet.get("origin") == "master":  # copied verbatim from the master
+        if bullet.get("origin") == "master" and not bullet.get("edited"):  # copied verbatim from the master
+            bullet["warnings"] = []
             continue
-        warnings = check_text(bullet["text"], _source_text(index, owner_id, bullet["sourceIds"]), groups)
+        warnings = check_text(bullet["text"], source_text(index, owner_id, bullet["sourceIds"]), groups)
         if len(bullet["text"]) > MAX_BULLET_CHARS:
             warnings.append({"code": "BULLET_TOO_LONG",
                              "message": f"{len(bullet['text'])} characters; aim for {MAX_BULLET_CHARS} or fewer."})
@@ -142,7 +149,7 @@ def validate(resume: dict[str, Any], master: dict[str, Any], analysis: JobAnalys
     for key in ("headline", "summary"):
         block = resume.get(key) or {}
         if block.get("text"):
-            source = _source_text(index, None, block.get("sourceIds") or [])
+            source = source_text(index, None, block.get("sourceIds") or [])
             # The summary may draw on any visible fact, so its sources are the whole master résumé.
             if key == "summary":
                 source += "\n" + "\n".join(b.get("text", "") for bs in index.bullets.values() for b in bs.values())

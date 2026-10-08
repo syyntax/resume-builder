@@ -370,12 +370,35 @@ class GenerationOptions(CamelModel):
     page_limit: Literal[1, 2, "auto"] | None = None
     tone: Literal["neutral", "confident", "conservative"] | None = None
     instructions: Annotated[str, StringConstraints(strip_whitespace=True, max_length=2000)] | None = None
+    review_analysis: bool = Field(default=False, description="Pause after the job analysis so it can be edited.")
+
+
+Line = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+
+
+class RecipientIn(CamelModel):
+    name: Line = ""
+    title: Line = ""
+    company: Line = ""
+    address: Annotated[list[Line], Field(max_length=5)] = []
+
+
+class CoverLetterOptions(CamelModel):
+    generate: bool = Field(default=True, description="Write the letter along with the résumé.")
+    recipient: RecipientIn = RecipientIn()
+    tone: Literal["neutral", "confident", "warm", "formal"] = "confident"
+    length: Literal["short", "standard", "detailed"] = "standard"
+    notes: Annotated[str, StringConstraints(strip_whitespace=True, max_length=3000)] = Field(
+        default="", description='"Why this company?" notes: the only source for statements about the company.')
+    highlights: Annotated[str, StringConstraints(strip_whitespace=True, max_length=1000)] = ""
+    referral: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
 
 
 class ApplicationCreateIn(CamelModel):
     master_id: str
     job: JobIn
     options: GenerationOptions = GenerationOptions()
+    cover_letter: CoverLetterOptions = CoverLetterOptions()
 
 
 class JobRef(CamelModel):
@@ -394,7 +417,8 @@ class MasterRef(CamelModel):
 
 class ApplicationOut(CamelModel):
     id: str
-    status: Literal["queued", "analyzing", "tailoring", "validating", "done", "failed"]
+    status: Literal["queued", "analyzing", "review", "tailoring", "validating", "writing", "auditing", "done",
+                    "failed"]
     error: dict[str, Any] | None
     model: str
     options: dict[str, Any]
@@ -450,11 +474,79 @@ class TemplatesOut(CamelModel):
     default_theme: Theme
 
 
+LetterStatus = Literal["none", "generating", "ready", "failed"]
+
+
 class ApplicationDetailOut(ApplicationOut):
     posting: str
     analysis: dict[str, Any] | None
+    analysis_edited: bool
     resume: dict[str, Any] | None
+    cover_letter: dict[str, Any] | None
+    cover_letter_status: LetterStatus
+    cover_letter_error: dict[str, Any] | None
     cost_usd: float
+
+
+class DocumentIn(CamelModel):
+    document: dict[str, Any]
+
+
+class RefineIn(CamelModel):
+    scope: Literal["bullet", "item", "headline", "summary", "document"]
+    target_id: Annotated[str, StringConstraints(max_length=64)] | None = Field(
+        default=None, description="A bullet id (bullet scope) or a role or project's sourceId (item scope).")
+    instruction: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
+class SuggestedChange(CamelModel):
+    kind: Literal["bullet", "headline", "summary"]
+    target_id: str
+    before: str
+    after: str
+    source_ids: list[str]
+    warnings: list[dict[str, str]]
+
+
+class SuggestedItem(CamelModel):
+    item_id: str
+    bullets: list[dict[str, Any]] = Field(description="The item's complete new bullet list, ready to use.")
+
+
+class RefineOut(CamelModel):
+    changes: list[SuggestedChange]
+    items: list[SuggestedItem]
+    notes: list[dict[str, str]]
+    cost_usd: float
+
+
+class LetterRefineIn(CamelModel):
+    target_id: Annotated[str, StringConstraints(max_length=64)] | None = Field(
+        default=None, description="A paragraph id, or empty for the whole letter.")
+    instruction: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
+class LetterRefineOut(CamelModel):
+    scope: Literal["paragraph", "letter"]
+    paragraphs: list[dict[str, Any]] = Field(description="Replacement paragraphs, ready to use.")
+    notes: list[dict[str, str]]
+    cost_usd: float
+
+
+class KeywordEdit(CamelModel):
+    term: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    importance: Literal[1, 2, 3]
+    must_include: bool = False
+
+
+class AnalysisEditIn(CamelModel):
+    keywords: Annotated[list[KeywordEdit], Field(max_length=60)]
+    suggested_emphasis: Annotated[list[Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]],
+                                  Field(max_length=10)] = []
+
+
+class RegenerateIn(CamelModel):
+    letter: bool = Field(default=False, description="Write the cover letter again too.")
 
 
 # ---- admin (AI) ------------------------------------------------------------------------------------------

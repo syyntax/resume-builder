@@ -964,7 +964,7 @@ export interface paths {
         };
         /**
          * Preview Pdf
-         * @description The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.
+         * @description A document exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages.
          */
         get: operations["preview_pdf_api_applications__application_id__preview_pdf_get"];
         put?: never;
@@ -1002,10 +1002,198 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Export Application */
+        /**
+         * Export Application
+         * @description Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only).
+         */
         get: operations["export_application_api_applications__application_id__export_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Resume
+         * @description Autosave the edited résumé. Facts and sources are enforced, and warnings and coverage recomputed.
+         */
+        put: operations["save_resume_api_applications__application_id__resume_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/resume/refine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refine Resume
+         * @description AI refine (EDT-4): suggestions only. Nothing changes until the editor applies them.
+         */
+        post: operations["refine_resume_api_applications__application_id__resume_refine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/cover-letter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save Letter
+         * @description Autosave the edited cover letter (CVL-5).
+         */
+        put: operations["save_letter_api_applications__application_id__cover_letter_put"];
+        /**
+         * Generate Letter
+         * @description Write (or rewrite) the cover letter with these options (CVL-1, CVL-2).
+         */
+        post: operations["generate_letter_api_applications__application_id__cover_letter_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/cover-letter/refine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refine Letter
+         * @description Rewrite one paragraph, or the whole letter, from an instruction. A suggestion only.
+         */
+        post: operations["refine_letter_api_applications__application_id__cover_letter_refine_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rerun Audit
+         * @description Check the current wording again (TLR-8), for example after edits.
+         */
+        post: operations["rerun_audit_api_applications__application_id__audit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Analysis
+         * @description Promote, demote or add keywords, mark must-includes, and set the themes to emphasize (JOB-4).
+         *     Regenerating then uses the edited analysis.
+         */
+        put: operations["edit_analysis_api_applications__application_id__analysis_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Continue After Review
+         * @description After reviewing (and maybe editing) the analysis, write the résumé (JOB-5).
+         */
+        post: operations["continue_after_review_api_applications__application_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate
+         * @description Write the résumé again from the current analysis. This replaces the edited résumé.
+         */
+        post: operations["regenerate_api_applications__application_id__regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate
+         * @description A copy to try a different version against (EDT-7): same posting, analysis and documents.
+         */
+        post: operations["duplicate_api_applications__application_id__duplicate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1129,6 +1317,16 @@ export interface components {
             /** Defaultcapusd */
             defaultCapUsd: number;
         };
+        /** AnalysisEditIn */
+        AnalysisEditIn: {
+            /** Keywords */
+            keywords: components["schemas"]["KeywordEdit"][];
+            /**
+             * Suggestedemphasis
+             * @default []
+             */
+            suggestedEmphasis: string[];
+        };
         /** ApiKeyIn */
         ApiKeyIn: {
             /** Apikey */
@@ -1164,8 +1362,29 @@ export interface components {
             /** Masterid */
             masterId: string;
             job: components["schemas"]["JobIn"];
-            /** @default {} */
+            /**
+             * @default {
+             *       "reviewAnalysis": false
+             *     }
+             */
             options: components["schemas"]["GenerationOptions"];
+            /**
+             * @default {
+             *       "generate": true,
+             *       "recipient": {
+             *         "address": [],
+             *         "company": "",
+             *         "name": "",
+             *         "title": ""
+             *       },
+             *       "tone": "confident",
+             *       "length": "standard",
+             *       "notes": "",
+             *       "highlights": "",
+             *       "referral": ""
+             *     }
+             */
+            coverLetter: components["schemas"]["CoverLetterOptions"];
         };
         /** ApplicationDetailOut */
         ApplicationDetailOut: {
@@ -1175,7 +1394,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "queued" | "analyzing" | "tailoring" | "validating" | "done" | "failed";
+            status: "queued" | "analyzing" | "review" | "tailoring" | "validating" | "writing" | "auditing" | "done" | "failed";
             /** Error */
             error: {
                 [key: string]: unknown;
@@ -1209,8 +1428,23 @@ export interface components {
             analysis: {
                 [key: string]: unknown;
             } | null;
+            /** Analysisedited */
+            analysisEdited: boolean;
             /** Resume */
             resume: {
+                [key: string]: unknown;
+            } | null;
+            /** Coverletter */
+            coverLetter: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Coverletterstatus
+             * @enum {string}
+             */
+            coverLetterStatus: "none" | "generating" | "ready" | "failed";
+            /** Coverlettererror */
+            coverLetterError: {
                 [key: string]: unknown;
             } | null;
             /** Costusd */
@@ -1224,7 +1458,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "queued" | "analyzing" | "tailoring" | "validating" | "done" | "failed";
+            status: "queued" | "analyzing" | "review" | "tailoring" | "validating" | "writing" | "auditing" | "done" | "failed";
             /** Error */
             error: {
                 [key: string]: unknown;
@@ -1277,6 +1511,52 @@ export interface components {
              */
             createdAt: string;
         };
+        /** CoverLetterOptions */
+        CoverLetterOptions: {
+            /**
+             * Generate
+             * @description Write the letter along with the résumé.
+             * @default true
+             */
+            generate: boolean;
+            /**
+             * @default {
+             *       "name": "",
+             *       "title": "",
+             *       "company": "",
+             *       "address": []
+             *     }
+             */
+            recipient: components["schemas"]["RecipientIn"];
+            /**
+             * Tone
+             * @default confident
+             * @enum {string}
+             */
+            tone: "neutral" | "confident" | "warm" | "formal";
+            /**
+             * Length
+             * @default standard
+             * @enum {string}
+             */
+            length: "short" | "standard" | "detailed";
+            /**
+             * Notes
+             * @description "Why this company?" notes: the only source for statements about the company.
+             * @default
+             */
+            notes: string;
+            /**
+             * Highlights
+             * @default
+             */
+            highlights: string;
+            /**
+             * Referral
+             * @default
+             */
+            referral: string;
+        };
         /** DeleteAccountIn */
         DeleteAccountIn: {
             /** Password */
@@ -1293,6 +1573,13 @@ export interface components {
             /** Template */
             template: string;
             theme: components["schemas"]["Theme"];
+        };
+        /** DocumentIn */
+        DocumentIn: {
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
         };
         /** FidelityOut */
         FidelityOut: {
@@ -1315,6 +1602,12 @@ export interface components {
             tone?: ("neutral" | "confident" | "conservative") | null;
             /** Instructions */
             instructions?: string | null;
+            /**
+             * Reviewanalysis
+             * @description Pause after the job analysis so it can be edited.
+             * @default false
+             */
+            reviewAnalysis: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1566,6 +1859,52 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /** KeywordEdit */
+        KeywordEdit: {
+            /** Term */
+            term: string;
+            /**
+             * Importance
+             * @enum {integer}
+             */
+            importance: 1 | 2 | 3;
+            /**
+             * Mustinclude
+             * @default false
+             */
+            mustInclude: boolean;
+        };
+        /** LetterRefineIn */
+        LetterRefineIn: {
+            /**
+             * Targetid
+             * @description A paragraph id, or empty for the whole letter.
+             */
+            targetId?: string | null;
+            /** Instruction */
+            instruction: string;
+        };
+        /** LetterRefineOut */
+        LetterRefineOut: {
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "paragraph" | "letter";
+            /**
+             * Paragraphs
+             * @description Replacement paragraphs, ready to use.
+             */
+            paragraphs: {
+                [key: string]: unknown;
+            }[];
+            /** Notes */
+            notes: {
+                [key: string]: string;
+            }[];
+            /** Costusd */
+            costUsd: number;
+        };
         /** LinkOut */
         LinkOut: {
             /** Url */
@@ -1719,6 +2058,66 @@ export interface components {
              */
             currentPassword?: string | null;
         };
+        /** RecipientIn */
+        RecipientIn: {
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Company
+             * @default
+             */
+            company: string;
+            /**
+             * Address
+             * @default []
+             */
+            address: string[];
+        };
+        /** RefineIn */
+        RefineIn: {
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "bullet" | "item" | "headline" | "summary" | "document";
+            /**
+             * Targetid
+             * @description A bullet id (bullet scope) or a role or project's sourceId (item scope).
+             */
+            targetId?: string | null;
+            /** Instruction */
+            instruction: string;
+        };
+        /** RefineOut */
+        RefineOut: {
+            /** Changes */
+            changes: components["schemas"]["SuggestedChange"][];
+            /** Items */
+            items: components["schemas"]["SuggestedItem"][];
+            /** Notes */
+            notes: {
+                [key: string]: string;
+            }[];
+            /** Costusd */
+            costUsd: number;
+        };
+        /** RegenerateIn */
+        RegenerateIn: {
+            /**
+             * Letter
+             * @description Write the cover letter again too.
+             * @default false
+             */
+            letter: boolean;
+        };
         /** RegisterIn */
         RegisterIn: {
             /** Email */
@@ -1819,6 +2218,38 @@ export interface components {
             outputTokens: number;
             /** Costusd */
             costUsd: number;
+        };
+        /** SuggestedChange */
+        SuggestedChange: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "bullet" | "headline" | "summary";
+            /** Targetid */
+            targetId: string;
+            /** Before */
+            before: string;
+            /** After */
+            after: string;
+            /** Sourceids */
+            sourceIds: string[];
+            /** Warnings */
+            warnings: {
+                [key: string]: string;
+            }[];
+        };
+        /** SuggestedItem */
+        SuggestedItem: {
+            /** Itemid */
+            itemId: string;
+            /**
+             * Bullets
+             * @description The item's complete new bullet list, ready to use.
+             */
+            bullets: {
+                [key: string]: unknown;
+            }[];
         };
         /** SystemSettingsIn */
         SystemSettingsIn: {
@@ -4003,7 +4434,9 @@ export interface operations {
     };
     preview_pdf_api_applications__application_id__preview_pdf_get: {
         parameters: {
-            query?: never;
+            query?: {
+                doc?: "resume" | "cover-letter" | "packet";
+            };
             header?: never;
             path: {
                 application_id: string;
@@ -4070,6 +4503,7 @@ export interface operations {
     export_application_api_applications__application_id__export_get: {
         parameters: {
             query?: {
+                doc?: "resume" | "cover-letter" | "packet";
                 format?: string;
             };
             header?: never;
@@ -4087,6 +4521,346 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_resume_api_applications__application_id__resume_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentIn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refine_resume_api_applications__application_id__resume_refine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_letter_api_applications__application_id__cover_letter_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentIn"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_letter_api_applications__application_id__cover_letter_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoverLetterOptions"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refine_letter_api_applications__application_id__cover_letter_refine_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LetterRefineIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LetterRefineOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rerun_audit_api_applications__application_id__audit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_analysis_api_applications__application_id__analysis_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    continue_after_review_api_applications__application_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_api_applications__application_id__regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegenerateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    duplicate_api_applications__application_id__duplicate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationOut"];
                 };
             };
             /** @description Validation Error */

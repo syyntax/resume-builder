@@ -12,13 +12,16 @@ interface State<T> {
   future: T[];
   group: string | null;
   at: number;
+  /** Counts edits, undos and redos (not replace or reset), so autosave can tell your changes from its own. */
+  edits: number;
 }
 
 type Action<T> =
   | { type: "set"; update: (value: T) => T; group?: string; now: number }
   | { type: "undo" }
   | { type: "redo" }
-  | { type: "reset"; value: T };
+  | { type: "reset"; value: T }
+  | { type: "replace"; update: (value: T) => T };
 
 function reducer<T>(state: State<T>, action: Action<T>): State<T> {
   switch (action.type) {
@@ -32,20 +35,25 @@ function reducer<T>(state: State<T>, action: Action<T>): State<T> {
         future: [],
         group: action.group ?? null,
         at: action.now,
+        edits: state.edits + 1,
       };
     }
     case "undo": {
       const previous = state.past.at(-1);
       if (previous === undefined) return state;
-      return { past: state.past.slice(0, -1), present: previous, future: [state.present, ...state.future], group: null, at: 0 };
+      return { past: state.past.slice(0, -1), present: previous, future: [state.present, ...state.future], group: null, at: 0, edits: state.edits + 1 };
     }
     case "redo": {
       const [next, ...rest] = state.future;
       if (next === undefined) return state;
-      return { past: [...state.past, state.present], present: next, future: rest, group: null, at: 0 };
+      return { past: [...state.past, state.present], present: next, future: rest, group: null, at: 0, edits: state.edits + 1 };
     }
     case "reset":
-      return { past: [], present: action.value, future: [], group: null, at: 0 };
+      return { past: [], present: action.value, future: [], group: null, at: 0, edits: state.edits };
+    case "replace": {
+      const next = action.update(state.present);
+      return Object.is(next, state.present) ? state : { ...state, present: next };
+    }
   }
 }
 
@@ -55,19 +63,24 @@ export interface History<T> {
   undo: () => void;
   redo: () => void;
   reset: (value: T) => void;
+  /** Change the current value without an undo step (for example, warnings the server computed). */
+  replace: (update: (value: T) => T) => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** How many edits, undos and redos so far. */
+  edits: number;
 }
 
 export function useHistory<T>(initial: T): History<T> {
-  const [state, dispatch] = useReducer(reducer<T>, { past: [], present: initial, future: [], group: null, at: 0 });
+  const [state, dispatch] = useReducer(reducer<T>, { past: [], present: initial, future: [], group: null, at: 0, edits: 0 });
   const set = useCallback((update: (value: T) => T, group?: string) => dispatch({ type: "set", update, group, now: Date.now() }), []);
   const undo = useCallback(() => dispatch({ type: "undo" }), []);
   const redo = useCallback(() => dispatch({ type: "redo" }), []);
   const reset = useCallback((value: T) => dispatch({ type: "reset", value }), []);
+  const replace = useCallback((update: (value: T) => T) => dispatch({ type: "replace", update }), []);
   return useMemo(
-    () => ({ value: state.present, set, undo, redo, reset, canUndo: state.past.length > 0, canRedo: state.future.length > 0 }),
-    [state, set, undo, redo, reset],
+    () => ({ value: state.present, set, undo, redo, reset, replace, canUndo: state.past.length > 0, canRedo: state.future.length > 0, edits: state.edits }),
+    [state, set, undo, redo, reset, replace],
   );
 }
 

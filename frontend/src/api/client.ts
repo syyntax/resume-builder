@@ -40,6 +40,11 @@ export function setCsrfToken(token: string | null): void {
   csrfToken = token;
 }
 
+/** Headers for a write made outside `api()` (for example a keepalive save while the page closes). */
+export function csrfHeaders(): Record<string, string> {
+  return csrfToken ? { "X-CSRF-Token": csrfToken } : {};
+}
+
 /** Called when a request comes back 401 (the session expired or was revoked elsewhere). */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;

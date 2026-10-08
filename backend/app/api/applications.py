@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import StreamingResponse
@@ -32,8 +32,9 @@ from app.models.api import (
 )
 from app.pipeline import usage
 from app.pipeline.export import filename, to_markdown
-from app.pipeline.run import ACTIVE, run_application
-from app.render.service import render_resume, stored_design
+from app.pipeline.letter import to_markdown as letter_markdown
+from app.pipeline.run import ACTIVE, Phase, run_application
+from app.render.service import render_letter, render_packet, render_resume, stored_design
 from app.render.theme import TEMPLATES
 from app.services import settings_store
 
@@ -65,10 +66,16 @@ class ApplicationRepository:
             raise ApiError(404, "Application not found.")
         return row
 
-    async def resume(self, application_id: str) -> Document | None:
+    async def document(self, application_id: str, kind: str) -> Document | None:
         return (await self.db.execute(select(Document).where(
-            Document.application_id == application_id, Document.kind == "resume", Document.owner_id == self.owner_id,
+            Document.application_id == application_id, Document.kind == kind, Document.owner_id == self.owner_id,
         ))).scalar_one_or_none()
+
+    async def resume(self, application_id: str) -> Document | None:
+        return await self.document(application_id, "resume")
+
+    async def letter(self, application_id: str) -> Document | None:
+        return await self.document(application_id, "cover_letter")
 
     async def cost(self, application_id: str) -> float:
         stmt = select(func.coalesce(func.sum(AiCall.est_cost_usd), 0.0)).where(
@@ -94,9 +101,9 @@ def _out(row: Any) -> dict[str, Any]:
     }
 
 
-def _start(request: Request, owner_id: str, application_id: str) -> None:
+def start(request: Request, owner_id: str, application_id: str, phase: Phase = "full") -> None:
     app = request.app
-    app.state.jobs.submit(owner_id, lambda: run_application(app, application_id))
+    app.state.jobs.submit(owner_id, lambda: run_application(app, application_id, phase))
 
 
 # ---- create & list -----------------------------------------------------------------------------------
@@ -120,12 +127,14 @@ async def create_application(body: ApplicationCreateIn, request: Request, ctx: A
     db.add(job)
     await db.flush()
     now = utcnow()
+    options = {**body.options.model_dump(by_alias=True, exclude_none=True),
+               "coverLetter": body.cover_letter.model_dump(by_alias=True)}
     application = Application(owner_id=ctx.user.id, master_version_id=version.id, job_id=job.id, status="queued",
-                              options=body.options.model_dump(by_alias=True, exclude_none=True), model=model,
-                              template="meridian", theme={}, created_at=now, updated_at=now)
+                              options=options, model=model, template="meridian", theme={}, created_at=now,
+                              updated_at=now)
     db.add(application)
     await db.commit()
-    _start(request, ctx.user.id, application.id)
+    start(request, ctx.user.id, application.id)
     return ApplicationOut(**_out(await repo.get(application.id)))
 
 
@@ -138,9 +147,15 @@ async def list_applications(repo: ApplicationRepository = Depends(get_repo)) -> 
 async def get_application(application_id: str, repo: ApplicationRepository = Depends(get_repo)) -> ApplicationDetailOut:
     row = await repo.get(application_id)
     document = await repo.resume(application_id)
-    return ApplicationDetailOut(**_out(row), posting=row[1].raw_text, analysis=row[1].analysis,
-                                resume=document.current if document else None,
-                                cost_usd=round(await repo.cost(application_id), 4))
+    letter = await repo.letter(application_id)
+    return ApplicationDetailOut(
+        **_out(row), posting=row[1].raw_text, analysis=row[1].analysis, analysis_edited=row[1].analysis_edited,
+        resume=document.current if document else None,
+        cover_letter=letter.current if letter else None,
+        cover_letter_status=letter.status if letter else "none",  # type: ignore[arg-type]
+        cover_letter_error=letter.error if letter else None,
+        cost_usd=round(await repo.cost(application_id), 4),
+    )
 
 
 @router.post("/{application_id}/retry", response_model=ApplicationOut, status_code=202)
@@ -155,7 +170,8 @@ async def retry_application(application_id: str, request: Request, ctx: AuthCont
                                   usage.estimate_job_cost(application.model, settings))
     application.status, application.error, application.updated_at = "queued", None, utcnow()
     await repo.db.commit()
-    _start(request, ctx.user.id, application.id)
+    # A failure after the analysis doesn't need it again (and the candidate may have edited it).
+    start(request, ctx.user.id, application.id, "tailor" if (await repo.get(application_id))[1].analysis else "full")
     return ApplicationOut(**_out(await repo.get(application_id)))
 
 
@@ -194,6 +210,9 @@ async def application_events(application_id: str, request: Request,
             if current.status == "done":
                 yield _sse({"type": "done"})
                 return
+            if current.status == "review":
+                yield _sse({"type": "review"})
+                return
             if current.status == "failed":
                 yield _sse({"type": "error", **(current.error or {})})
                 return
@@ -206,7 +225,7 @@ async def application_events(application_id: str, request: Request,
                     yield ": keepalive\n\n"
                     continue
                 yield _sse(event)
-                if event["type"] in ("done", "error"):
+                if event["type"] in ("done", "error", "review"):
                     return
         finally:
             bus.unsubscribe(application_id, queue)
@@ -226,13 +245,32 @@ async def _resume_or_409(repo: ApplicationRepository, application_id: str) -> tu
     return row, document.current
 
 
-@router.get("/{application_id}/preview.pdf")
-async def preview_pdf(application_id: str, request: Request,
-                      repo: ApplicationRepository = Depends(get_repo)) -> Response:
-    """The résumé exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages."""
+async def _letter_or_409(repo: ApplicationRepository, application_id: str) -> dict[str, Any]:
+    document = await repo.letter(application_id)
+    if document is None or document.status != "ready" or not document.current:
+        raise ApiError(409, "This application has no cover letter yet.")
+    return document.current
+
+
+Doc = Literal["resume", "cover-letter", "packet"]
+
+
+async def _render_doc(request: Request, repo: ApplicationRepository, application_id: str, doc: Doc) -> Any:
     row, resume = await _resume_or_409(repo, application_id)
     application, job = row[0], {"company": row[1].company, "title": row[1].title}
-    pdf = await render_resume(request.app, resume, job, application.template, application.theme)
+    if doc == "resume":
+        return await render_resume(request.app, resume, job, application.template, application.theme)
+    letter = await _letter_or_409(repo, application_id)
+    if doc == "cover-letter":
+        return await render_letter(request.app, letter, job, application.template, application.theme)
+    return await render_packet(request.app, letter, resume, job, application.template, application.theme)
+
+
+@router.get("/{application_id}/preview.pdf")
+async def preview_pdf(application_id: str, request: Request, doc: Doc = "resume",
+                      repo: ApplicationRepository = Depends(get_repo)) -> Response:
+    """A document exactly as it exports (TPL-1). ``X-Page-Count`` gives the number of pages."""
+    pdf = await _render_doc(request, repo, application_id, doc)
     return Response(pdf.data, media_type="application/pdf", headers={
         "X-Page-Count": str(pdf.pages), "Content-Disposition": "inline", "Cache-Control": "no-store"})
 
@@ -257,19 +295,24 @@ async def save_design(application_id: str, body: DesignIn,
 
 
 @router.get("/{application_id}/export")
-async def export_application(request: Request, application_id: str,
+async def export_application(request: Request, application_id: str, doc: Doc = "resume",
                              format: str = Query("md", pattern="^(md|json|pdf)$"),
                              repo: ApplicationRepository = Depends(get_repo)) -> Response:
+    """Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only)."""
     row, resume = await _resume_or_409(repo, application_id)
     job = {"company": row[1].company, "title": row[1].title}
+    kind = {"resume": "Resume", "cover-letter": "Cover-Letter", "packet": "Application"}[doc]
+    name = filename(resume, job, kind, format)
     if format == "pdf":
-        pdf = await render_resume(request.app, resume, job, row[0].template, row[0].theme)
-        name = filename(resume, job, "Resume", "pdf")
+        pdf = await _render_doc(request, repo, application_id, doc)
         return Response(pdf.data, media_type="application/pdf",
                         headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    if doc == "packet":
+        raise ApiError(422, "The application packet is available as PDF only.")
+    content = resume if doc == "resume" else await _letter_or_409(repo, application_id)
     if format == "json":
-        body, media = json.dumps(resume, indent=2, ensure_ascii=False) + "\n", "application/json"
+        body, media = json.dumps(content, indent=2, ensure_ascii=False) + "\n", "application/json"
     else:
-        body, media = to_markdown(resume), "text/markdown; charset=utf-8"
-    name = filename(resume, job, "Resume", format)
+        body = to_markdown(content) if doc == "resume" else letter_markdown(content)
+        media = "text/markdown; charset=utf-8"
     return Response(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{name}"'})

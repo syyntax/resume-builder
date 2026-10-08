@@ -11,7 +11,7 @@ import { GuestOnly, RequireAdmin, RequireAuth, meKey } from "./auth/auth";
 import { AppShell } from "./layouts/AppShell";
 import { AccountPage } from "./pages/AccountPage";
 import { AdminPage } from "./pages/AdminPage";
-import { ApplicationDetailPage, ApplicationsPage, NewApplicationPage } from "./pages/ApplicationsPages";
+import { ApplicationsPage, NewApplicationPage } from "./pages/ApplicationsPages";
 import { LoginPage, RegisterPage, ResetPasswordPage, SetupPage } from "./pages/AuthPages";
 import { HomePage } from "./pages/HomePage";
 import { MasterDetailPage, MastersPage } from "./pages/MastersPages";
@@ -48,14 +48,14 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <HomePage /> },
           { path: "masters", element: <MastersPage /> },
-          // The editor and import screens bring in drag-and-drop, Monaco and PDF.js: load them on demand.
+          // The editors, import screens and application workspace bring in drag-and-drop, Monaco and PDF.js: load them on demand.
           { path: "masters/import", lazy: () => import("./pages/ImportPages").then((m) => ({ Component: m.ImportStartPage })) },
           { path: "masters/:id", element: <MasterDetailPage /> },
           { path: "masters/:id/edit", handle: { wide: true }, lazy: () => import("./pages/MasterEditPage").then((m) => ({ Component: m.MasterEditPage })) },
           { path: "imports/:id", handle: { wide: true }, lazy: () => import("./pages/ImportPages").then((m) => ({ Component: m.ImportReviewPage })) },
           { path: "applications", element: <ApplicationsPage /> },
           { path: "applications/new", element: <NewApplicationPage /> },
-          { path: "applications/:id", element: <ApplicationDetailPage /> },
+          { path: "applications/:id", handle: { wide: true }, lazy: () => import("./pages/ApplicationDetailPage").then((m) => ({ Component: m.ApplicationDetailPage })) },
           { path: "account", element: <AccountPage /> },
           { element: <RequireAdmin />, children: [{ path: "admin", element: <AdminPage /> }] },
           { path: "*", element: <NotFoundPage /> },

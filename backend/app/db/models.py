@@ -232,7 +232,8 @@ class Application(Base):
     __tablename__ = "application"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('queued', 'analyzing', 'tailoring', 'validating', 'done', 'failed')", name="status"
+            "status IN ('queued', 'analyzing', 'review', 'tailoring', 'validating', 'writing', 'auditing', 'done', "
+            "'failed')", name="status"
         ),
     )
 
@@ -265,6 +266,9 @@ class Document(Base):
     options: Mapped[dict[str, Any]] = mapped_column(JSONType, default=dict)
     ai_draft: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
     current: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
+    # The cover letter is generated separately and can fail on its own: generating | ready | failed
+    status: Mapped[str] = mapped_column(String(16), default="ready", server_default="ready")
+    error: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 

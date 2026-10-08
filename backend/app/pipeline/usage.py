@@ -18,7 +18,10 @@ from app.errors import ApiError
 KeySource = Literal["own", "shared"]
 
 # Rough per-stage token estimates for the pre-flight cap check (output includes thinking).
-STAGE_ESTIMATES = {"analyze": (14_000, 6_000), "tailor": (17_000, 12_000), "import": (15_000, 12_000)}
+STAGE_ESTIMATES = {
+    "analyze": (14_000, 6_000), "tailor": (17_000, 12_000), "import": (15_000, 12_000), "letter": (18_000, 7_000),
+    "audit": (6_000, 3_000), "refine": (16_000, 3_000),
+}
 
 
 def month_start(now: datetime | None = None) -> datetime:

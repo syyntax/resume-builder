@@ -165,6 +165,83 @@ class TailorDraft(_Out):
     notes: list[DraftNote]
 
 
+# ---- stage C: cover letter --------------------------------------------------------------------------
+
+ParagraphRole = Literal["opening", "evidence", "motivation", "closing"]
+CompanySource = Literal["posting", "notes"]
+
+
+class LetterParagraph(_Out):
+    role: ParagraphRole
+    text: str
+    source_ids: list[str]  # master items and bullets the paragraph draws on
+    job_refs: list[str]  # requirement ids from the analysis (r1, r2, …)
+    company_sources: list[CompanySource]  # where statements about the company come from (G6)
+
+
+class LetterHighlight(_Out):
+    value: str
+    label: str
+    source_ids: list[str]
+
+
+class LetterDraft(_Out):
+    subject: str
+    paragraphs: list[LetterParagraph]
+    highlights: list[LetterHighlight]
+    notes: list[DraftNote]
+
+
+# ---- stage R: refine -----------------------------------------------------------------------------------
+
+
+class RefinedBullet(_Out):
+    target_id: str  # the bullet rewritten; "" for a new bullet in a regenerated item
+    text: str
+    source_ids: list[str]
+    keywords: list[str]
+
+
+class RefinedItem(_Out):
+    item_id: str  # a role or project whose bullets were regenerated
+    bullets: list[RefinedBullet]
+
+
+class RefineDraft(_Out):
+    headline: SourcedText  # empty text: unchanged
+    summary: SourcedText  # empty text: unchanged
+    bullets: list[RefinedBullet]
+    items: list[RefinedItem]
+    notes: list[DraftNote]
+
+
+class RefinedParagraph(_Out):
+    target_id: str  # the paragraph rewritten; "" for a new one
+    role: ParagraphRole
+    text: str
+    source_ids: list[str]
+    job_refs: list[str]
+    company_sources: list[CompanySource]
+
+
+class LetterRefineDraft(_Out):
+    paragraphs: list[RefinedParagraph]
+    notes: list[DraftNote]
+
+
+# ---- stage D: claim audit -------------------------------------------------------------------------------
+
+
+class ClaimVerdict(_Out):
+    claim_id: str
+    verdict: Literal["supported", "embellished", "unsupported"]
+    reason: str
+
+
+class AuditResult(_Out):
+    verdicts: list[ClaimVerdict]
+
+
 # ---- schema conversion ---------------------------------------------------------------------------------
 
 _UNSUPPORTED = frozenset({

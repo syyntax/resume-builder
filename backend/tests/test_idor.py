@@ -22,6 +22,13 @@ BODIES: dict[tuple[str, str], Any] = {
     ("PUT", "/api/imports/{import_id}/review"): {"document": {}, "resolved": {}},
     ("POST", "/api/imports/{import_id}/accept"): {"label": "Hijacked", "document": {}},
     ("PUT", "/api/applications/{application_id}/design"): {"template": "meridian", "theme": {}},
+    ("PUT", "/api/applications/{application_id}/resume"): {"document": {}},
+    ("PUT", "/api/applications/{application_id}/cover-letter"): {"document": {}},
+    ("POST", "/api/applications/{application_id}/cover-letter"): {},
+    ("POST", "/api/applications/{application_id}/resume/refine"): {"scope": "document", "instruction": "Shorter"},
+    ("POST", "/api/applications/{application_id}/cover-letter/refine"): {"instruction": "Warmer"},
+    ("PUT", "/api/applications/{application_id}/analysis"): {"keywords": []},
+    ("POST", "/api/applications/{application_id}/regenerate"): {},
 }
 
 
