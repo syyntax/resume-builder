@@ -5,7 +5,7 @@
 # unless a target is named.
 
 # ---- frontend: build the React app -------------------------------------------------------------
-FROM node:24-slim AS frontend
+FROM node:25-slim AS frontend
 WORKDIR /build/frontend
 RUN corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
