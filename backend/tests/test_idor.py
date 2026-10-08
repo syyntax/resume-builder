@@ -14,6 +14,7 @@ from tests.conftest import POSTING, TEST_KEY, USER_PASSWORD, Api, drain
 
 # Routes whose path parameter is not an owned resource id.
 PUBLIC_TOKEN_ROUTES = {"/api/auth/invites/{token}", "/api/auth/password-reset/{token}"}
+SHARED_ROUTES = {"/api/templates/{key}/thumbnail.png"}  # the same for everyone: nobody owns it
 
 # Bodies that pass request validation, so the ownership check (not a 422) decides the outcome.
 BODIES: dict[tuple[str, str], Any] = {
@@ -29,6 +30,7 @@ BODIES: dict[tuple[str, str], Any] = {
     ("POST", "/api/applications/{application_id}/cover-letter/refine"): {"instruction": "Warmer"},
     ("PUT", "/api/applications/{application_id}/analysis"): {"keywords": []},
     ("POST", "/api/applications/{application_id}/regenerate"): {},
+    ("POST", "/api/applications/{application_id}/resume/fit"): {},
 }
 
 
@@ -60,6 +62,7 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
         "session_id": alice.get("/api/auth/sessions").json()[0]["id"],
         "application_id": application["id"],
         "import_id": upload["id"],
+        "revision_id": "rev_00000000000000000000000000",  # restoring someone else's: tests/test_fit.py
     }
     # A version with an original file, so the file routes find something to protect.
     file_ids = {"master_id": imported["master"]["id"], "version_id": imported["version"]["id"]}
@@ -67,7 +70,7 @@ def test_users_cannot_reach_each_others_resources(app: FastAPI, admin: Api, make
     checked = 0
     for method, path in _routes(app):
         params = re.findall(r"{(\w+)}", path)
-        if not params or path in PUBLIC_TOKEN_ROUTES or path.startswith("/api/admin/"):
+        if not params or path in PUBLIC_TOKEN_ROUTES | SHARED_ROUTES or path.startswith("/api/admin/"):
             continue
         unknown = [p for p in params if p not in ids]
         assert not unknown, f"{method} {path}: classify parameter(s) {unknown} in tests/test_idor.py"

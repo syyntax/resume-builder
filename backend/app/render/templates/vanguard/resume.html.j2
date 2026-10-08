@@ -1,0 +1,88 @@
+{% extends "_base.html.j2" %}
+{% from "_macros.html.j2" import contact_list, bullets %}
+{% block body_class %}vanguard resume{% endblock %}
+{% block content %}
+<header class="band">
+  <h1 class="name">{{ view.name }}</h1>
+  {% if view.headline %}<p class="headline">{{ view.headline }}</p>{% endif %}
+  {{ contact_list(view.contact, theme.contact_icons) }}
+</header>
+
+<main class="content">
+{% if view.summary %}
+<section>
+  <h2>Profile</h2>
+  <div><p>{{ view.summary | inline }}</p></div>
+</section>
+{% endif %}
+
+{% for section in view.sections %}
+{% if section.kind == "experience" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <div>
+    {% for group in section.groups %}
+    <div class="role">
+      {% if group.roles | length == 1 %}
+        {% set role = group.roles[0] %}
+        <div class="row"><h3 class="title">{{ role.position }}</h3><span class="dates">{{ role.dates }}</span></div>
+        <p class="org">{{ group.company }}{% if group.location %} <span class="loc">· {{ group.location }}</span>{% endif %}</p>
+        {{ bullets(role.bullets) }}
+      {% else %}
+        <p class="org">{{ group.company }}{% if group.location %} <span class="loc">· {{ group.location }}</span>{% endif %}</p>
+        {% for role in group.roles %}
+        <div class="row"><h3 class="title">{{ role.position }}</h3><span class="dates">{{ role.dates }}</span></div>
+        {{ bullets(role.bullets) }}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% elif section.kind == "earlier-experience" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <div><p class="earlier">{{ section.entries | join("; ") }}</p></div>
+</section>
+{% elif section.kind == "projects" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <div>
+    {% for p in section.entries %}
+    <div class="role">
+      <div class="row"><h3 class="title">{{ p.name }}{% if p.aside %} <span class="aside">· {{ p.aside }}</span>{% endif %}</h3>{% if p.right %}<span class="dates">{{ p.right }}</span>{% endif %}</div>
+      {{ bullets(p.bullets) }}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% elif section.kind == "skills" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <dl class="skills">
+    {% for g in section.groups %}<dt>{{ g.name }}</dt><dd>{{ g.text }}</dd>{% endfor %}
+  </dl>
+</section>
+{% elif section.kind == "languages" %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <div><p>{{ section.text }}</p></div>
+</section>
+{% else %}
+<section>
+  <h2>{{ section.title }}</h2>
+  <div class="{{ 'creds' if section.entries | length > 1 and not (section.entries | selectattr('bullets') | list) else 'entries' }}">
+    {% for e in section.entries %}
+    <div class="item">
+      <p class="item-title">{{ e.title }}</p>
+      {% if e.meta %}<p class="meta">{{ e.meta }}</p>{% endif %}
+      {% if e.summary %}<p class="note">{{ e.summary | inline }}</p>{% endif %}
+      {{ bullets(e.bullets) }}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+</main>
+{% endblock %}

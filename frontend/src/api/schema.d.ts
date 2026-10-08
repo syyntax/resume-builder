@@ -1004,7 +1004,8 @@ export interface paths {
         };
         /**
          * Export Application
-         * @description Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only).
+         * @description Download the résumé or the cover letter as PDF, Word, Markdown, plain text or JSON, or the packet (the
+         *     cover letter then the résumé, PDF only).
          */
         get: operations["export_application_api_applications__application_id__export_get"];
         put?: never;
@@ -1200,6 +1201,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/applications/{application_id}/resume/fit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fit Resume To Page
+         * @description Fit the résumé to its page target: tighter spacing, then narrower margins, then the fewest less relevant
+         *     bullets (never pinned, edited or your own). Saved at once, with a snapshot to undo it.
+         */
+        post: operations["fit_resume_to_page_api_applications__application_id__resume_fit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/cover-letter/fit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fit Letter To Page
+         * @description Fit the cover letter on one page by condensing its paragraphs (stage F), at most twice. The design is
+         *     shared with the résumé, so it isn't changed here.
+         */
+        post: operations["fit_letter_to_page_api_applications__application_id__cover_letter_fit_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/applications/{application_id}/revisions/{revision_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore Revision
+         * @description Undo an automatic change: the document, and the design, as they were before it.
+         */
+        post: operations["restore_revision_api_applications__application_id__revisions__revision_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/templates": {
         parameters: {
             query?: never;
@@ -1209,6 +1272,26 @@ export interface paths {
         };
         /** List Templates */
         get: operations["list_templates_api_templates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/templates/{key}/thumbnail.png": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Thumbnail
+         * @description The sample résumé in this template, for the gallery.
+         */
+        get: operations["thumbnail_api_templates__key__thumbnail_png_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1593,6 +1676,57 @@ export interface components {
             passed: number;
             /** Score */
             score: number | null;
+        };
+        /** FitIn */
+        FitIn: {
+            /**
+             * Targetpages
+             * @description Pages to fit on; the application's page target if omitted (the letter: 1).
+             */
+            targetPages?: number | null;
+        };
+        /** FitOut */
+        FitOut: {
+            /** Fits */
+            fits: boolean;
+            /**
+             * Pages
+             * @description Pages after fitting (or as it is, when nothing changed).
+             */
+            pages: number;
+            /**
+             * Room
+             * @description The last page is less than 60% full: there's room to add something back.
+             */
+            room: boolean;
+            /**
+             * Changes
+             * @description What changed, in plain words; empty when nothing did.
+             */
+            changes: string[];
+            /**
+             * Removed
+             * @description The text of each bullet that was left out.
+             * @default []
+             */
+            removed: string[];
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
+            /**
+             * Revisionid
+             * @description Restore it to undo the fit.
+             */
+            revisionId?: string | null;
+            /**
+             * Costusd
+             * @default 0
+             */
+            costUsd: number;
         };
         /** GenerationOptions */
         GenerationOptions: {
@@ -2141,6 +2275,21 @@ export interface components {
             /** Domainrestricted */
             domainRestricted: boolean;
         };
+        /** RestoreOut */
+        RestoreOut: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "resume" | "cover_letter";
+            /** Document */
+            document: {
+                [key: string]: unknown;
+            };
+            /** Template */
+            template: string;
+            theme: components["schemas"]["Theme"];
+        };
         /** SessionOut */
         SessionOut: {
             /** Id */
@@ -2270,6 +2419,15 @@ export interface components {
             /** Openregistrationexposed */
             openRegistrationExposed: boolean;
         };
+        /** TemplateDefaultsOut */
+        TemplateDefaultsOut: {
+            /** Accent */
+            accent: string;
+            /** Fonts */
+            fonts: string;
+            /** Contacticons */
+            contactIcons: boolean;
+        };
         /** TemplateOut */
         TemplateOut: {
             /** Key */
@@ -2280,13 +2438,20 @@ export interface components {
             description: string;
             /** Layout */
             layout: string;
-            /** Ats */
+            /**
+             * Ats
+             * @description How safely applicant tracking systems read it (TPL-5).
+             */
             ats: string;
             /**
              * Available
              * @description False for templates that arrive in a later release.
              */
             available: boolean;
+            /** Thumbnailurl */
+            thumbnailUrl: string;
+            /** @description The template's own colors and fonts, applied when you switch to it; you can change them afterwards. */
+            defaultTheme: components["schemas"]["TemplateDefaultsOut"];
         };
         /** TemplatesOut */
         TemplatesOut: {
@@ -2309,7 +2474,7 @@ export interface components {
              * @default inter
              * @enum {string}
              */
-            fonts: "inter" | "plex" | "source" | "garamond" | "lato";
+            fonts: "inter" | "plex" | "source" | "source-sans" | "garamond" | "lato";
             /**
              * Density
              * @default balanced
@@ -4874,6 +5039,104 @@ export interface operations {
             };
         };
     };
+    fit_resume_to_page_api_applications__application_id__resume_fit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FitIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fit_letter_to_page_api_applications__application_id__cover_letter_fit_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restore_revision_api_applications__application_id__revisions__revision_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoreOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_templates_get: {
         parameters: {
             query?: never;
@@ -4890,6 +5153,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TemplatesOut"];
+                };
+            };
+        };
+    };
+    thumbnail_api_templates__key__thumbnail_png_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

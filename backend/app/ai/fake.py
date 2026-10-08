@@ -51,8 +51,10 @@ class FakeLLM:
             data = fake_import.transcribe(self._document_text(request))
             return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
                              request_id="req_fake", duration_ms=5)
-        if request.stage == "audit":
-            data = fake_stages.audit(json.loads(_between(request.blocks[0].text, "claims")))
+        if request.stage in ("audit", "condense"):
+            block = request.blocks[0].text
+            data = (fake_stages.audit(json.loads(_between(block, "claims"))) if request.stage == "audit"
+                    else fake_stages.condense(json.loads(_between(block, "texts"))))
             return LLMResult(data=data, usage=_usage(request, data), model=request.model, stop_reason="end_turn",
                              request_id="req_fake", duration_ms=5)
         master = json.loads(_between(request.blocks[0].text, "master_resume"))

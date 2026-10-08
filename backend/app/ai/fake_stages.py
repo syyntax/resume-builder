@@ -59,7 +59,13 @@ def letter(analysis: dict[str, Any], resume: dict[str, Any], notes: str) -> dict
         {"role": "closing", "text": "I'd welcome the chance to talk about how I could help. Thank you for your time.",
          "sourceIds": [], "jobRefs": [], "companySources": []},
     ]
-    return {"subject": title if title != "this role" else "", "paragraphs": paragraphs, "highlights": [],
+    highlights = []
+    for b in bullets:  # up to three key numbers, each from a cited bullet
+        number = re.search(r"\$?\d[\d,.]*\s?(?:%|K|M|x)?", b["text"])
+        if number and len(highlights) < 3:
+            label = " ".join(b["text"].replace(number.group(0), "").split()[:6]).rstrip(",;.")
+            highlights.append({"value": number.group(0).strip(), "label": label, "sourceIds": b.get("sourceIds", [])})
+    return {"subject": title if title != "this role" else "", "paragraphs": paragraphs, "highlights": highlights,
             "notes": [] if has_notes else [{"type": "suggestion", "text": "Add a sentence about why this company "
                                                                           "appeals to you."}]}
 
@@ -120,3 +126,13 @@ def audit(claims: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             verdicts.append({"claimId": claim["id"], "verdict": "supported", "reason": ""})
     return {"verdicts": verdicts}
+
+
+def condense(items: list[dict[str, str]]) -> dict[str, Any]:
+    """Drop each text's last sentence (or, for one sentence, its last clause): shorter, nothing added."""
+    out = []
+    for item in items:
+        sentences = re.split(r"(?<=[.!?])\s+", item["text"].strip())
+        text = " ".join(sentences[:-1]) if len(sentences) > 1 else _shorten(item["text"])
+        out.append({"targetId": item["id"], "text": text})
+    return {"items": out}

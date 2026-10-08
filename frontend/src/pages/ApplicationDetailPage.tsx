@@ -107,11 +107,14 @@ function ExportMenu({ id, hasLetter }: { id: string; hasLetter: boolean }) {
         <div className="grid grid-cols-2 gap-x-4 text-sm">
           <div>
             <p className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Résumé</p>
-            {link("resume", "pdf", "PDF")}{link("resume", "md", "Markdown")}{link("resume", "json", "JSON")}
+            {link("resume", "pdf", "PDF")}{link("resume", "docx", "Word")}{link("resume", "txt", "Plain text")}
+            {link("resume", "md", "Markdown")}{link("resume", "json", "JSON")}
           </div>
           <div>
             <p className="px-2 pb-1 text-xs font-semibold text-slate-500 uppercase">Cover letter</p>
-            {link("cover-letter", "pdf", "PDF", hasLetter)}{link("cover-letter", "md", "Markdown", hasLetter)}{link("cover-letter", "json", "JSON", hasLetter)}
+            {link("cover-letter", "pdf", "PDF", hasLetter)}{link("cover-letter", "docx", "Word", hasLetter)}
+            {link("cover-letter", "txt", "Plain text", hasLetter)}{link("cover-letter", "md", "Markdown", hasLetter)}
+            {link("cover-letter", "json", "JSON", hasLetter)}
           </div>
           <div className="col-span-2 mt-2 border-t border-slate-100 pt-2 dark:border-slate-800">
             {link("packet", "pdf", "Application packet (PDF): letter, then résumé", hasLetter)}

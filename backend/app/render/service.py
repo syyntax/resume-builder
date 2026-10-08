@@ -40,12 +40,14 @@ def resume_metadata(resume: dict[str, Any], job: dict[str, Any]) -> dict[str, st
 
 async def render_resume(app: FastAPI, resume: dict[str, Any], job: dict[str, Any], template: str | None,
                         theme: dict[str, Any] | None) -> RenderedPdf:
-    key, parsed = stored_design(template, theme)
-    html = render_resume_html(resume, key, parsed, title=resume_title(resume, job))
-    try:
-        return await app.state.pdf.render(html, resume_metadata(resume, job))
-    except RenderError as exc:
-        raise ApiError(503, str(exc), extra={"code": "render_failed"}) from exc
+    return await render_resume_as(app, resume, job, *stored_design(template, theme))
+
+
+async def render_resume_as(app: FastAPI, resume: dict[str, Any], job: dict[str, Any], template: str,
+                           theme: Theme) -> RenderedPdf:
+    """The résumé with a given (valid) template and theme, such as one being tried out by fit to page."""
+    html = render_resume_html(resume, template, theme, title=resume_title(resume, job))
+    return await _render(app, html, resume_metadata(resume, job))
 
 
 def letter_metadata(letter: dict[str, Any], job: dict[str, Any]) -> dict[str, str]:
@@ -65,9 +67,13 @@ async def _render(app: FastAPI, html: str, metadata: dict[str, str]) -> Rendered
 async def render_letter(app: FastAPI, letter: dict[str, Any], job: dict[str, Any], template: str | None,
                         theme: dict[str, Any] | None) -> RenderedPdf:
     """The cover letter with the résumé's letterhead: same template, fonts and accent (CVL-6)."""
-    key, parsed = stored_design(template, theme)
+    return await render_letter_as(app, letter, job, *stored_design(template, theme))
+
+
+async def render_letter_as(app: FastAPI, letter: dict[str, Any], job: dict[str, Any], template: str,
+                           theme: Theme) -> RenderedPdf:
     meta = letter_metadata(letter, job)
-    return await _render(app, render_letter_html(letter, key, parsed, title=meta["Title"]), meta)
+    return await _render(app, render_letter_html(letter, template, theme, title=meta["Title"]), meta)
 
 
 async def render_packet(app: FastAPI, letter: dict[str, Any], resume: dict[str, Any], job: dict[str, Any],

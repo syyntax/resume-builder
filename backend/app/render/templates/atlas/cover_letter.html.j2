@@ -1,0 +1,44 @@
+{% extends "_base.html.j2" %}
+{% from "_macros.html.j2" import contact_list %}
+{% block body_class %}atlas letter{% endblock %}
+{% block content %}
+<div class="columns">
+<main>
+  <header>
+    <h1 class="name">{{ view.name }}</h1>
+    {% if view.headline %}<p class="headline">{{ view.headline }}</p>{% endif %}
+  </header>
+  <div class="letter-body">
+    {% if view.date %}<p class="date">{{ view.date }}</p>{% endif %}
+    {% if view.recipient %}
+    <address>
+      {% for line in view.recipient %}{% if loop.first %}<b>{{ line }}</b>{% else %}{{ line }}{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}
+    </address>
+    {% endif %}
+    {% if view.subject %}<p class="re">Re: {{ view.subject }}</p>{% endif %}
+    {% if view.salutation %}<p class="salutation">{{ view.salutation }}</p>{% endif %}
+    <div class="paragraphs">
+      {% for p in view.paragraphs %}<p>{{ p | inline }}</p>{% endfor %}
+    </div>
+    <p class="closing">{{ view.closing }}</p>
+    <p class="signature">{{ view.signature }}</p>
+  </div>
+</main>
+
+<aside>
+  {% if view.initials %}<div class="monogram" aria-hidden="true">{{ view.initials }}</div>{% endif %}
+  <section>
+    <h2>Contact</h2>
+    {{ contact_list(view.contact, theme.contact_icons) }}
+  </section>
+  {% if view.highlights %}
+  <section>
+    <h2>Highlights{% if view.company %} for {{ view.company }}{% endif %}</h2>
+    {% for h in view.highlights %}
+    <div class="stat"><p class="stat-value">{{ h.value }}</p><p>{{ h.label }}</p></div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</aside>
+</div>
+{% endblock %}

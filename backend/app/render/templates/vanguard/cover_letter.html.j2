@@ -1,0 +1,29 @@
+{% extends "_base.html.j2" %}
+{% from "_macros.html.j2" import contact_list %}
+{% block body_class %}vanguard letter{% endblock %}
+{% block content %}
+<header class="band">
+  <h1 class="name">{{ view.name }}</h1>
+  {% if view.headline %}<p class="headline">{{ view.headline }}</p>{% endif %}
+  {{ contact_list(view.contact, theme.contact_icons) }}
+</header>
+
+<main class="content">
+  <dl class="letter-meta">
+    {% if view.date %}<dt>Date</dt><dd>{{ view.date }}</dd>{% endif %}
+    {% if view.recipient %}
+    <dt>To</dt>
+    <dd>{% for line in view.recipient %}{% if loop.first %}<b>{{ line }}</b>{% else %}{{ line }}{% endif %}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>
+    {% endif %}
+    {% if view.subject %}<dt>Re</dt><dd>{{ view.subject }}</dd>{% endif %}
+  </dl>
+  <div class="letter-body">
+    {% if view.salutation %}<p class="salutation">{{ view.salutation }}</p>{% endif %}
+    <div class="paragraphs">
+      {% for p in view.paragraphs %}<p>{{ p | inline }}</p>{% endfor %}
+    </div>
+    <p class="closing">{{ view.closing }}</p>
+    <p class="signature">{{ view.signature }}</p>
+  </div>
+</main>
+{% endblock %}

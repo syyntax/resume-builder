@@ -80,7 +80,7 @@ def test_exports(app: FastAPI, admin: Api, keyed_user: Api, example) -> None:
     assert "## Experience" in md.text and "### Senior Software Engineer, Platform · Acme Payments" in md.text
     data = keyed_user.get(f"/api/applications/{app_id}/export", params={"format": "json"}).json()
     assert data["meta"]["applicationId"] == app_id
-    assert keyed_user.get(f"/api/applications/{app_id}/export", params={"format": "docx"}).status_code == 422  # M6
+    assert keyed_user.get(f"/api/applications/{app_id}/export", params={"format": "rtf"}).status_code == 422
 
 
 def test_progress_events_stream(app: FastAPI, admin: Api, keyed_user: Api, example) -> None:

@@ -272,6 +272,20 @@ class Document(Base):
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
 
 
+class DocumentRevision(Base):
+    """What a document (and the design) looked like before an automatic change such as fit to page, to undo it."""
+
+    __tablename__ = "document_revision"
+
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: new_id("rev"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str] = mapped_column(ForeignKey("document.id", ondelete="CASCADE"), index=True)
+    content: Mapped[dict[str, Any]] = mapped_column(JSONType)
+    design: Mapped[dict[str, Any] | None] = mapped_column(JSONType, nullable=True)  # {template, theme}
+    reason: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+
+
 class AiCall(Base):
     """Usage ledger for every model call. Kept when an application is deleted so spending caps hold."""
 

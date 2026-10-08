@@ -14,11 +14,20 @@ from pdfminer.high_level import extract_text as pdfminer_text
 from pydantic import ValidationError
 from pypdf import PdfReader
 
-from app.render.html import date_range, format_date, page_css, render_letter_html, render_resume_html, resume_view
+from app.render.html import (
+    TEMPLATE_DIR,
+    date_range,
+    format_date,
+    initials,
+    page_css,
+    render_letter_html,
+    render_resume_html,
+    resume_view,
+)
 from app.render.pdf import PdfRenderer, RenderedPdf
-from app.render.theme import Theme
+from app.render.samples import LETTER, RESUME, long_resume
+from app.render.theme import TEMPLATES, Theme
 from tests.conftest import POSTING, Api, drain
-from tests.render_samples import LETTER, RESUME, long_resume
 
 LIGATURES = re.compile("[ﬀ-ﬆ]")
 
@@ -36,8 +45,14 @@ def render_all(*jobs: tuple[str, dict[str, str]]) -> tuple[list[RenderedPdf], li
     return asyncio.run(run())
 
 
-def resume_html(resume: dict[str, Any] = RESUME, **theme: Any) -> str:
-    return render_resume_html(resume, "meridian", Theme(**theme), title="Jordan Rivera – Résumé")
+def own_theme(template: str, **options: Any) -> Theme:
+    """The template's own accent, fonts and icons (what switching to it applies), plus any options."""
+    info = TEMPLATES[template]
+    return Theme(**{"accent": info.accent, "fonts": info.fonts, "contact_icons": info.contact_icons, **options})
+
+
+def resume_html(resume: dict[str, Any] = RESUME, template: str = "meridian", **theme: Any) -> str:
+    return render_resume_html(resume, template, own_theme(template, **theme), title="Jordan Rivera – Résumé")
 
 
 def outline_titles(outline: list[Any]) -> list[str]:
@@ -117,47 +132,121 @@ def test_html_escapes_everything_from_the_document() -> None:
 # ---- PDFs ---------------------------------------------------------------------------------------------------
 
 
-def test_resume_pdf_meets_the_ats_checklist() -> None:
+# What each template's sample must read as, in order; the font family it embeds; and its first outline entries.
+EXPECTED = {
+    "meridian": (["SUMMARY", "Platform engineer with 9 years", "EXPERIENCE", "Acme Payments",
+                  "Led migration of 40 payment services", "Initech", "PROJECTS", "tf-guard", "SKILLS", "CERTIFICATIONS",
+                  "EDUCATION"], "Inter", ["jordan rivera", "summary", "experience"]),
+    # Atlas: the main column first, then the sidebar (contact, skills, credentials)
+    "atlas": (["Platform engineer with 9 years", "EXPERIENCE", "Acme Payments", "Led migration of 40 payment services",
+               "Initech", "PROJECTS", "tf-guard", "CONTACT", "jordan@example.com", "SKILLS", "Cloud & Infrastructure",
+               "CERTIFICATIONS", "EDUCATION"], "Plex",
+              ["jordan rivera", "experience", "senior software engineer, platform"]),
+    "ledger": (["SUMMARY", "Platform engineer with 9 years", "EXPERIENCE", "Acme Payments",
+                "Led migration of 40 payment services", "Initech", "PROJECTS", "tf-guard", "SKILLS", "CERTIFICATIONS",
+                "EDUCATION"], "Garamond", ["jordan rivera", "summary", "experience"]),
+    "vanguard": (["PROFILE", "Platform engineer with 9 years", "EXPERIENCE", "Acme Payments",
+                  "Led migration of 40 payment services", "Initech", "PROJECTS", "tf-guard", "SKILLS",
+                  "CERTIFICATIONS", "EDUCATION"], "SourceSans", ["jordan rivera", "profile", "experience"]),
+}
+
+
+def flat_texts(pdf: RenderedPdf) -> list[str]:
+    """The text as two extractors read it (résumé parsers differ), whitespace collapsed."""
+    reader = PdfReader(io.BytesIO(pdf.data))
+    pypdf_text = "\n".join(page.extract_text() for page in reader.pages)
+    return [" ".join(t.split()) for t in (pypdf_text, pdfminer_text(io.BytesIO(pdf.data)))]
+
+
+def assert_in_order(flat: str, order: list[str]) -> None:
+    def pattern(t: str) -> str:  # whole words: no letter or digit right before or after
+        return rf"(?<![\w]){re.escape(t)}(?![\w])"
+
+    positions = [m.start() if (m := re.search(pattern(t), flat, re.IGNORECASE)) else -1 for t in order]
+    assert -1 not in positions and positions == sorted(positions), dict(zip(order, positions, strict=True))
+
+
+@pytest.mark.parametrize("template", list(TEMPLATES))
+def test_resume_pdf_meets_the_ats_checklist(template: str) -> None:
     meta = {"Title": "Jordan Rivera – Staff Platform Engineer – Globex", "Author": "Jordan Rivera",
             "Subject": "Résumé for Staff Platform Engineer at Globex", "Keywords": "Kubernetes, Terraform"}
-    (pdf,), blocked = render_all((resume_html(), meta))
+    (pdf,), blocked = render_all((resume_html(template=template), meta))
     reader = PdfReader(io.BytesIO(pdf.data))
     assert pdf.pages == 1  # the mockup's content fits on one Letter page, as approved
     assert [round(float(x)) for x in reader.pages[0].mediabox[2:]] == [612, 792]
 
-    # Two extractors, as résumé parsers differ: both must read whole headings, in order, without ligatures.
-    order = ["Jordan Rivera", "Senior Platform Engineer", "SUMMARY", "Platform engineer with 9 years", "EXPERIENCE",
-             "Acme Payments", "Led migration of 40 payment services", "Initech", "PROJECTS", "tf-guard", "SKILLS",
-             "CERTIFICATIONS", "EDUCATION"]
-    for text in (reader.pages[0].extract_text(), pdfminer_text(io.BytesIO(pdf.data))):
-        flat = " ".join(text.split())
-        positions = [m.start() if (m := re.search(rf"\b{re.escape(t)}\b", flat, re.IGNORECASE)) else -1 for t in order]
-        assert -1 not in positions and positions == sorted(positions), dict(zip(order, positions, strict=True))
+    order, family, outline = EXPECTED[template]
+    stream, layout = flat_texts(pdf)
+    assert_in_order(stream, ["Jordan Rivera", "Senior Platform Engineer", *order])  # whole headings, in order
+    if template == "atlas":
+        # A layout-based extractor reads the left column first: each column must still read in order, whole
+        # (two columns are why Atlas is rated "Good" for ATS, not "Excellent").
+        split = order.index("CONTACT")
+        assert_in_order(layout, ["Jordan Rivera", "Senior Platform Engineer", *order[:split]])
+        assert_in_order(layout, order[split:])
+    else:
+        assert_in_order(layout, ["Jordan Rivera", "Senior Platform Engineer", *order])
+    for flat in (stream, layout):
         assert "jordan@example.com" in flat  # contact details are body text, not a page header
         assert not LIGATURES.search(flat), "ligatures would break keyword matching"
         assert "configuration" in flat  # "fi" stays two letters
 
     fonts = fonts_of(reader)
     assert fonts and all(fonts.values()), f"every font embedded: {fonts}"
-    assert any("Inter" in name for name in fonts)
+    assert any(family in name.replace(" ", "") for name in fonts), (family, fonts)
 
     info = reader.metadata
     assert (info.title, info.author, info.subject) == (meta["Title"], meta["Author"], meta["Subject"])
     assert info["/Keywords"] == "Kubernetes, Terraform" and info.creator == "Resume Tailor"
     root = reader.trailer["/Root"]
     assert "/StructTreeRoot" in root and bool(root["/MarkInfo"]["/Marked"]) and root["/Lang"] == "en"  # tagged
-    assert [t.lower() for t in outline_titles(reader.outline)[:3]] == ["jordan rivera", "summary", "experience"]
+    assert [t.lower() for t in outline_titles(reader.outline)[:3]] == outline
     uris = {a.get_object()["/A"]["/URI"] for a in reader.pages[0].get("/Annots", []) if "/A" in a.get_object()}
     assert {"mailto:jordan@example.com", "https://linkedin.com/in/jrivera"} <= uris
     assert blocked == []
 
 
-def test_long_resumes_paginate_with_a_footer_from_page_two() -> None:
-    (pdf,), _ = render_all((resume_html(long_resume()), {"Title": "Long"}))
+def test_uppercase_text_stays_whole_in_every_template() -> None:
+    """Tracked capitals split at kerned pairs ("RIVER A", "LATVI A") in text extraction once the tracking is too
+    wide for the font, which is why it's set per font pairing. Names and headings with risky pairs, in EB Garamond
+    (the tightest) and Inter."""
+    resume = copy.deepcopy(RESUME)
+    resume["basics"]["name"] = "Raya Avery"
+    resume["sections"][-1]["title"] = "Latvia Awards"
+    letter = copy.deepcopy(LETTER) | {"subject": "Tax Advisory Analyst", "sender": resume["basics"]}
+    jobs = [(render(doc, template, own_theme(template, fonts=fonts), title="T"), {})
+            for template in TEMPLATES for fonts in ("garamond", "inter")
+            for render, doc in ((render_resume_html, resume), (render_letter_html, letter))]
+    pdfs, _ = render_all(*jobs)
+    for (html, _meta), pdf in zip(jobs, pdfs, strict=True):
+        for flat in flat_texts(pdf):
+            assert "RAYA AVERY" in flat.upper(), (html[:300], flat[:200])
+            assert "LATVIA AWARDS" in flat.upper() or "TAX ADVISORY ANALYST" in flat.upper(), flat
+
+
+@pytest.mark.parametrize("template", list(TEMPLATES))
+def test_template_styles_follow_the_ats_rules(template: str) -> None:
+    """§11.8: no positioned boxes (Chromium paints them, and so extracts their text, out of order), and heading
+    tracking of at most .08em (wider, and extractors read the letters as separate words)."""
+    css = (TEMPLATE_DIR / template / "style.css").read_text()
+    code = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    assert "position:" not in code.replace(" ", "")
+    # fixed tracking stays small; uppercase headings use the font's own limit (--caps-tracking)
+    assert all(float(v) <= 0.05 for v in re.findall(r"letter-spacing:\s*([\d.]+)em", code))
+    assert "font-variant-ligatures: none" in code
+    for kind in ("resume", "cover_letter"):
+        assert (TEMPLATE_DIR / template / f"{kind}.html.j2").exists()
+
+
+@pytest.mark.parametrize("template", list(TEMPLATES))
+def test_long_resumes_paginate_with_a_footer_from_page_two(template: str) -> None:
+    (pdf,), _ = render_all((resume_html(long_resume(), template), {"Title": "Long"}))
     reader = PdfReader(io.BytesIO(pdf.data))
     assert pdf.pages >= 2
     assert "Page 1 of" not in reader.pages[0].extract_text()
     assert f"Jordan Rivera · Page 2 of {pdf.pages}" in reader.pages[1].extract_text()
+    for flat in flat_texts(pdf):  # every role, in order, across the page break
+        assert_in_order(flat, ["Acme Payments", "Initech", *(f"Company {n}" for n in range(8)), "PROJECTS"])
 
 
 def test_theme_options_change_the_output() -> None:
@@ -186,14 +275,27 @@ def test_documents_cannot_reach_the_network_and_renders_are_cached() -> None:
     assert "root:" not in PdfReader(io.BytesIO(pdfs[0].data)).pages[0].extract_text()
 
 
-def test_cover_letter_renders() -> None:
-    html = render_letter_html(LETTER, "meridian", Theme(), title="Cover letter")
+@pytest.mark.parametrize("template", list(TEMPLATES))
+def test_cover_letter_renders(template: str) -> None:
+    letter = copy.deepcopy(LETTER)
+    letter["highlights"] = [{"value": "40", "label": "payment services migrated to Kubernetes", "sourceIds": []},
+                            {"value": "22 teams", "label": "on the platform I designed", "sourceIds": []}]
+    html = render_letter_html(letter, template, own_theme(template), title="Cover letter")
     (pdf,), _ = render_all((html, {"Title": "Cover letter"}))
-    text = PdfReader(io.BytesIO(pdf.data)).pages[0].extract_text()
     assert pdf.pages == 1
-    for expected in ("October 6, 2026", "Priya Shah", "Re: Staff Platform Engineer", "Dear Priya Shah,",
-                     "Sincerely,"):
-        assert expected.lower() in text.lower(), expected
+    subject = "Re Staff Platform Engineer" if template == "vanguard" else "Re: Staff Platform Engineer"
+    stream, layout = flat_texts(pdf)
+    for flat in (stream, layout):
+        assert_in_order(flat, ["Jordan Rivera", "October 6, 2026", "Priya Shah", subject, "Dear Priya Shah,",
+                               "Globex is looking", "Thank you for your time", "Sincerely,"])
+        assert ("22 teams" in flat) == (template == "atlas")  # only a template with a sidebar shows highlights
+    if template == "atlas":
+        assert stream.index("22 teams") > stream.index("Sincerely,")  # the sidebar comes after the letter
+
+
+def test_initials() -> None:
+    assert [initials(n) for n in ("Jordan Rivera", "Ana María de la Cruz", "Prince", "", "  ")] == \
+        ["JR", "AC", "P", "", ""]
 
 
 # ---- the API ----------------------------------------------------------------------------------------------------
@@ -231,13 +333,23 @@ def test_preview_export_and_design(app: FastAPI, keyed_user: Api, example: dict[
     bad = keyed_user.put(f"/api/applications/{app_id}/design",
                          json={"template": "meridian", "theme": {"accent": "#FFFF00"}})
     assert bad.status_code == 422 and "too light" in bad.text
-    soon = keyed_user.put(f"/api/applications/{app_id}/design", json={"template": "atlas", "theme": {}})
-    assert soon.status_code == 422 and "isn't available yet" in soon.json()["detail"]
+    atlas = keyed_user.put(f"/api/applications/{app_id}/design", json={"template": "atlas", "theme": {}})
+    assert atlas.status_code == 200 and atlas.json()["template"] == "atlas"
+    unknown = keyed_user.put(f"/api/applications/{app_id}/design", json={"template": "comic", "theme": {}})
+    assert unknown.status_code == 422
 
 
 def test_template_catalog(app: FastAPI, keyed_user: Api) -> None:
     catalog = keyed_user.get("/api/templates").json()
     assert [t["key"] for t in catalog["templates"]] == ["meridian", "atlas", "ledger", "vanguard"]
-    assert [t["available"] for t in catalog["templates"]] == [True, False, False, False]
-    assert len(catalog["options"]["accents"]) == 8 and len(catalog["options"]["fonts"]) == 5
+    assert all(t["available"] for t in catalog["templates"])
+    assert [(t["ats"], t["defaultTheme"]["fonts"]) for t in catalog["templates"]] == [
+        ("Excellent", "inter"), ("Good", "plex"), ("Excellent", "garamond"), ("Very good", "source-sans")]
+    assert catalog["templates"][2]["defaultTheme"] == {"accent": "#7A1F3D", "fonts": "garamond", "contactIcons": False}
+    assert len(catalog["options"]["accents"]) == 8 and len(catalog["options"]["fonts"]) == 6
+    for t in catalog["templates"]:  # the gallery's thumbnails
+        image = keyed_user.get(t["thumbnailUrl"])
+        assert image.status_code == 200 and image.headers["content-type"] == "image/png"
+        assert image.content.startswith(b"\x89PNG") and "immutable" in image.headers["cache-control"]
+    assert keyed_user.get("/api/templates/comic/thumbnail.png").status_code == 404
     assert catalog["defaultTheme"]["paper"] == "letter" and catalog["defaultTemplate"] == "meridian"

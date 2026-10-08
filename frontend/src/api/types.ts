@@ -180,6 +180,13 @@ export interface LetterParagraph {
   warnings: ResumeWarning[];
 }
 
+export interface LetterHighlight {
+  value: string;
+  label: string;
+  sourceIds: string[];
+  warnings?: ResumeWarning[];
+}
+
 /** Shape of a CoverLetter document (DESIGN.md §7.4). */
 export interface CoverLetter {
   meta?: { generatedAt: string; model: string };
@@ -190,6 +197,8 @@ export interface CoverLetter {
   subject: string;
   salutation: string;
   paragraphs: LetterParagraph[];
+  /** Key numbers for a template with a sidebar (Atlas), each from cited bullets. */
+  highlights?: LetterHighlight[];
   closing: string;
   signature: string;
   analysis: { wordCount: number; warnings: ResumeWarning[]; notes?: { type: string; text: string }[]; audit?: AuditReport };
@@ -199,3 +208,5 @@ export type LetterOptions = S["CoverLetterOptions"];
 export type RefineResult = S["RefineOut"];
 export type LetterRefineResult = S["LetterRefineOut"];
 export type LetterStatus = ApplicationDetail["coverLetterStatus"];
+export type FitResult = S["FitOut"];
+export type RestoreResult = S["RestoreOut"];

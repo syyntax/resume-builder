@@ -283,3 +283,28 @@ def test_interrupted_letters_are_marked_failed(app: FastAPI, keyed_user: Api, ex
     assert app.state.test_portal.call(interrupt) == 1
     detail = keyed_user.get(f"/api/applications/{detail['id']}").json()
     assert detail["coverLetterStatus"] == "failed" and detail["coverLetterError"]["code"] == "interrupted"
+
+
+def test_letter_highlights_are_checked_and_editable(app: FastAPI, keyed_user: Api, example) -> None:
+    detail = application(app, keyed_user, example)
+    app_id, letter = detail["id"], copy.deepcopy(detail["coverLetter"])
+    highlights = letter["highlights"]
+    assert 1 <= len(highlights) <= 3 and all(h["sourceIds"] and h["warnings"] == [] for h in highlights)
+
+    highlights[0]["value"] = "97%"  # a number its sources don't have (G3)
+    highlights.append({"value": "12 teams", "label": "unsourced", "sourceIds": ["not-in-master"]})
+    saved = keyed_user.put(f"/api/applications/{app_id}/cover-letter", json={"document": letter}).json()["document"]
+    first, added = saved["highlights"][0], saved["highlights"][-1]
+    assert [w["code"] for w in first["warnings"]] == ["NUMBER_NOT_IN_SOURCE"]
+    assert added["sourceIds"] == [] and "NO_SOURCE" in [w["code"] for w in added["warnings"]]
+    assert {w["targetId"] for w in saved["analysis"]["warnings"]} >= {"highlight:0"}
+
+    too_long = copy.deepcopy(saved)
+    too_long["highlights"][0]["value"] = "x" * 30
+    assert keyed_user.put(f"/api/applications/{app_id}/cover-letter", json={"document": too_long}).status_code == 422
+    without_key = {k: v for k, v in saved.items() if k != "highlights"}  # an older client: kept as they were
+    kept = keyed_user.put(f"/api/applications/{app_id}/cover-letter", json={"document": without_key}).json()
+    assert len(kept["document"]["highlights"]) == len(saved["highlights"])
+    cleared = keyed_user.put(f"/api/applications/{app_id}/cover-letter",
+                             json={"document": {**saved, "highlights": []}}).json()
+    assert cleared["document"]["highlights"] == []

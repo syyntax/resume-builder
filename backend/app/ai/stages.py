@@ -18,6 +18,7 @@ from app.ai.import_schema import MasterImportDraft
 from app.ai.llm import Block, LLMClient, LLMError, LLMRequest, LLMResult
 from app.ai.schemas import (
     AuditResult,
+    CondenseDraft,
     JobAnalysis,
     LetterDraft,
     LetterRefineDraft,
@@ -228,6 +229,18 @@ async def refine_letter(llm: LLMClient, *, model: str, effort: str, master: dict
                          effort=effort, max_tokens=16_000)
     result = await llm.complete(request)
     return StageResult(_validate("letter_refine", LetterRefineDraft, result), result, task.tag)
+
+
+async def condense(llm: LLMClient, *, model: str, effort: str, items: list[dict[str, str]],
+                   goal: str) -> StageResult[CondenseDraft]:
+    """Stage F: shorten texts to fit the page, adding nothing (no master or posting prefix: it only rewords)."""
+    task = prompts.load("condense")
+    request = LLMRequest(stage="condense", model=model, system=prompts.load("condense_system").text,
+                         blocks=[Block(task.text.format(goal=goal, items=json.dumps(items, ensure_ascii=False,
+                                                                                    indent=1)))],
+                         schema=strict_schema(CondenseDraft), effort=effort, max_tokens=8_000)
+    result = await llm.complete(request)
+    return StageResult(_validate("condense", CondenseDraft, result), result, task.tag)
 
 
 async def audit(llm: LLMClient, *, model: str, effort: str, claims: list[dict[str, Any]]) -> StageResult[AuditResult]:

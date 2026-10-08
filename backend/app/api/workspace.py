@@ -3,11 +3,13 @@ AI refinements, generate or regenerate the letter, re-run the claim audit, and e
 
 from __future__ import annotations
 
+import copy
 import secrets
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import ValidationError
+from sqlalchemy import delete, select
 
 from app.ai import stages
 from app.ai.schemas import JobAnalysis
@@ -15,7 +17,7 @@ from app.api.applications import ApplicationRepository, _out, get_repo, start
 from app.auth.deps import current_user, get_settings
 from app.auth.sessions import AuthContext
 from app.config import Settings
-from app.db.models import Application, Document, JobPosting
+from app.db.models import Application, Document, DocumentRevision, JobPosting
 from app.db.types import utcnow
 from app.errors import ApiError
 from app.keys import service as keys
@@ -24,20 +26,25 @@ from app.models.api import (
     ApplicationOut,
     CoverLetterOptions,
     DocumentIn,
+    FitIn,
+    FitOut,
     LetterRefineIn,
     LetterRefineOut,
     RefineIn,
     RefineOut,
     RegenerateIn,
+    RestoreOut,
     SuggestedChange,
     SuggestedItem,
 )
 from app.pipeline import usage
-from app.pipeline.editing import normalize_resume
+from app.pipeline.editing import annotate_resume, normalize_resume
+from app.pipeline.fit import fit_resume, measure
 from app.pipeline.hydrate import MasterIndex
-from app.pipeline.letter import normalize_letter
+from app.pipeline.letter import annotate_letter, normalize_letter
 from app.pipeline.run import ACTIVE, Context, run_audit, run_letter
 from app.pipeline.validators import build_term_groups, check_text, source_text
+from app.render.service import render_letter_as, render_resume_as, stored_design
 
 router = APIRouter(prefix="/api/applications", tags=["workspace"])
 MAX_DOCUMENT_CHARS = 1_000_000
@@ -55,7 +62,7 @@ async def _context(request: Request, repo: ApplicationRepository, user: Any, app
 async def _refine_call(ctx: Context, stage: str, runner: Any) -> tuple[Any, float]:
     """One refine call: cap check, then the call with its usage recorded; returns the value and its cost."""
     await ctx.llm()
-    await ctx.ensure_cap("refine")
+    await ctx.ensure_cap("condense" if stage == "condense" else "refine")
     before = await usage.month_spend(ctx.db, ctx.user.id)
     result = await ctx.call(stage, runner)
     return result.value, round(await usage.month_spend(ctx.db, ctx.user.id) - before, 4)
@@ -380,3 +387,145 @@ async def duplicate(application_id: str, repo: ApplicationRepository = Depends(g
                                  error=document.error, updated_at=now))
     await repo.db.commit()
     return ApplicationOut(**_out(await repo.get(copy.id)))
+
+
+# ---- fit to page and undo (DESIGN.md §11.7, TPL-4) ---------------------------------------------------------------
+
+KEEP_REVISIONS = 10
+
+
+async def _snapshot(repo: ApplicationRepository, application: Application, document: Document, reason: str) -> str:
+    """Save the document and design as they are, to undo the change about to be made; keep the last few."""
+    revision = DocumentRevision(owner_id=repo.owner_id, document_id=document.id,
+                                content=copy.deepcopy(document.current),
+                                design={"template": application.template, "theme": application.theme}, reason=reason)
+    repo.db.add(revision)
+    await repo.db.flush()
+    keep = select(DocumentRevision.id).where(DocumentRevision.document_id == document.id).order_by(
+        DocumentRevision.created_at.desc(), DocumentRevision.id.desc()).limit(KEEP_REVISIONS)
+    await repo.db.execute(delete(DocumentRevision).where(DocumentRevision.document_id == document.id,
+                                                         DocumentRevision.id.not_in(keep)))
+    return revision.id
+
+
+def _page_target(application: Application, master: dict[str, Any], requested: int | None) -> int:
+    if requested:
+        return requested
+    limit = (application.options or {}).get("pageLimit") or (master.get("preferences") or {}).get("pageLimit")
+    if isinstance(limit, int):
+        return limit
+    return 2 if limit == "auto" and len(master.get("work") or []) >= 5 else 1
+
+
+def _with_design(document: dict[str, Any], template: str, theme: dict[str, Any]) -> dict[str, Any]:
+    return {**document, "meta": {**(document.get("meta") or {}), "template": template, "theme": theme}}
+
+
+@router.post("/{application_id}/resume/fit", response_model=FitOut)
+async def fit_resume_to_page(application_id: str, body: FitIn, request: Request,
+                             repo: ApplicationRepository = Depends(get_repo)) -> FitOut:
+    """Fit the résumé to its page target: tighter spacing, then narrower margins, then the fewest less relevant
+    bullets (never pinned, edited or your own). Saved at once, with a snapshot to undo it."""
+    application, job, version, _ = await repo.get(application_id)
+    document = await repo.resume(application_id)
+    if document is None or not document.current or application.status in ACTIVE:
+        raise ApiError(409, "This résumé can't be fitted right now.")
+    template, theme = stored_design(application.template, application.theme)
+    target = _page_target(application, version.content, body.target_pages)
+    info = {"company": job.company, "title": job.title}
+
+    async def render(resume: dict[str, Any], candidate: Any) -> Any:
+        return await render_resume_as(request.app, resume, info, template, candidate)
+
+    result = await fit_resume(render, document.current, version.content, template, theme, target)
+    revision_id = None
+    removed_text = []
+    if result.changed:
+        revision_id = await _snapshot(repo, application, document, "fit")
+        bullets = _bullets_by_id(document.current)
+        removed_text = [bullets[b][1]["text"] for b in result.removed if b in bullets]
+        resume = copy.deepcopy(result.document)
+        if result.removed:
+            annotate_resume(resume, version.content, JobAnalysis.model_validate(job.analysis))
+            application.coverage_score = resume["analysis"]["coverage"]["score"]
+        theme_json = result.theme.model_dump(mode="json", by_alias=True)
+        document.current, document.updated_at = _with_design(resume, template, theme_json), utcnow()
+        application.theme, application.updated_at = theme_json, utcnow()
+        await repo.db.commit()
+    return FitOut(fits=result.fits, pages=result.pages, room=result.room, changes=result.changes,
+                  removed=removed_text, document=document.current, template=template, theme=result.theme,
+                  revision_id=revision_id)
+
+
+@router.post("/{application_id}/cover-letter/fit", response_model=FitOut)
+async def fit_letter_to_page(application_id: str, request: Request, ctx_auth: AuthContext = Depends(current_user),
+                             repo: ApplicationRepository = Depends(get_repo)) -> FitOut:
+    """Fit the cover letter on one page by condensing its paragraphs (stage F), at most twice. The design is
+    shared with the résumé, so it isn't changed here."""
+    ctx = await _context(request, repo, ctx_auth.user, application_id)
+    document = await repo.letter(application_id)
+    if document is None or document.status != "ready" or not document.current:
+        raise ApiError(409, "There's no cover letter to fit.")
+    template, theme = stored_design(ctx.application.template, ctx.application.theme)
+    info = {"company": ctx.job.company, "title": ctx.job.title}
+    letter = copy.deepcopy(document.current)
+    current = measure(await render_letter_as(request.app, letter, info, template, theme), template, theme)
+    if current.pages <= 1:
+        return FitOut(fits=True, pages=1, room=False, changes=[], document=letter, template=template, theme=theme)
+
+    def words() -> int:
+        return sum(len(p["text"].split()) for p in letter.get("paragraphs") or [])
+
+    start, cost, llm = words(), 0.0, await ctx.llm()
+    for _ in range(2):
+        over = current.pages - 1 + current.fill  # pages past the first
+        percent = max(10, min(40, round(100 * over / (0.75 + over)) + 5))  # the body is about 3/4 of page 1
+        goal = f"Cut about {percent}% of the words in total, aiming for about {round(words() * (100 - percent) / 100)}."
+        items = [{"id": p["id"], "text": p["text"]} for p in letter.get("paragraphs") or []]
+        draft, spent = await _refine_call(ctx, "condense", lambda goal=goal, items=items: stages.condense(
+            llm, model=ctx.application.model, effort=ctx.settings.ai_effort_condense, items=items, goal=goal))
+        cost += spent
+        shorter = {i.target_id: i.text.strip() for i in draft.items if i.text.strip()}
+        for p in letter.get("paragraphs") or []:
+            if p["id"] in shorter and len(shorter[p["id"]]) < len(p["text"]):
+                p["text"] = p["aiText"] = shorter[p["id"]]
+                p["edited"] = False
+        current = measure(await render_letter_as(request.app, letter, info, template, theme), template, theme)
+        if current.pages <= 1:
+            break
+    annotate_letter(letter, ctx.master, ctx.analysis(), ctx.job.raw_text)
+    revision_id = await _snapshot(repo, ctx.application, document, "fit")
+    document.current, document.updated_at = letter, utcnow()
+    await repo.db.commit()
+    return FitOut(fits=current.pages <= 1, pages=current.pages, room=False, document=letter, template=template,
+                  theme=theme, changes=[f"Condensed the paragraphs from {start} to {words()} words"],
+                  revision_id=revision_id, cost_usd=round(cost, 4))
+
+
+@router.post("/{application_id}/revisions/{revision_id}/restore", response_model=RestoreOut)
+async def restore_revision(application_id: str, revision_id: str,
+                           repo: ApplicationRepository = Depends(get_repo)) -> RestoreOut:
+    """Undo an automatic change: the document, and the design, as they were before it."""
+    application = (await repo.get(application_id))[0]
+    found = (await repo.db.execute(select(DocumentRevision, Document).join(
+        Document, Document.id == DocumentRevision.document_id).where(
+        DocumentRevision.id == revision_id, DocumentRevision.owner_id == repo.owner_id,
+        Document.application_id == application_id))).first()
+    if found is None:
+        raise ApiError(404, "There's nothing to undo.")
+    revision, document = found
+    if application.status in ACTIVE:
+        raise ApiError(409, "Wait for this application to finish generating.")
+    design = revision.design or {}
+    template, theme = stored_design(design.get("template") or application.template,
+                                    design.get("theme") or application.theme)
+    theme_json = theme.model_dump(mode="json", by_alias=True)
+    application.template, application.theme, application.updated_at = template, theme_json, utcnow()
+    content = copy.deepcopy(revision.content)
+    if document.kind == "resume":
+        content = _with_design(content, template, theme_json)
+        application.coverage_score = ((content.get("analysis") or {}).get("coverage") or {}).get("score")
+    document.current, document.updated_at = content, utcnow()
+    await repo.db.delete(revision)
+    await repo.db.commit()
+    return RestoreOut(kind=document.kind, document=content, template=template, theme=theme)

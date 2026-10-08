@@ -2608,7 +2608,7 @@
           "applications"
         ],
         "summary": "Export Application",
-        "description": "Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only).",
+        "description": "Download the résumé or the cover letter as PDF, Word, Markdown, plain text or JSON, or the packet (the\ncover letter then the résumé, PDF only).",
         "operationId": "export_application_api_applications__application_id__export_get",
         "parameters": [
           {
@@ -2641,7 +2641,7 @@
             "required": false,
             "schema": {
               "type": "string",
-              "pattern": "^(md|json|pdf)$",
+              "pattern": "^(md|json|pdf|docx|txt)$",
               "default": "md",
               "title": "Format"
             }
@@ -3169,6 +3169,154 @@
         }
       }
     },
+    "/api/applications/{application_id}/resume/fit": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Fit Resume To Page",
+        "description": "Fit the résumé to its page target: tighter spacing, then narrower margins, then the fewest less relevant\nbullets (never pinned, edited or your own). Saved at once, with a snapshot to undo it.",
+        "operationId": "fit_resume_to_page_api_applications__application_id__resume_fit_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/cover-letter/fit": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Fit Letter To Page",
+        "description": "Fit the cover letter on one page by condensing its paragraphs (stage F), at most twice. The design is\nshared with the résumé, so it isn't changed here.",
+        "operationId": "fit_letter_to_page_api_applications__application_id__cover_letter_fit_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/revisions/{revision_id}/restore": {
+      "post": {
+        "tags": [
+          "workspace"
+        ],
+        "summary": "Restore Revision",
+        "description": "Undo an automatic change: the document, and the design, as they were before it.",
+        "operationId": "restore_revision_api_applications__application_id__revisions__revision_id__restore_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Revision Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoreOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/templates": {
       "get": {
         "tags": [
@@ -3183,6 +3331,42 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TemplatesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates/{key}/thumbnail.png": {
+      "get": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Thumbnail",
+        "description": "The sample résumé in this template, for the gallery.",
+        "operationId": "thumbnail_api_templates__key__thumbnail_png_get",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4192,6 +4376,103 @@
           "score"
         ],
         "title": "FidelityOut"
+      },
+      "FitIn": {
+        "properties": {
+          "targetPages": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Targetpages",
+            "description": "Pages to fit on; the application's page target if omitted (the letter: 1)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FitIn"
+      },
+      "FitOut": {
+        "properties": {
+          "fits": {
+            "type": "boolean",
+            "title": "Fits"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages",
+            "description": "Pages after fitting (or as it is, when nothing changed)."
+          },
+          "room": {
+            "type": "boolean",
+            "title": "Room",
+            "description": "The last page is less than 60% full: there's room to add something back."
+          },
+          "changes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changes",
+            "description": "What changed, in plain words; empty when nothing did."
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Removed",
+            "description": "The text of each bullet that was left out.",
+            "default": []
+          },
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          },
+          "revisionId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revisionid",
+            "description": "Restore it to undo the fit."
+          },
+          "costUsd": {
+            "type": "number",
+            "title": "Costusd",
+            "default": 0.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "fits",
+          "pages",
+          "room",
+          "changes",
+          "document",
+          "template",
+          "theme"
+        ],
+        "title": "FitOut"
       },
       "GenerationOptions": {
         "properties": {
@@ -5713,6 +5994,39 @@
         ],
         "title": "RegistrationInfoOut"
       },
+      "RestoreOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "resume",
+              "cover_letter"
+            ],
+            "title": "Kind"
+          },
+          "document": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Document"
+          },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "theme": {
+            "$ref": "#/components/schemas/Theme"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "document",
+          "template",
+          "theme"
+        ],
+        "title": "RestoreOut"
+      },
       "SessionOut": {
         "properties": {
           "id": {
@@ -6079,6 +6393,30 @@
         ],
         "title": "SystemSettingsOut"
       },
+      "TemplateDefaultsOut": {
+        "properties": {
+          "accent": {
+            "type": "string",
+            "title": "Accent"
+          },
+          "fonts": {
+            "type": "string",
+            "title": "Fonts"
+          },
+          "contactIcons": {
+            "type": "boolean",
+            "title": "Contacticons"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "accent",
+          "fonts",
+          "contactIcons"
+        ],
+        "title": "TemplateDefaultsOut"
+      },
       "TemplateOut": {
         "properties": {
           "key": {
@@ -6099,12 +6437,21 @@
           },
           "ats": {
             "type": "string",
-            "title": "Ats"
+            "title": "Ats",
+            "description": "How safely applicant tracking systems read it (TPL-5)."
           },
           "available": {
             "type": "boolean",
             "title": "Available",
             "description": "False for templates that arrive in a later release."
+          },
+          "thumbnailUrl": {
+            "type": "string",
+            "title": "Thumbnailurl"
+          },
+          "defaultTheme": {
+            "$ref": "#/components/schemas/TemplateDefaultsOut",
+            "description": "The template's own colors and fonts, applied when you switch to it; you can change them afterwards."
           }
         },
         "additionalProperties": false,
@@ -6115,7 +6462,9 @@
           "description",
           "layout",
           "ats",
-          "available"
+          "available",
+          "thumbnailUrl",
+          "defaultTheme"
         ],
         "title": "TemplateOut"
       },
@@ -6162,6 +6511,7 @@
               "inter",
               "plex",
               "source",
+              "source-sans",
               "garamond",
               "lato"
             ],

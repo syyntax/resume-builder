@@ -15,7 +15,7 @@ ACCENTS = {
 }
 MIN_CONTRAST = 4.5  # accent text on white, WCAG AA; also keeps it readable in grayscale print
 
-FontKey = Literal["inter", "plex", "source", "garamond", "lato"]
+FontKey = Literal["inter", "plex", "source", "source-sans", "garamond", "lato"]
 Density = Literal["comfortable", "balanced", "compact"]
 Paper = Literal["letter", "a4"]
 Margins = Literal["normal", "narrow"]
@@ -68,6 +68,9 @@ DENSITIES: dict[str, DensitySpec] = {
 }
 
 
+PageStyle = Literal["bar", "plain", "band", "sidebar"]
+
+
 @dataclass(frozen=True)
 class TemplateInfo:
     key: str
@@ -76,23 +79,42 @@ class TemplateInfo:
     layout: str
     ats: str
     available: bool
-    # page margins (top, sides, bottom) in inches, per margin option
+    # page margins (top, sides, bottom) in inches, per margin option. For "band" and "sidebar" pages the sides are
+    # padding inside the page, so the band or the sidebar's tint can run to the paper's edge.
     margins: dict[str, tuple[float, float, float]]
+    # bar: an accent bar across the top of page 1 (Meridian) · plain: nothing extra (Ledger) ·
+    # band: page 1 starts with a full-bleed header band (Vanguard) · sidebar: a tinted column on every page (Atlas)
+    page: PageStyle
+    accent: str  # the template's own accent and fonts, applied when you switch to it
+    fonts: FontKey
+    contact_icons: bool = True
+    pair_credentials: bool = True  # short certifications and education side by side
+    sidebar_width: float = 0.0  # inches
 
 
 TEMPLATES: dict[str, TemplateInfo] = {
     "meridian": TemplateInfo(
         "meridian", "Meridian", "Modern and crisp: a thin accent bar, a large name in the accent color, and "
         "small-caps section headings with a hairline rule.", "Single column", "Excellent", True,
-        {"normal": (0.55, 0.65, 0.5), "narrow": (0.42, 0.5, 0.42)},
+        {"normal": (0.55, 0.65, 0.5), "narrow": (0.42, 0.5, 0.42)}, "bar", ACCENTS["Navy"], "inter",
     ),
-    "atlas": TemplateInfo("atlas", "Atlas", "Eye-catching two-column layout with a tinted sidebar.",
-                          "Two columns", "Good", False, {"normal": (0.5, 0.5, 0.5), "narrow": (0.4, 0.4, 0.4)}),
-    "ledger": TemplateInfo("ledger", "Ledger", "Classic and editorial, with a centered serif header.",
-                           "Single column", "Excellent", False,
-                           {"normal": (0.6, 0.75, 0.55), "narrow": (0.45, 0.5, 0.45)}),
-    "vanguard": TemplateInfo("vanguard", "Vanguard", "Bold, with a full-width accent band and a label gutter.",
-                             "Single column", "Very good", False,
-                             {"normal": (0.5, 0.6, 0.5), "narrow": (0.4, 0.5, 0.4)}),
+    "atlas": TemplateInfo(
+        "atlas", "Atlas", "Eye-catching: a tinted sidebar holds your contact details, skills and credentials beside "
+        "a timeline of your experience. The experience comes first in the text, for applicant tracking systems.",
+        "Two columns", "Good", True, {"normal": (0.6, 0.5, 0.5), "narrow": (0.45, 0.42, 0.42)}, "sidebar",
+        ACCENTS["Teal"], "plex", pair_credentials=False, sidebar_width=2.5,
+    ),
+    "ledger": TemplateInfo(
+        "ledger", "Ledger", "Classic and editorial: a centered serif header, small-caps headings in the accent "
+        "color, and a double rule. Suits finance, law, government and academia.", "Single column", "Excellent",
+        True, {"normal": (0.48, 0.7, 0.46), "narrow": (0.4, 0.5, 0.4)}, "plain", ACCENTS["Burgundy"], "garamond",
+        contact_icons=False,
+    ),
+    "vanguard": TemplateInfo(
+        "vanguard", "Vanguard", "Bold: a full-width accent band with your name, and section labels in a left "
+        "gutter. Suits senior and leadership roles.", "Single column", "Very good", True,
+        {"normal": (0.46, 0.62, 0.45), "narrow": (0.4, 0.5, 0.4)}, "band", ACCENTS["Indigo"], "source-sans",
+        pair_credentials=False,
+    ),
 }
 DEFAULT_TEMPLATE = "meridian"

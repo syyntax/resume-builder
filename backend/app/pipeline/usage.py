@@ -21,6 +21,7 @@ KeySource = Literal["own", "shared"]
 STAGE_ESTIMATES = {
     "analyze": (14_000, 6_000), "tailor": (17_000, 12_000), "import": (15_000, 12_000), "letter": (18_000, 7_000),
     "audit": (6_000, 3_000), "refine": (16_000, 3_000),
+    "condense": (4_000, 2_000),
 }
 
 

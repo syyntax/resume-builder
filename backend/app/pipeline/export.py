@@ -103,3 +103,22 @@ def filename(resume: dict[str, Any], job: dict[str, Any], kind: str, ext: str) -
 
     parts = [slug((resume.get("basics") or {}).get("name")), slug(job.get("company")), slug(job.get("title")), kind]
     return "_".join(p for p in parts if p)[:150] + f".{ext}"
+
+
+def markdown_to_text(markdown: str) -> str:
+    """Plain text for pasting into an application form's fields (EXP-7): the Markdown export without its markup,
+    section headings in capitals."""
+    lines = []
+    for line in markdown.splitlines():
+        if line.startswith("## "):
+            line = line[3:].upper()
+        elif line.startswith(("# ", "### ")):
+            line = line.split(" ", 1)[1]
+        elif line.startswith("*") and line.endswith("*") and not line.startswith("**") and len(line) > 1:
+            line = line[1:-1]  # an italic meta line
+        line = line.replace("**", "")  # our own bold markers (the text's asterisks are escaped)
+        line = re.sub(r"\\(.)", r"\1", line)  # unescape
+        line = re.sub(r"\*\*(\S(?:.*?\S)?)\*\*", r"\1", line)  # the text's own **bold** and *italic*
+        line = re.sub(r"(?<![*\w])\*(\S(?:.*?\S)?)\*(?![*\w])", r"\1", line)
+        lines.append(line)
+    return "\n".join(lines).strip() + "\n"

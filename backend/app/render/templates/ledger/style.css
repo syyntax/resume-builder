@@ -1,0 +1,78 @@
+/* Ledger (DESIGN.md §11.2): classic and editorial. Ported from mockups/ledger.html.
+   The mockup's wide tracking on the name and headings is capped at .08em: wider, and text extractors (and ATS
+   parsers) read the letters as separate words (§11.8). Sizes are relative to --base-size. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  --ink: #1b1a1a; --text: #262424; --muted: #6b6467; --rule: color-mix(in srgb, var(--accent) 22%, #fff);
+  margin: 0; font-family: var(--font-body); font-size: var(--base-size); line-height: calc(var(--leading) - .02);
+  color: var(--text);
+  font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0;
+  -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
+}
+p, h1, h2, h3, dl, dd, ul, address { margin: 0; padding: 0; }
+ul { list-style: none; }
+address { font-style: normal; }
+a { color: inherit; text-decoration: none; }
+strong { font-weight: 600; color: var(--ink); }
+svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
+        stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- header ---------------------------------------------------------------------------------------- */
+header { text-align: center; }
+.name { font-family: var(--font-heading); font-size: 2.45em; line-height: 1.1; font-weight: 500;
+        letter-spacing: var(--caps-tracking); text-transform: uppercase; color: var(--ink); }
+.headline { margin-top: 3pt; font-size: 1.13em; font-style: italic; color: #4b4447; }
+.contact { display: flex; justify-content: center; flex-wrap: wrap; row-gap: 2pt; margin-top: calc(7pt * var(--space));
+           font-size: .93em; color: #3d3739; }
+.contact li { display: flex; align-items: center; gap: 4pt; }
+.contact li + li::before { content: "·"; margin: 0 3pt 0 7pt; font-weight: 600; color: var(--accent); }
+.contact .i { color: var(--accent); }
+.double-rule { margin-top: calc(9pt * var(--space)); height: 4px; border-top: 1px solid var(--accent);
+               border-bottom: 1px solid var(--accent); }
+
+/* ---- sections -------------------------------------------------------------------------------------- */
+section { margin-top: calc(9pt * var(--space)); }
+h2 { margin-bottom: calc(5pt * var(--space)); padding-bottom: 2pt; border-bottom: .75px solid var(--rule);
+     font-family: var(--font-heading); font-size: 1.14em; font-weight: 600; letter-spacing: var(--caps-tracking);
+     text-transform: uppercase; color: var(--accent); break-after: avoid; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 12pt; break-inside: avoid;
+       break-after: avoid; }
+h3 { font-weight: inherit; }
+.org { font-family: var(--font-heading); font-size: 1.22em; font-weight: 600; letter-spacing: .01em; color: var(--ink); }
+.place, .dates { font-size: .97em; font-style: italic; color: var(--muted); white-space: nowrap; }
+.title { font-style: italic; color: #3b3537; }
+h3 .title { font-family: var(--font-body); font-size: 1em; letter-spacing: 0; }
+.role + .role { margin-top: calc(7pt * var(--space)); }
+.bullets + .row { margin-top: calc(3pt * var(--space)); }
+.bullets { margin-top: calc(3pt * var(--space)); }
+/* The marker is a background (a positioned ::before would be extracted after the text, §11.8). */
+.bullets li { padding-left: 11pt; break-inside: avoid;
+              background: radial-gradient(circle, var(--accent) 0 1.6pt, transparent 1.75pt) no-repeat 0 .38em / 4pt 4pt; }
+.bullets li + li { margin-top: calc(2pt * var(--space)); }
+.earlier-section { margin-top: calc(7pt * var(--space)); }
+.earlier { font-size: .97em; color: var(--muted); }
+.earlier b { font-weight: 600; color: var(--ink); }
+
+.skills { display: grid; grid-template-columns: 1.6in 1fr; gap: calc(2pt * var(--space)) 10pt; }
+.skills dt { font-family: var(--font-heading); font-size: 1.14em; line-height: 1.25; font-weight: 600; color: var(--ink);
+             break-after: avoid; }
+.split { display: grid; grid-template-columns: 1.3fr 1fr; gap: 0 24pt; }
+.item { break-inside: avoid; }
+.item + .item { margin-top: calc(3pt * var(--space)); }
+.item-title { font-weight: 600; color: var(--ink); }
+.item i { color: var(--muted); }
+.note { margin-top: 1pt; }
+
+/* ---- cover letter ----------------------------------------------------------------------------------- */
+.letter-body { margin-top: 28pt; font-size: max(10.5pt, calc(var(--base-size) * 1.12)); line-height: 1.58; }
+.letter-body address { margin-top: 14pt; }
+.letter-body address b { font-weight: 600; color: var(--ink); }
+.letter-body .re { margin-top: 16pt; font-family: var(--font-heading); font-size: 1.04em; font-weight: 600;
+                   letter-spacing: var(--caps-tracking); text-transform: uppercase; color: var(--accent); }
+.letter-body .salutation { margin-top: 12pt; }
+.letter-body .paragraphs p { margin-top: 10pt; text-align: justify; hyphens: manual; }
+.letter-body .closing { margin-top: 18pt; break-before: avoid; }
+.letter-body .signature { margin-top: 18pt; font-family: var(--font-heading); font-size: 1.32em; letter-spacing: .04em;
+                          color: var(--ink); }

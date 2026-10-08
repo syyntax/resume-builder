@@ -31,11 +31,19 @@ from app.models.api import (
     MasterRef,
 )
 from app.pipeline import usage
-from app.pipeline.export import filename, to_markdown
+from app.pipeline.export import filename, markdown_to_text, to_markdown
 from app.pipeline.letter import to_markdown as letter_markdown
 from app.pipeline.run import ACTIVE, Phase, run_application
-from app.render.service import render_letter, render_packet, render_resume, stored_design
+from app.render.service import (
+    letter_metadata,
+    render_letter,
+    render_packet,
+    render_resume,
+    resume_metadata,
+    stored_design,
+)
 from app.render.theme import TEMPLATES
+from app.render.word import build_letter_docx, build_resume_docx
 from app.services import settings_store
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
@@ -253,6 +261,7 @@ async def _letter_or_409(repo: ApplicationRepository, application_id: str) -> di
 
 
 Doc = Literal["resume", "cover-letter", "packet"]
+DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 
 async def _render_doc(request: Request, repo: ApplicationRepository, application_id: str, doc: Doc) -> Any:
@@ -281,8 +290,8 @@ async def save_design(application_id: str, body: DesignIn,
     """Choose the template and theme (accent, fonts, density, paper, margins, date format, contact icons)."""
     template = TEMPLATES.get(body.template)
     if template is None or not template.available:
-        raise ApiError(422, f"The {body.template} template isn't available yet.",
-                       errors=[{"field": "template", "message": "not available"}])
+        raise ApiError(422, f"There's no {body.template} template.",
+                       errors=[{"field": "template", "message": "unknown template"}])
     application = (await repo.get(application_id))[0]
     theme = body.theme.model_dump(mode="json", by_alias=True)
     application.template, application.theme, application.updated_at = body.template, theme, utcnow()
@@ -296,9 +305,10 @@ async def save_design(application_id: str, body: DesignIn,
 
 @router.get("/{application_id}/export")
 async def export_application(request: Request, application_id: str, doc: Doc = "resume",
-                             format: str = Query("md", pattern="^(md|json|pdf)$"),
+                             format: str = Query("md", pattern="^(md|json|pdf|docx|txt)$"),
                              repo: ApplicationRepository = Depends(get_repo)) -> Response:
-    """Download the résumé, the cover letter, or the packet (cover letter then résumé, PDF only)."""
+    """Download the résumé or the cover letter as PDF, Word, Markdown, plain text or JSON, or the packet (the
+    cover letter then the résumé, PDF only)."""
     row, resume = await _resume_or_409(repo, application_id)
     job = {"company": row[1].company, "title": row[1].title}
     kind = {"resume": "Resume", "cover-letter": "Cover-Letter", "packet": "Application"}[doc]
@@ -310,9 +320,19 @@ async def export_application(request: Request, application_id: str, doc: Doc = "
     if doc == "packet":
         raise ApiError(422, "The application packet is available as PDF only.")
     content = resume if doc == "resume" else await _letter_or_409(repo, application_id)
+    headers = {"Content-Disposition": f'attachment; filename="{name}"'}
+    if format == "docx":
+        template, theme = stored_design(row[0].template, row[0].theme)
+        if doc == "resume":
+            data = await asyncio.to_thread(build_resume_docx, content, template, theme, resume_metadata(content, job))
+        else:
+            data = await asyncio.to_thread(build_letter_docx, content, template, theme, letter_metadata(content, job))
+        return Response(data, media_type=DOCX_TYPE, headers=headers)
     if format == "json":
         body, media = json.dumps(content, indent=2, ensure_ascii=False) + "\n", "application/json"
     else:
         body = to_markdown(content) if doc == "resume" else letter_markdown(content)
         media = "text/markdown; charset=utf-8"
-    return Response(body, media_type=media, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+        if format == "txt":
+            body, media = markdown_to_text(body), "text/plain; charset=utf-8"
+    return Response(body, media_type=media, headers=headers)

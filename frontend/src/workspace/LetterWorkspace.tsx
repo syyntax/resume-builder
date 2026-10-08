@@ -5,16 +5,16 @@
  */
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Download, Flag, Info, Plus, Redo2, RotateCcw, Sparkles, Trash2, Undo2 } from "lucide-react";
+import { Download, Flag, Info, Plus, Redo2, RotateCcw, Sparkles, Trash2, Undo2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { api, errorMessage } from "../api/client";
-import type { ApplicationDetail, CoverLetter, LetterOptions, LetterParagraph, LetterRefineResult, ParagraphRole } from "../api/types";
+import type { ApplicationDetail, CoverLetter, LetterHighlight, LetterOptions, LetterParagraph, LetterRefineResult, ParagraphRole } from "../api/types";
 import { Dialog } from "../components/Dialog";
 import { Alert, Badge, Button, Card, CardBody, CardHeader, Spinner, TextArea, TextField, cn, inputClass, linkButtonClass } from "../components/ui";
 import { useHistory, useUndoShortcuts } from "../editor/history";
 import { formatUsd } from "../lib/format";
-import { DesignDisclosure, PdfPreview } from "./preview";
+import { DesignDisclosure, FitBanner, PdfPreview, useFit } from "./preview";
 import { indexMaster, sourceTexts } from "./resumeOps";
 import { AutoTextArea, Diff, DragHandle, Popover, type QuickAction, RefineMenu, SaveIndicator, SortableList, Suggestion, Warnings, move, useAutosave } from "./shared";
 
@@ -126,6 +126,10 @@ function mergeSaved(local: CoverLetter, saved: CoverLetter): CoverLetter {
   const byId = new Map(saved.paragraphs.map((p) => [p.id, p]));
   return {
     ...local, analysis: saved.analysis,
+    highlights: local.highlights?.map((h, i) => {
+      const s = saved.highlights?.[i];
+      return s && s.value === h.value && s.label === h.label ? { ...h, warnings: s.warnings, sourceIds: s.sourceIds } : h;
+    }),
     paragraphs: local.paragraphs.map((p) => {
       const s = byId.get(p.id);
       return s && s.text === p.text ? { ...p, warnings: s.warnings, flags: s.flags, edited: s.edited, sourceIds: s.sourceIds } : p;
@@ -147,6 +151,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
     },
   });
   const letter = history.value;
+  const fit = useFit<CoverLetter>(application, "cover-letter", (fitted) => { history.reset(fitted); setRevision((r) => r + 1); });
   const index = useMemo(() => indexMaster(master), [master]);
   const [suggestions, setSuggestions] = useState<Record<string, LetterParagraph>>({});
   const [whole, setWhole] = useState<LetterRefineResult | null>(null);
@@ -194,6 +199,7 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
         </div>
         {save.issues.length > 0 && <Alert tone="error" title="Some edits couldn't be saved">{save.issues.map((i) => `${i.path ?? ""} ${i.message}`).join("; ")}</Alert>}
         {message && <Alert tone={message.tone}>{message.text}</Alert>}
+        <FitBanner fit={fit} />
 
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3 sm:grid-cols-3 dark:border-slate-800 dark:bg-slate-900">
           <input className={field} aria-label="Recipient name" placeholder="Recipient name" value={recipient.name ?? ""} onChange={(e) => setRecipient({ name: e.target.value })} />
@@ -257,10 +263,13 @@ function LetterEditor({ application, master, onRewrite }: { application: Applica
           Add a paragraph
         </Button>
         <input className={cn(field, "max-w-xs")} aria-label="Closing" value={letter.closing} onChange={(e) => update((l) => ({ ...l, closing: e.target.value }), "closing")} />
+        <Highlights highlights={letter.highlights ?? []} sidebar={application.template === "atlas"}
+          onChange={(highlights, group) => update((l) => ({ ...l, highlights }), group)} />
       </div>
 
       <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
-        <PdfPreview application={application} doc="cover-letter" revision={revision} pageLimit={1} />
+        <PdfPreview application={application} doc="cover-letter" revision={revision} pageLimit={1}
+          onFit={() => void fit.fit()} fitting={fit.busy === "fit"} fitDisabled={save.state !== "saved"} />
         <a href={`/api/applications/${application.id}/export?doc=packet&format=pdf`} className={linkButtonClass("secondary", "sm")}>
           <Download className="size-4" aria-hidden /> Application packet (letter + résumé)
         </a>
@@ -296,5 +305,43 @@ function ParagraphSources({ index, paragraph, onRevert }: { index: ReturnType<ty
         </div>
       )}
     </Popover>
+  );
+}
+
+
+/** The sidebar's key numbers (Atlas): each should come from a cited bullet, and numbers are checked like the text. */
+function Highlights({ highlights, sidebar, onChange }: { highlights: LetterHighlight[]; sidebar: boolean; onChange: (h: LetterHighlight[], group?: string) => void }) {
+  const set = (i: number, patch: Partial<LetterHighlight>) => onChange(highlights.map((h, j) => (j === i ? { ...h, ...patch } : h)), `highlight:${i}`);
+  const field = cn(inputClass, "py-1.5");
+  return (
+    <Card>
+      <CardHeader title="Sidebar highlights" description={sidebar ? "Key numbers beside the letter, in the Atlas template."
+        : "Key numbers for templates with a sidebar. Atlas shows them beside the letter; this template doesn't."} />
+      <CardBody className="space-y-2">
+        {highlights.length === 0 && <p className="text-sm text-slate-500">None yet.</p>}
+        {highlights.map((h, i) => (
+          // keyed by position: highlights have no ids, and are edited in place
+          <div key={i}>
+            <div className="flex items-center gap-2">
+              <div className="w-28 shrink-0">
+                <input className={field} aria-label={`Highlight ${i + 1} number`} value={h.value} maxLength={24} placeholder="40%"
+                  onChange={(e) => set(i, { value: e.target.value })} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <input className={field} aria-label={`Highlight ${i + 1} label`} value={h.label} maxLength={80} placeholder="What it measures"
+                  onChange={(e) => set(i, { label: e.target.value })} />
+              </div>
+              <button type="button" aria-label={`Remove highlight ${i + 1}`} onClick={() => onChange(highlights.filter((_, j) => j !== i))}
+                className="rounded p-1 text-slate-400 hover:text-red-600"><X className="size-4" aria-hidden /></button>
+            </div>
+            <Warnings warnings={h.warnings ?? []} className="mt-1" />
+          </div>
+        ))}
+        {highlights.length < 4 && (
+          <Button variant="ghost" size="sm" icon={<Plus className="size-3.5" aria-hidden />}
+            onClick={() => onChange([...highlights, { value: "", label: "", sourceIds: [] }])}>Add a highlight</Button>
+        )}
+      </CardBody>
+    </Card>
   );
 }

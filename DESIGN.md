@@ -958,17 +958,21 @@ Document JSON ──► serialize ──► .json
 
 ### 11.2 Templates
 
-Every template ships as a **matching set**: a résumé, a cover letter that reuses the same header, fonts, and accent, a DOCX builder for both, and a manifest. Templates share a semantic HTML skeleton (`<header>`, `<section>`, `<h2>`, `<ul>`) for ATS reading order and accessibility.
+Every template ships as a **matching set**: a résumé, a cover letter that reuses the same header, fonts, and accent, a DOCX layout for both, and a manifest. Templates share a semantic HTML skeleton (`<header>`, `<section>`, `<h2>`, `<ul>`) for ATS reading order and accessibility.
 
 ```
-templates/<name>/
-  manifest.json          # name, description, ATS label, supported options, default theme
-  resume.html.j2
-  cover_letter.html.j2
-  style.css              # shared by both documents
-  docx.py                # build_resume(), build_cover_letter()
-  thumbnail.png
+backend/app/render/
+  theme.py               # the manifests: name, description, ATS label, margins, page style, own accent and fonts
+  templates/<name>/
+    resume.html.j2
+    cover_letter.html.j2
+    style.css            # shared by both documents
+    thumbnail.png        # the sample résumé, for the gallery (make thumbnails)
+  word_kit.py            # the DOCX style kit
+  word.py                # each template's DOCX layout, from the same views as the HTML
 ```
+
+Each template has a **page style**: an accent bar across page 1 (Meridian), nothing extra (Ledger), a full-bleed header band on page 1 (Vanguard), or a tinted sidebar on every page (Atlas). For the band and the sidebar, the page's side margins are 0 and the content is padded instead, so the color runs to the paper's edge; the sidebar's tint fills the top and bottom margins with `@page` margin boxes. Switching to a template applies its own accent, fonts and contact-icon setting; everything else (paper, density, margins, dates) stays.
 
 | Template | Layout | Personality | Best for | ATS-safety |
 |---|---|---|---|---|
@@ -1011,7 +1015,7 @@ Static, high-fidelity mockups with sample data are in [`mockups/`](mockups/). Op
 | Option | Values |
 |---|---|
 | Accent color | A curated palette: Navy `#1F3A5F`, Teal `#0F766E`, Emerald `#047857`, Burgundy `#7A1F3D`, Indigo `#3730A3`, Copper `#B4532A`, Slate `#334155`, Graphite `#111827`. A custom hex value is also allowed after a contrast check. |
-| Font pairing | *Inter*, *IBM Plex Sans*, *Source Sans 3 / Source Serif 4*, *EB Garamond / Source Serif 4*, *Lato / Merriweather* (all OFL-licensed and bundled) |
+| Font pairing | *Inter*, *IBM Plex Sans*, *Source Sans 3 / Source Serif 4*, *Source Sans 3* (Vanguard's), *EB Garamond / Source Serif 4*, *Lato / Merriweather* (all OFL-licensed and bundled) |
 | Density | Comfortable, Balanced, Compact |
 | Paper | **US Letter (default)**, A4 |
 | Margins | Normal and Narrow, set per template (Meridian: 0.55 in top, 0.65 in sides, 0.5 in bottom; narrow 0.42 / 0.5 / 0.42 in) |
@@ -1033,22 +1037,23 @@ The cover letter inherits the résumé's theme unless it's overridden.
 ### 11.6 DOCX
 
 - A **shared style kit** defines named Word styles with the theme's colors: `Name`, `Headline`, `Contact`, `Section Heading`, `Role Title`, `Org`, `Dates`, `Bullet`, `Body`, `Letter Body`, `Recipient`, and `Signature`.
-- Fonts map to typefaces most recipients already have installed: Aptos or Calibri for the sans pairings, and Georgia or Cambria for the serif pairings.
+- Fonts map to typefaces most recipients already have installed: Calibri for the sans pairings and Georgia for the serif ones (the web fonts aren't embedded in Word files).
 - **Layout per template:**
   - **Meridian and Ledger** use tab stops to right-align dates.
-  - **Atlas** uses a borderless two-column table with a shaded sidebar cell.
-  - **Vanguard** uses a shaded header row.
-- Bullets use real Word numbering definitions. The parity target is "the same design language, slightly simplified." It's verified in Word, Google Docs, and LibreOffice.
+  - **Atlas** uses a borderless two-column table with a shaded sidebar cell. In a Word file the sidebar cell comes first, so it reads before the main column.
+  - **Vanguard** uses a shaded header row, then a borderless table with the section labels in a gutter column.
+- Bullets use real Word numbering definitions in the accent color. Headings carry outline levels; contact details are real links; pages 2 and later get a "Name · Page n of N" footer.
+- Word refuses a file whose property elements are out of schema order, so the kit inserts every element it writes by hand in schema order, and a test checks every part of every generated file.
+- The parity target is "the same design language, slightly simplified." Verified by converting every template's résumé and letter with LibreOffice; Word and Google Docs are still to check by hand.
 
 ### 11.7 Fit to page
 
-1. Render the document and measure the page count and how full the last page is.
-2. **Over the target:** step down the spacing, then the body size (minimum 9.5 pt), then the margins (minimum 0.5 in), re-rendering after each step.
-3. **Still over:**
-   - Résumé: drop the lowest-relevance unpinned bullets, respecting `minBulletsPerRecentRole`, or call **Condense** (stage F).
-   - Cover letter: always call Condense, because the letter must fit on one page.
-4. **Under the target:** if a one-page target leaves the page less than 60% full, offer to add back the highest-relevance excluded bullets.
-5. Show a summary of what changed, with a single **Undo** backed by a `document_revision` snapshot.
+1. Render the document and measure the page count and how full the last page is (from the PDF's text positions).
+2. **Résumé over the target:** step the density down (comfortable → balanced → compact; body text stays at 9.5 pt or more), then switch to narrow margins, re-rendering after each step.
+3. **Still over:** drop the fewest bullets that make it fit (a binary search over the removal order, one render per step). The order is lowest relevance first, then older roles, then later bullets in a role. Pinned, edited and user-written bullets never go, recent roles keep `minBulletsPerRecentRole` (2 by default) and older roles keep one. If even that can't fit, nothing changes and the user is told why. Shortening the wording is left to refine ("Tighter").
+4. **Cover letter:** the letter must fit on one page, and the design is shared with the résumé, so its paragraphs are condensed (stage F) instead, at most twice. The validators run on the result.
+5. **Under the target:** when the last page is less than 60% full, offer the Add-from-master drawer.
+6. Show a summary of what changed (and which bullets were left out), with a single **Undo** that restores the document and the design from a `document_revision` snapshot.
 
 ### 11.8 ATS checklist
 
@@ -1060,7 +1065,8 @@ These rules are enforced by templates and tests:
 - [x] Contact details in the body, not in headers or footers
 - [x] Standard bullet characters and no layout tables in single-column templates
 - [x] No ligatures (`fi` must extract as two letters, not `ﬁ`, or keyword matching fails)
-- [x] Heading letter-spacing of at most 0.08em: from about 0.12em, extractors read the gaps as spaces ("S U M M A R Y")
+- [x] Uppercase tracking of at most 0.08em, and 0.05em for EB Garamond: wider, and extractors read the gaps as spaces ("S U M M A R Y", "RIVER A" at a kerned pair). Set per font pairing (`--caps-tracking`) and tested with risky names and headings in every template.
+- [x] Two-column layouts put the main column first in the content stream; layout-based extractors still read the left column first, which is why Atlas is rated "Good"
 - [x] No positioned elements in the text flow: Chromium paints positioned boxes last, which moves their text to the end of the PDF's text stream (bullet markers are backgrounds)
 - [x] Consistent date formats
 - [x] Keyword coverage measured and shown
@@ -1193,11 +1199,13 @@ All endpoints live under `/api` and use JSON unless noted otherwise. OpenAPI doc
 | PUT | `/applications/{id}/cover-letter` | Save (autosave) `{document}` |
 | POST | `/applications/{id}/cover-letter/refine` | `{targetId?, instruction}`: one paragraph, or the whole letter; suggestions only |
 | POST | `/applications/{id}/audit` | Re-run the claim audit on the current résumé and letter; returns `202` |
-| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download. Implemented so far: the résumé and the letter as `pdf`, `md` and `json`, and the packet as `pdf`. |
+| POST | `/applications/{id}/resume/fit` · `/cover-letter/fit` | Fit to page (§11.7): `{targetPages?}` for the résumé. Saved at once; returns what changed and a `revisionId` |
+| POST | `/applications/{id}/revisions/{revisionId}/restore` | Undo a fit: the document and the design as they were |
+| GET | `/applications/{id}/export?doc=resume\|cover-letter\|packet&format=pdf\|docx\|md\|txt\|json` | Download. The packet is PDF only. |
 | GET | `/applications/{id}/preview.pdf?doc=…&rev=…` | Preview render: the same PDF as the export, with `X-Page-Count` |
 | PUT | `/applications/{id}/design` | `{template, theme}`: the template and theme options (§11.4) |
 | POST · DELETE | `/applications/{id}/duplicate` · `/applications/{id}` | |
-| GET | `/templates` | Templates (and which are available yet), theme options, and defaults |
+| GET | `/templates` · `/templates/{key}/thumbnail.png` | Templates with their ATS label, own colors and fonts, and thumbnail; theme options and defaults |
 | GET · PUT | `/preferences` | Per-user defaults |
 
 **Admin** (`require_admin`)
@@ -1355,7 +1363,7 @@ The image will be roughly 0.9–1.1 GB, most of it Chromium.
 | `AI_MAX_CONCURRENT_JOBS` | `4` | Across all users |
 | `PDF_RENDER_CONCURRENCY` | `2` | PDF renders at a time (one shared Chromium) |
 | `PDF_WARMUP` | `true` | Start Chromium at startup (in the background), so the first preview is fast |
-| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low` | `AI_EFFORT_ANALYZE`, `_TAILOR`, `_LETTER`, `_IMPORT`, `_REFINE`, `_AUDIT` |
+| `AI_EFFORT_*` | analyze `medium`, tailor `high`, letter `high`, import `high`, refine `medium`, audit `low`, condense `low` | `AI_EFFORT_ANALYZE`, `_TAILOR`, `_LETTER`, `_IMPORT`, `_REFINE`, `_AUDIT`, `_CONDENSE` |
 | `AI_PROVIDER` | `anthropic` | `fake` runs a deterministic offline stand-in model for tests and demos (never for real use) |
 | `AI_FAKE_DELAY_SECONDS` | `0` | With `AI_PROVIDER=fake`, wait this long per step, to demo the progress UI |
 | `APP_SECRET_KEY_PREVIOUS` | (empty) | Only while rotating `APP_SECRET_KEY` (see §8.6) |
@@ -1449,7 +1457,7 @@ resume-builder/
 | **M3: Import and master editor** ✅ | Stage I, sandboxed extraction, fidelity check, import review, structured master editor with a JSON tab | Import corpus: ≥ 95% fidelity, every flag visible in review |
 | **M4: Beautiful output** ✅ | Rendering, **Meridian** résumé and letter, PDF pool, PDF.js preview, PDF export | The preview matches the export, and the ATS checks pass |
 | **M5: Editing and cover letters** ✅ | Résumé editor, refine, stage C (letter) with options and paragraph editor, stage D (claim audit), G6 | All EDT-* and CVL-* Must requirements |
-| **M6: Formats and templates** | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
+| **M6: Formats and templates** ✅ | DOCX style kit and builders, **Atlas, Ledger, and Vanguard**, gallery, auto-fit, application packet | 4 templates × 2 documents in PDF and DOCX |
 | **M7: Hardening and polish** | MFA, optional SMTP (emailed resets, invites, verification), admin console (users, usage, audit, settings), account export and delete, history, merge, accessibility pass, security CI, evals | All Must and Should requirements done. Evals and security scans are clean. |
 
 ---
@@ -1496,6 +1504,17 @@ resume-builder/
 - **Fixed during verification:** the autosave started a new save whenever it merged the server's answer back into the editor, so it saved in a loop. Autosave now follows an edit counter that only your own changes (and undo/redo) advance; a test covers it. Number warnings now read "Mentions 4; 2,025 and 1,500,000" rather than "4, 2,025, 1,500,000".
 - **Testing:** 185 backend tests and 24 frontend tests, plus a browser walkthrough with the offline model (editing, autosave, refine and accept, provenance, Add from master, letter writing and editing, the Personalize flag, review-first mode and continue) and an API smoke test of every export, including the packet. The application page now loads on demand, which keeps the main bundle at 450 KB.
 - **Deferred:** auto-fit (`/resume/fit`, `/cover-letter/fit`) and its `document_revision` snapshots move to M6 with the other templates, as planned.
+
+### M6 notes (2026-10-07)
+
+- **Done:** TPL-2 (four templates with a thumbnail gallery), TPL-4 (fit to page), TPL-5 (ATS labels), EXP-2 and EXP-5 (Word for both documents), EXP-7 (plain text), and stage F (condense).
+  - **Templates:** Atlas, Ledger and Vanguard, each with a résumé and a matching letter, ported from the approved mockups. Each sample fits on one Letter page, as the mockups did. Atlas's letter shows two to four key numbers in its sidebar; they're checked like the text (G3) and can be edited in the letter workspace.
+  - **ATS findings:** the mockups' wide tracking (up to .2em) split names and headings in text extraction ("RIVER A"), so tracking is capped per font (EB Garamond needs .05em, the others hold at .08em), with a regression test. Positioned decorations (Atlas's timeline, Ledger's and Vanguard's bullet markers) are backgrounds, so the text stays in reading order.
+  - **Word:** a style kit (named styles in the theme's colors, real bullet numbering, outline levels, links, a page-2+ footer) and a layout per template. Converting each file with LibreOffice found two layout bugs, now fixed. Two adjacent tables merged into one, and "keep with next" on every gutter label kept Vanguard's rows together, pushing the content to page 2.
+  - **Fit to page:** as in §11.7, from a button that appears when the preview runs over its target, with a summary, the bullets left out, and Undo.
+- **Gallery:** the thumbnails are the sample résumé in each template, generated with `make thumbnails` and served with a content hash.
+- **Testing:** 218 backend tests and 27 frontend tests. The checklist tests (both extractors, fonts, tagging, metadata, links) run on every template. DOCX tests check styles, numbering, links, footer, page setup and schema order. API smoke test: all 40 exports (4 templates × 2 documents × 5 formats), plus fit and undo. Browser walkthrough with the offline model covered the gallery, switching templates, fit and undo, highlights, and the export menu.
+- **Not yet:** checking the Word files in Word and Google Docs (only LibreOffice so far); a per-letter design (the letter shares the résumé's); a two-column Word layout that keeps the main column first.
 
 ---
 

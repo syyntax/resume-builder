@@ -4,14 +4,15 @@ A self-hosted, multi-user web app that tailors a master résumé and writes a co
 posting with Claude, then exports polished PDF, DOCX, Markdown or JSON. See [DESIGN.md](DESIGN.md) for
 the full design and [mockups/](mockups/index.html) for the approved templates.
 
-**Status:** milestones M1 (accounts, master résumés), M2 (AI tailoring), M3 (résumé import and the master
-editor), M4 (the Meridian template and PDF export) and M5 (editing and cover letters) are built. Add your
-Anthropic API key under **Account → AI**, import your existing PDF or Word résumé (or upload JSON), review and
-edit it, then paste a job posting under **Applications** to get a tailored, fact-checked résumé and cover letter.
-Edit both side by side with a live PDF preview: rewrite or reorder lines, ask the AI for suggestions, see where
-every line came from, add back anything from your master, and let a second AI pass flag claims that overstate
-their sources. Download each as PDF, Markdown or JSON, or both as one application packet. Word export and the
-other three templates come in M6.
+**Status:** milestones M1 to M6 are built: accounts and master résumés, AI tailoring, résumé import and the
+master editor, PDF export, editing and cover letters, and all four templates with Word export. Add your Anthropic
+API key under **Account → AI**, import your existing PDF or Word résumé (or upload JSON), review and edit it,
+then paste a job posting under **Applications** to get a tailored, fact-checked résumé and cover letter. Edit both
+side by side with a live PDF preview: rewrite or reorder lines, ask the AI for suggestions, see where every line
+came from, and let a second AI pass flag claims that overstate their sources. Choose from four templates (Meridian,
+Atlas, Ledger, Vanguard), fit the résumé to its page target in one click, and download each document as PDF, Word,
+plain text, Markdown or JSON, or both as one application packet. M7 (MFA, email, admin and accessibility polish) is
+next.
 
 ## Run it
 
@@ -60,6 +61,7 @@ docker compose exec app resume-tailor keys rotate    # after changing APP_SECRET
 make dev     # hot-reloading backend on :8080 and Vite dev server on http://localhost:5173
 make test    # backend (pytest) and frontend (tsc + vitest), both in Docker
 make api-types   # after changing the API: regenerate schema/openapi.json and the frontend types
+make thumbnails  # after changing a template: regenerate the gallery thumbnails
 ```
 
 | Path | What |

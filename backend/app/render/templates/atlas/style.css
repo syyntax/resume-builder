@@ -1,0 +1,102 @@
+/* Atlas (DESIGN.md §11.2): two columns, a tinted sidebar. Ported from mockups/atlas.html.
+   The main column comes first in the document (reading order); the grid places the sidebar on the left. The
+   sidebar's tint is the page background (html.py), so it runs the full height of every page. Sizes are relative
+   to --base-size; spacing scales with --space. */
+
+*, *::before, *::after { box-sizing: border-box; }
+:root { --tint: color-mix(in srgb, var(--accent) 8%, #fff); --chip: color-mix(in srgb, var(--accent) 26%, #fff);
+        --line: color-mix(in srgb, var(--accent) 22%, #fff); }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  --ink: #0d1f1d; --text: #1f2a29; --muted: #5d6d6b;
+  margin: 0; font-family: var(--font-body); font-size: var(--base-size); line-height: calc(var(--leading) + .08);
+  color: var(--text);
+  font-variant-ligatures: none; font-feature-settings: "liga" 0, "clig" 0;
+  -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision;
+}
+p, h1, h2, h3, dl, dd, ul, address { margin: 0; padding: 0; }
+ul { list-style: none; }
+address { font-style: normal; }
+a { color: inherit; text-decoration: none; }
+strong { font-weight: 600; color: var(--ink); }
+svg.i { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
+        stroke-linecap: round; stroke-linejoin: round; }
+
+.columns { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); }
+main { grid-column: 2; grid-row: 1; padding: 0 var(--pad-x) 0 .42in; }
+aside { grid-column: 1; grid-row: 1; padding: 0 .3in 0 var(--pad-x); font-size: .89em; }
+
+/* ---- main column ------------------------------------------------------------------------------------- */
+.name { font-family: var(--font-heading); font-size: 2.8em; line-height: 1.04; font-weight: 700;
+        letter-spacing: -.02em; color: var(--ink); }
+.headline { margin-top: .45em; font-size: 1.15em; font-weight: 600; color: var(--accent); }
+.summary { margin-top: calc(11pt * var(--space)); color: #2b3a38; }
+
+main section { margin-top: calc(18pt * var(--space)); }
+/* Tracking stays at .08em or less, or extractors read the heading as separate letters (§11.8). */
+h2 { display: flex; align-items: center; gap: 7pt; margin-bottom: calc(8pt * var(--space));
+     font-family: var(--font-heading); font-size: .92em; font-weight: 700; letter-spacing: var(--caps-tracking);
+     text-transform: uppercase; color: var(--ink); break-after: avoid; }
+main h2::before { content: ""; flex: none; width: 14pt; height: 3pt; border-radius: 2pt; background: var(--accent); }
+
+/* The timeline's line and dots are backgrounds: positioned boxes would be painted (and extracted) out of order. */
+.timeline { background: linear-gradient(var(--line), var(--line)) no-repeat 3pt 6pt / 1.25pt calc(100% - 10pt); }
+.role { padding-left: 14pt; break-inside: auto;
+        background: radial-gradient(circle, #fff 0 2.1pt, var(--accent) 2.2pt 3.7pt, transparent 3.8pt) no-repeat 0 .2em / 7.6pt 7.6pt; }
+.role + .role { margin-top: calc(12pt * var(--space)); }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 10pt; break-inside: avoid;
+       break-after: avoid; }
+.title { font-family: var(--font-heading); font-size: 1.07em; font-weight: 600; color: var(--ink); }
+.title .aside { font-family: var(--font-body); font-weight: 400; color: var(--muted); }
+.dates { font-size: .86em; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.org { font-weight: 600; color: var(--accent); break-after: avoid; }
+.org .loc { font-weight: 400; color: var(--muted); }
+.org + .row, .bullets + .row { margin-top: calc(2pt * var(--space)); }
+.bullets { margin-top: calc(3pt * var(--space)); }
+.bullets li { padding-left: 10pt; break-inside: avoid;
+              background: linear-gradient(var(--accent), var(--accent)) no-repeat 0 .66em / 5pt 1.3pt; }
+.bullets li + li { margin-top: calc(3pt * var(--space)); }
+.project + .project { margin-top: calc(8pt * var(--space)); }
+.earlier { margin-top: calc(8pt * var(--space)); font-size: .89em; color: var(--muted); }
+.earlier b { font-weight: 600; color: var(--ink); }
+.item { break-inside: avoid; }
+.item + .item { margin-top: calc(5pt * var(--space)); }
+.item .title { font-size: 1em; }
+.meta { color: var(--muted); }
+.note { margin-top: 1pt; }
+
+/* ---- sidebar ------------------------------------------------------------------------------------------ */
+.monogram { width: .62in; height: .62in; border-radius: 50%; background: var(--accent); color: #fff;
+            display: grid; place-items: center; font-family: var(--font-heading); font-size: 1.65em; font-weight: 600; }
+aside section { margin-top: calc(16pt * var(--space)); }
+aside h2 { margin-bottom: calc(6pt * var(--space)); font-size: .92em; color: var(--accent); }
+.contact li { display: flex; align-items: flex-start; gap: 6pt; overflow-wrap: anywhere; }
+.contact li + li { margin-top: calc(4pt * var(--space)); }
+.contact .i { margin-top: .15em; color: var(--accent); }
+.group + .group { margin-top: calc(7pt * var(--space)); }
+.group-label { margin-bottom: 3pt; font-weight: 600; color: var(--ink); }
+.chips { display: flex; flex-wrap: wrap; gap: 3pt; }
+.chips li { padding: .5pt 6pt; border: 1px solid var(--chip); border-radius: 99px; background: #fff; font-size: .93em;
+            color: #1d3f3a; }
+.cred { break-inside: avoid; }
+.cred + .cred { margin-top: calc(6pt * var(--space)); }
+.cred-title { font-weight: 600; color: var(--ink); }
+
+/* ---- cover letter -------------------------------------------------------------------------------------- */
+.letter-body { margin-top: 22pt; padding-top: 16pt; border-top: 1px solid var(--line);
+               font-size: max(10.5pt, calc(var(--base-size) * 1.06)); line-height: 1.56; }
+.letter-body .date { color: var(--muted); }
+.letter-body address { margin-top: 12pt; }
+.letter-body address b { font-weight: 600; color: var(--ink); }
+.letter-body .re { margin-top: 14pt; font-size: .82em; font-weight: 700; letter-spacing: var(--caps-tracking);
+                   text-transform: uppercase; color: var(--accent); }
+.letter-body .salutation { margin-top: 11pt; }
+.letter-body .paragraphs p { margin-top: 9pt; }
+.letter-body .closing { margin-top: 14pt; break-before: avoid; }
+.letter-body .signature { margin-top: 14pt; font-family: var(--font-heading); font-size: 1.08em; font-weight: 600;
+                          color: var(--ink); }
+.stat { break-inside: avoid; }
+.stat + .stat { margin-top: 10pt; }
+.stat-value { font-family: var(--font-heading); font-size: 1.95em; line-height: 1.05; font-weight: 700;
+              letter-spacing: -.01em; color: var(--accent); }
+.stat p + p { margin-top: 1.5pt; color: #2b3a38; }

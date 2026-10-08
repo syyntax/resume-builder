@@ -3,7 +3,7 @@ NODE = docker run --rm -v "$(CURDIR)":/repo -v rt-fe-node-modules:/repo/frontend
        -v rt-pnpm-store:/pnpm-store -w /repo/frontend node:24-slim sh -c
 PNPM = corepack enable >/dev/null 2>&1; pnpm config set store-dir /pnpm-store >/dev/null;
 
-.PHONY: up down logs setup-token dev test test-backend test-frontend build api-types
+.PHONY: up down logs setup-token dev test test-backend test-frontend build api-types thumbnails
 
 up:            ## build and start the app at http://localhost:8080
 	docker compose up -d --build
@@ -32,3 +32,8 @@ test-frontend:
 api-types:     ## regenerate schema/openapi.json and frontend/src/api/schema.d.ts
 	docker run --rm -v "$(CURDIR)/schema":/schema resume-tailor:latest resume-tailor openapi --out /schema/openapi.json
 	$(NODE) '$(PNPM) pnpm gen:api'
+
+thumbnails:    ## after changing a template: regenerate the gallery thumbnails (backend/app/render/templates/*/thumbnail.png)
+	docker build --target test -t resume-tailor:test .
+	docker run --rm -v "$(CURDIR)/backend/app/render/templates":/app/app/render/templates resume-tailor:test \
+		python -m app.render.thumbnails

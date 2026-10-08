@@ -37,6 +37,9 @@ class Pairing:
     label: str
     heading: Family
     body: Family
+    # The most tracking uppercase headings can take before text extractors (and ATS parsers) split words at
+    # kerned pairs: EB Garamond's "LATVIA" breaks from .06em, the others hold at .08em (tested in test_render).
+    caps_tracking: float = 0.08
 
 
 # Fallbacks cover characters outside the bundled subsets (arrows, other scripts). The Liberation fonts ship in
@@ -55,7 +58,8 @@ PAIRINGS: dict[str, Pairing] = {
     "inter": Pairing("inter", "Inter", INTER, INTER),
     "plex": Pairing("plex", "IBM Plex Sans", PLEX, PLEX),
     "source": Pairing("source", "Source Sans 3 / Source Serif 4", SOURCE_SANS, SOURCE_SERIF),
-    "garamond": Pairing("garamond", "EB Garamond / Source Serif 4", GARAMOND, SOURCE_SERIF),
+    "source-sans": Pairing("source-sans", "Source Sans 3", SOURCE_SANS, SOURCE_SANS),
+    "garamond": Pairing("garamond", "EB Garamond / Source Serif 4", GARAMOND, SOURCE_SERIF, caps_tracking=0.05),
     "lato": Pairing("lato", "Lato / Merriweather", LATO, MERRIWEATHER),
 }
 

@@ -12,7 +12,7 @@ import type { ApplicationDetail, JobAnalysis, RefineResult, ResumeBullet, Resume
 import { Alert, Badge, Button, cn, inputClass } from "../components/ui";
 import { useHistory, useUndoShortcuts } from "../editor/history";
 import { formatPartialDate, formatUsd } from "../lib/format";
-import { DesignDisclosure, PdfPreview } from "./preview";
+import { DesignDisclosure, FitBanner, PdfPreview, useFit } from "./preview";
 import {
   type Candidate, type MasterIndex, WITH_BULLETS, addBullet, applyChange, candidates, indexMaster, itemTitle,
   mentions, mergeSaved, moveBullet, moveItem, moveSection, newBulletId, removeBullet, removeItem, removeSection, removeSkill,
@@ -56,6 +56,8 @@ export function ResumeWorkspace({ application, master }: Props) {
     },
   });
   const doc = history.value;
+  // Fit to page saves on the server: take its result as the new starting point (undo is the banner's Undo)
+  const fit = useFit<TailoredResume>(application, "resume", (fitted) => { history.reset(fitted); setRevision((r) => r + 1); });
   const index = useMemo(() => indexMaster(master), [master]);
   const analysis = application.analysis as unknown as JobAnalysis | null;
   const [suggestions, setSuggestions] = useState<Record<string, RefineResult["changes"][number]>>({});
@@ -111,6 +113,7 @@ export function ResumeWorkspace({ application, master }: Props) {
             <Button variant="secondary" size="sm" icon={<BookOpen className="size-4" aria-hidden />} onClick={() => setDrawer({ open: true, keyword: null })}>Add from master</Button>
           </div>
         </div>
+        <FitBanner fit={fit} onAddMore={() => setDrawer({ open: true, keyword: null })} />
         {save.issues.length > 0 && <Alert tone="error" title="Some edits couldn't be saved">{save.issues.map((i) => `${i.path ?? ""} ${i.message}`).join("; ")}</Alert>}
         {message && <Alert tone={message.tone}>{message.text}</Alert>}
 
@@ -161,7 +164,8 @@ export function ResumeWorkspace({ application, master }: Props) {
       </div>
 
       <aside className="space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-auto">
-        <PdfPreview application={application} doc="resume" revision={revision} pageLimit={application.options.pageLimit} />
+        <PdfPreview application={application} doc="resume" revision={revision} pageLimit={application.options.pageLimit}
+          onFit={() => void fit.fit()} fitting={fit.busy === "fit"} fitDisabled={save.state !== "saved"} />
         <DesignDisclosure application={application} />
         <Coverage resume={doc} onPick={(keyword) => setDrawer({ open: true, keyword })} />
       </aside>

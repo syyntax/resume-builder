@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     ai_effort_letter: Effort = "high"
     ai_effort_refine: Effort = "medium"
     ai_effort_audit: Effort = "low"
+    ai_effort_condense: Effort = "low"
     ai_claim_audit: bool = True  # stage D after each generation (TLR-8)
     # "fake" runs a deterministic offline model: for tests, demos and UI work. Never for real use.
     ai_provider: Literal["anthropic", "fake"] = "anthropic"

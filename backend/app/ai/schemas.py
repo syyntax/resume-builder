@@ -229,6 +229,18 @@ class LetterRefineDraft(_Out):
     notes: list[DraftNote]
 
 
+# ---- stage F: condense --------------------------------------------------------------------------------
+
+
+class CondensedText(_Out):
+    target_id: str
+    text: str
+
+
+class CondenseDraft(_Out):
+    items: list[CondensedText]
+
+
 # ---- stage D: claim audit -------------------------------------------------------------------------------
 
 

@@ -160,9 +160,15 @@ def _entry(kind: str, item: dict[str, Any], fmt: str) -> dict[str, Any]:
 
 
 _PAIRABLE = {"certifications", "education"}
+SIDEBAR = {"skills", "certifications", "education", "languages"}  # where a two-column template puts them
 
 
-def resume_view(resume: dict[str, Any], theme: Theme) -> dict[str, Any]:
+def initials(name: str) -> str:
+    words = [w for w in re.split(r"\s+", name.strip()) if w[:1].isalpha()]
+    return "".join(w[0].upper() for w in (words[:1] + words[1:][-1:]))
+
+
+def resume_view(resume: dict[str, Any], theme: Theme, *, pair: bool = True) -> dict[str, Any]:
     fmt = theme.date_format
     basics = resume.get("basics") or {}
     sections: list[dict[str, Any]] = []
@@ -182,28 +188,31 @@ def resume_view(resume: dict[str, Any], theme: Theme) -> dict[str, Any]:
                  "bullets": i.get("bullets") or []} for i in items]})
         elif kind == "skills":
             sections.append({"kind": kind, "title": title, "groups": [
-                {"name": g["name"], "text": ", ".join(s["display"] for s in g["items"])}
-                for g in section.get("groups") or []]})
+                {"name": g["name"], "text": ", ".join(s["display"] for s in g["items"]),
+                 "items": [s["display"] for s in g["items"]]} for g in section.get("groups") or []]})
         elif kind == "languages":
             sections.append({"kind": kind, "title": title, "text": " · ".join(
                 i.get("language", "") + (f" ({i['fluency']})" if i.get("fluency") else "") for i in items)})
         else:
             sections.append({"kind": "entries", "type": kind, "title": title,
                              "entries": [_entry(kind, i, fmt) for i in items]})
+    for section in sections:
+        section["side"] = section.get("type", section["kind"]) in SIDEBAR
 
     # Certifications and education side by side when they're next to each other and short (Meridian's split).
     paired: list[dict[str, Any]] = []
     for section in sections:
         previous = paired[-1] if paired else None
-        if (previous and previous.get("type") in _PAIRABLE and section.get("type") in _PAIRABLE
+        if (pair and previous and previous.get("type") in _PAIRABLE and section.get("type") in _PAIRABLE
                 and previous["kind"] == "entries" and len(previous["entries"]) <= 4 and len(section["entries"]) <= 4):
-            paired[-1] = {"kind": "split", "parts": [previous, section]}
+            paired[-1] = {"kind": "split", "parts": [previous, section], "side": False}
         else:
             paired.append(section)
 
     headline = (resume.get("headline") or {}).get("text") or basics.get("label") or ""
     return {
         "name": basics.get("name", ""),
+        "initials": initials(basics.get("name", "")),
         "headline": headline,
         "contact": contact_items(basics),
         "summary": (resume.get("summary") or {}).get("text") or "",
@@ -220,23 +229,57 @@ def _css_string(text: str) -> str:
     return f'"{escaped}"'
 
 
+def mix(hex_color: str, amount: float) -> str:
+    """The color mixed with white: amount 0 is white, 1 is the color."""
+    channels = (int(hex_color[i:i + 2], 16) for i in (1, 3, 5))
+    return "#" + "".join(f"{round(255 - (255 - c) * amount):02X}" for c in channels)
+
+
+def _chevron(color: str) -> str:
+    """A bullet marker as an SVG data URI (backgrounds keep the text in reading order). ``color`` is a validated hex."""
+    svg = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'><path d='M3.2 1.6 6.6 5 3.2 8.4' "
+           f"fill='none' stroke='{color}' stroke-width='1.9' stroke-linecap='square'/></svg>")
+    return 'url("data:image/svg+xml,' + svg.replace("#", "%23").replace("<", "%3C").replace(">", "%3E") + '")'
+
+
 def page_css(template: str, theme: Theme, footer_name: str) -> str:
-    top, sides, bottom = TEMPLATES[template].margins[theme.margins]
+    """Paper size, margins, the page-2+ footer, and the theme's CSS variables, for the template's page style."""
+    info = TEMPLATES[template]
+    top, sides, bottom = info.margins[theme.margins]
     pairing = PAIRINGS[theme.fonts]
     density = DENSITIES[theme.density]
-    size = density.size_pt
     accent = theme.accent
-    bar = "".join(f"@{box}{{content:\"\";background:{accent};}}" for box in
-                  ("top-left-corner", "top-left", "top-center", "top-right", "top-right-corner"))
+    bleed = info.page in ("band", "sidebar")  # the band or sidebar runs to the paper's edge: sides are padding
+    page_sides = 0 if bleed else sides
+    pad = f"padding-right:{sides}in;" if bleed else ""
     footer = (f'@bottom-right{{content:{_css_string(footer_name)} " \\B7  Page " counter(page) " of " '
-              f'counter(pages);font-family:{stack(pairing.body)};font-size:7.5pt;color:#64748b;}}')
-    return (
-        f"@page{{size:{_PAPER[theme.paper]};margin:{top}in {sides}in {bottom}in;{footer}}}\n"
-        f"@page :first{{margin-top:{ACCENT_BAR_PX}px;{bar}@bottom-right{{content:none;}}}}\n"
+              f'counter(pages);font-family:{stack(pairing.body)};font-size:7.5pt;color:#64748b;{pad}}}')
+    first_top = {"bar": f"calc({top}in - {ACCENT_BAR_PX}px)", "band": f"{top}in"}.get(info.page, "0px")
+    css = [f"@page{{size:{_PAPER[theme.paper]};margin:{top}in {page_sides}in {bottom}in;{footer}}}"]
+    if info.page == "bar":
+        bar = "".join(f"@{box}{{content:\"\";background:{accent};}}" for box in
+                      ("top-left-corner", "top-left", "top-center", "top-right", "top-right-corner"))
+        css.append(f"@page :first{{margin-top:{ACCENT_BAR_PX}px;{bar}@bottom-right{{content:none;}}}}")
+    elif info.page == "band":
+        css.append("@page :first{margin-top:0;@bottom-right{content:none;}}")
+    else:
+        css.append("@page :first{@bottom-right{content:none;}}")
+    if info.page == "sidebar":
+        # The sidebar's tint runs the full height of every page: the root background covers the page area, and
+        # margin boxes the top and bottom margins.
+        tint = mix(accent, 0.08)
+        strip = f"content:\"\";background:{tint};width:{info.sidebar_width}in;"
+        css[0] = css[0][:-1] + f"@top-left{{{strip}}}@bottom-left{{{strip}}}}}"
+        css.append(f"html{{background:linear-gradient(to right,{tint} {info.sidebar_width}in,#fff "
+                   f"{info.sidebar_width}in);}}")
+    css.append(
         f":root{{--accent:{accent};--font-heading:{stack(pairing.heading)};--font-body:{stack(pairing.body)};"
-        f"--base-size:{size}pt;--leading:{density.leading};--space:{density.space};"
-        f"--first-top:calc({top}in - {ACCENT_BAR_PX}px);}}\n"
+        f"--base-size:{density.size_pt}pt;--leading:{density.leading};--space:{density.space};"
+        f"--caps-tracking:{pairing.caps_tracking}em;"
+        f"--first-top:{first_top};--pad-x:{sides if bleed else 0}in;--sidebar:{info.sidebar_width}in;"
+        f"--chevron:{_chevron(accent)};}}"
     )
+    return "\n".join(css) + "\n"
 
 
 def _document(template: str, kind: str, context: dict[str, Any], theme: Theme, title: str, footer: str) -> str:
@@ -249,7 +292,7 @@ def _document(template: str, kind: str, context: dict[str, Any], theme: Theme, t
 
 
 def render_resume_html(resume: dict[str, Any], template: str, theme: Theme, *, title: str) -> str:
-    view = resume_view(resume, theme)
+    view = resume_view(resume, theme, pair=TEMPLATES[template].pair_credentials)
     return _document(template, "resume", {"view": view}, theme, title, view["name"])
 
 
@@ -259,8 +302,12 @@ def letter_view(letter: dict[str, Any], resume_basics: dict[str, Any] | None = N
     lines = [recipient.get(k) for k in ("name", "title", "company")] + list(recipient.get("address") or [])
     return {
         "name": sender.get("name", ""),
+        "initials": initials(sender.get("name", "")),
         "headline": sender.get("label") or "",
         "contact": contact_items(sender),
+        "company": recipient.get("company") or "",
+        "highlights": [{"value": h.get("value", ""), "label": h.get("label", "")}
+                       for h in (letter.get("highlights") or [])[:4] if h.get("value")],
         "date": long_date(letter["date"]) if letter.get("date") else "",
         "recipient": [line for line in lines if line],
         "subject": letter.get("subject") or "",

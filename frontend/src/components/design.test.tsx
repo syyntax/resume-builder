@@ -11,8 +11,12 @@ const theme: Theme = { accent: "#1F3A5F", fonts: "inter", density: "balanced", p
 
 const catalog: TemplateCatalog = {
   templates: [
-    { key: "meridian", label: "Meridian", description: "Modern", layout: "Single column", ats: "Excellent", available: true },
-    { key: "atlas", label: "Atlas", description: "Two columns", layout: "Two columns", ats: "Good", available: false },
+    { key: "meridian", label: "Meridian", description: "Modern", layout: "Single column", ats: "Excellent", available: true,
+      thumbnailUrl: "/api/templates/meridian/thumbnail.png", defaultTheme: { accent: "#1F3A5F", fonts: "inter", contactIcons: true } },
+    { key: "atlas", label: "Atlas", description: "Two columns", layout: "Two columns", ats: "Good", available: true,
+      thumbnailUrl: "/api/templates/atlas/thumbnail.png", defaultTheme: { accent: "#0F766E", fonts: "plex", contactIcons: true } },
+    { key: "vanguard", label: "Vanguard", description: "Bold", layout: "Single column", ats: "Very good", available: false,
+      thumbnailUrl: "/api/templates/vanguard/thumbnail.png", defaultTheme: { accent: "#3730A3", fonts: "source-sans", contactIcons: true } },
   ],
   options: {
     accents: [{ value: "#1F3A5F", label: "Navy" }, { value: "#0F766E", label: "Teal" }],
@@ -43,8 +47,15 @@ describe("DesignPanel", () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     renderPanel(onChange);
-    expect(await screen.findByRole("button", { name: /Atlas/ })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /Vanguard/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Meridian/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Atlas/ })).toHaveTextContent("ATS: good");
+
+    // switching template brings its colors and fonts, and keeps the rest
+    await user.click(screen.getByRole("button", { name: /Atlas/ }));
+    expect(onChange).toHaveBeenLastCalledWith("atlas", { ...theme, accent: "#0F766E", fonts: "plex" });
+    await user.click(screen.getByRole("button", { name: /Meridian/ }));  // already chosen: nothing changes
+    expect(onChange).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole("button", { name: "Teal" }));
     expect(onChange).toHaveBeenLastCalledWith("meridian", { ...theme, accent: "#0F766E" });

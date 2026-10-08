@@ -444,13 +444,22 @@ class DesignOut(CamelModel):
 # ---- templates (DESIGN.md §11.2–11.4) ------------------------------------------------------------------
 
 
+class TemplateDefaultsOut(CamelModel):
+    accent: str
+    fonts: str
+    contact_icons: bool
+
+
 class TemplateOut(CamelModel):
     key: str
     label: str
     description: str
     layout: str
-    ats: str
+    ats: str = Field(description="How safely applicant tracking systems read it (TPL-5).")
     available: bool = Field(description="False for templates that arrive in a later release.")
+    thumbnail_url: str
+    default_theme: TemplateDefaultsOut = Field(description="The template's own colors and fonts, applied when you "
+                                                           "switch to it; you can change them afterwards.")
 
 
 class OptionOut(CamelModel):
@@ -547,6 +556,31 @@ class AnalysisEditIn(CamelModel):
 
 class RegenerateIn(CamelModel):
     letter: bool = Field(default=False, description="Write the cover letter again too.")
+
+
+class FitIn(CamelModel):
+    target_pages: Annotated[int | None, Field(ge=1, le=3)] = Field(
+        default=None, description="Pages to fit on; the application's page target if omitted (the letter: 1).")
+
+
+class FitOut(CamelModel):
+    fits: bool
+    pages: int = Field(description="Pages after fitting (or as it is, when nothing changed).")
+    room: bool = Field(description="The last page is less than 60% full: there's room to add something back.")
+    changes: list[str] = Field(description="What changed, in plain words; empty when nothing did.")
+    removed: list[str] = Field(default=[], description="The text of each bullet that was left out.")
+    document: dict[str, Any]
+    template: str
+    theme: Theme
+    revision_id: str | None = Field(default=None, description="Restore it to undo the fit.")
+    cost_usd: float = 0.0
+
+
+class RestoreOut(CamelModel):
+    kind: Literal["resume", "cover_letter"]
+    document: dict[str, Any]
+    template: str
+    theme: Theme
 
 
 # ---- admin (AI) ------------------------------------------------------------------------------------------

@@ -1,14 +1,18 @@
-"""Sample documents for rendering tests: the content of the approved Meridian mockup (mockups/meridian.html)."""
+"""Sample documents with the content of the approved mockups: rendering tests and the template thumbnails."""
 
 from __future__ import annotations
 
 import copy
+import itertools
 from typing import Any
+
+_ids = itertools.count(1)
 
 
 def _bullets(*texts: str) -> list[dict[str, Any]]:
-    return [{"id": f"tb-{i}", "text": t, "sourceIds": [], "relevance": 4, "keywords": [], "origin": "ai",
-             "edited": False, "warnings": []} for i, t in enumerate(texts, start=1)]
+    """Bullets with ids unique across the document, as a generated résumé has."""
+    return [{"id": f"tb-{next(_ids)}", "text": t, "sourceIds": [], "relevance": 4, "keywords": [], "origin": "ai",
+             "edited": False, "warnings": []} for t in texts]
 
 
 RESUME: dict[str, Any] = {
@@ -102,6 +106,9 @@ def long_resume(roles: int = 8) -> dict[str, Any]:
     resume = copy.deepcopy(RESUME)
     experience = resume["sections"][0]["items"]
     for n in range(roles):
-        experience.append({**copy.deepcopy(experience[0]), "sourceId": f"extra-{n}", "company": f"Company {n}",
-                           "startDate": "2010-01", "endDate": "2012-01"})
+        role = {**copy.deepcopy(experience[0]), "sourceId": f"extra-{n}", "company": f"Company {n}",
+                "startDate": "2010-01", "endDate": "2012-01"}
+        for bullet in role["bullets"]:
+            bullet["id"] = f"{bullet['id']}-{n}"
+        experience.append(role)
     return resume

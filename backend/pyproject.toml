@@ -32,6 +32,7 @@ dev = [
     "jsonschema>=4.23",
     "fpdf2>=2.8",
     "pdfminer-six>=20250506",
+    "pypdfium2>=4.30",  # template thumbnails (python -m app.render.thumbnails)
 ]
 
 [project.scripts]

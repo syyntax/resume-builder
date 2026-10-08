@@ -35,7 +35,7 @@ section { margin-top: calc(13pt * var(--space)); }
 /* Tracking stays at .08em: from about .12em, PDF text extractors (and so ATS parsers) read the gaps as spaces
    and see "S U M M A R Y" instead of a section heading. */
 h2 { display: flex; align-items: center; gap: 9pt; margin-bottom: calc(6pt * var(--space));
-     font-family: var(--font-heading); font-size: .88em; font-weight: 700; letter-spacing: .08em;
+     font-family: var(--font-heading); font-size: .88em; font-weight: 700; letter-spacing: var(--caps-tracking);
      text-transform: uppercase; color: var(--accent); break-after: avoid; }
 h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
 
@@ -74,7 +74,7 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
 .letter-body .date { color: var(--muted); }
 .letter-body address { margin-top: 14pt; }
 .letter-body address b { font-weight: 600; color: var(--ink); }
-.letter-body .re { margin-top: 16pt; font-size: .8em; font-weight: 700; letter-spacing: .08em;
+.letter-body .re { margin-top: 16pt; font-size: .8em; font-weight: 700; letter-spacing: var(--caps-tracking);
                    text-transform: uppercase; color: var(--accent); }
 .letter-body .salutation { margin-top: 12pt; }
 .letter-body .paragraphs p { margin-top: 10pt; }

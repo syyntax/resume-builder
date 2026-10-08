@@ -44,19 +44,28 @@ export function DesignPanel({ template, theme, onChange, error }: {
       <div>
         <p className="mb-1.5 text-xs font-medium text-slate-600 dark:text-slate-400">Template</p>
         <div className="grid grid-cols-2 gap-2">
-          {templates.map((t) => (
-            <button key={t.key} type="button" disabled={!t.available} aria-pressed={t.key === template} title={t.description}
-              onClick={() => onChange(t.key, theme)}
-              className={cn("rounded-lg border px-3 py-2 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
-                t.key === template ? "border-brand-500 bg-brand-50 dark:bg-brand-900/40" : "border-slate-200 hover:border-slate-300 dark:border-slate-700")}>
-              <span className="flex items-center justify-between gap-2 font-medium text-slate-900 dark:text-slate-100">
-                {t.label}
-                {t.key === template ? <Check className="size-4 text-brand-600" aria-hidden /> : !t.available && <Badge>Soon</Badge>}
-              </span>
-              <span className="block text-xs text-slate-500">{t.layout} · ATS {t.ats.toLowerCase()}</span>
-            </button>
-          ))}
+          {templates.map((t) => {
+            const selected = t.key === template;
+            return (
+              <button key={t.key} type="button" disabled={!t.available} aria-pressed={selected} title={t.description}
+                // a template brings its own colors and fonts; the other options (paper, density…) stay
+                onClick={() => !selected && onChange(t.key, { ...theme, ...(t.defaultTheme as Partial<Theme>) })}
+                className={cn("group overflow-hidden rounded-lg border text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                  selected ? "border-brand-500 ring-1 ring-brand-500" : "border-slate-200 hover:border-slate-400 dark:border-slate-700")}>
+                <img src={t.thumbnailUrl} alt="" loading="lazy" className="aspect-[400/518] w-full border-b border-slate-100 bg-white object-cover object-top dark:border-slate-800" />
+                <span className="block px-2.5 py-2">
+                  <span className="flex items-center justify-between gap-2 font-medium text-slate-900 dark:text-slate-100">
+                    {t.label}
+                    {selected ? <Check className="size-4 text-brand-600" aria-hidden /> : !t.available && <Badge>Soon</Badge>}
+                  </span>
+                  <span className="block text-xs text-slate-500">{t.layout}</span>
+                  <span className="block text-xs text-slate-500">ATS: {t.ats.toLowerCase()}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
+        <p className="mt-1.5 text-xs text-slate-500">Each template brings its own colors and fonts. Change them below.</p>
       </div>
 
       <div>

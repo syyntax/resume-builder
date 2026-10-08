@@ -23,6 +23,7 @@ from app.pipeline.validators import build_term_groups, check_text, source_text
 ROLES = ("opening", "evidence", "motivation", "closing")
 SENDER_FIELDS = ("name", "label", "email", "phone", "url", "location", "profiles")
 MAX_PARAGRAPH = 3000
+MAX_HIGHLIGHTS = 4  # the sidebar's key numbers
 
 
 def salutation(recipient: dict[str, Any]) -> str:
@@ -108,6 +109,14 @@ def annotate_letter(letter: dict[str, Any], master: dict[str, Any], analysis: Jo
             found.append(result)
         p["warnings"], p["flags"] = found, flags
         warnings += [{"targetId": p["id"], **w} for w in found]
+    # The sidebar's key numbers (Atlas): each from cited bullets, so numeric fidelity applies (§11.2)
+    for i, h in enumerate(letter.get("highlights") or []):
+        found = check_text(f"{h.get('value', '')} {h.get('label', '')}",
+                           source_text(index, None, h.get("sourceIds") or []), groups)
+        if not h.get("sourceIds"):
+            found.append({"code": "NO_SOURCE", "message": "Doesn't cite anything from your master résumé."})
+        h["warnings"] = found
+        warnings += [{"targetId": f"highlight:{i}", **w} for w in found]
     report["warnings"] = warnings
     report["wordCount"] = sum(len(p["text"].split()) for p in letter.get("paragraphs") or [])
     return letter
@@ -157,13 +166,23 @@ def normalize_letter(edited: dict[str, Any], stored: dict[str, Any], master: dic
         })
     if not paragraphs:
         errors.append({"path": "paragraphs", "message": "a letter needs at least one paragraph"})
+    highlights = []
+    raw_highlights = edited["highlights"] if "highlights" in edited else stored.get("highlights")
+    for i, raw in enumerate((raw_highlights or [])[:MAX_HIGHLIGHTS]):
+        if not isinstance(raw, dict):
+            continue
+        value = text(raw.get("value"), 24, f"highlights[{i}].value")
+        label = text(raw.get("label"), 80, f"highlights[{i}].label")
+        if value:
+            highlights.append({"value": value, "label": label, "sourceIds": _valid_ids(index, raw.get("sourceIds")
+                                                                                       or [])})
     subject = text(edited.get("subject"), 200, "subject")
     greeting = text(edited.get("salutation"), 200, "salutation") or salutation(recipient)
     closing = text(edited.get("closing"), 100, "closing") or "Sincerely,"
     if errors:
         raise ApiError(422, "Some edits couldn't be saved.", errors=errors[:50])
     letter = {**stored, "recipient": recipient, "subject": subject, "salutation": greeting, "paragraphs": paragraphs,
-              "closing": closing, "sender": stored.get("sender") or sender_of(master, None),
+              "highlights": highlights, "closing": closing, "sender": stored.get("sender") or sender_of(master, None),
               "signature": (master.get("basics") or {}).get("name", "")}
     return annotate_letter(letter, master, analysis, posting)
 
